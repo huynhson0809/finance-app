@@ -18,6 +18,7 @@ export function BudgetBar({
           className={`h-3 rounded ${pct >= 100 ? 'bg-red-500' : 'bg-blue-500'}`}
           style={{ width: `${pct}%` }}
           role="progressbar"
+          aria-label={t('home.remaining')}
           aria-valuenow={pct}
           aria-valuemin={0}
           aria-valuemax={100}

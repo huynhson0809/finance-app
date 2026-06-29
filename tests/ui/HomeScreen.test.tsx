@@ -30,6 +30,9 @@ describe('HomeScreen', () => {
     await waitFor(() => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
+    // today total (210,000 VND from 6 transactions)
+    const headerDiv = document.querySelector('header .text-3xl');
+    expect(/210[.,]000/.test(headerDiv?.textContent ?? '')).toBe(true);
     // last 5 rows only
     const rows = await screen.findAllByRole('listitem');
     expect(rows.length).toBe(5);

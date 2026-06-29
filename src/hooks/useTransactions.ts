@@ -5,7 +5,9 @@ import type { Transaction } from '../types';
 export function useTransactions(limit?: number) {
   const [data, setData] = useState<Transaction[]>([]);
   const reload = useCallback(() => {
-    listTransactions({ limit }).then(setData);
+    listTransactions({ limit })
+      .then(setData)
+      .catch(err => console.error('useTransactions load failed', err));
   }, [limit]);
   useEffect(() => { reload(); }, [reload]);
   return { data, reload };
