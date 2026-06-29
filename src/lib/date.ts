@@ -1,3 +1,10 @@
+/** Returns ISO string for local midnight on the first day of the month containing `iso`. */
+export function monthStartISO(iso: string): string {
+  const d = new Date(iso);
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  return start.toISOString();
+}
+
 export function todayISO(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);

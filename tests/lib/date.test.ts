@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { todayISO, monthOf, isSameDay } from '../../src/lib/date';
+import { todayISO, monthOf, isSameDay, monthStartISO } from '../../src/lib/date';
 
 describe('date helpers', () => {
   it('monthOf extracts YYYY-MM', () => {
@@ -14,5 +14,16 @@ describe('date helpers', () => {
     const c = new Date(2026, 5, 30, 1, 0).toISOString();
     expect(isSameDay(a, b)).toBe(true);
     expect(isSameDay(a, c)).toBe(false);
+  });
+});
+
+describe('monthStartISO', () => {
+  it('returns first-of-month at local midnight', () => {
+    const sample = new Date(2026, 5, 29, 10, 0).toISOString(); // June 29, 2026
+    const start = new Date(monthStartISO(sample));
+    expect(start.getFullYear()).toBe(2026);
+    expect(start.getMonth()).toBe(5);
+    expect(start.getDate()).toBe(1);
+    expect(start.getHours()).toBe(0);
   });
 });

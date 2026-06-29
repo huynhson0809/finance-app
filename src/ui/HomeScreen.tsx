@@ -7,7 +7,7 @@ import { BudgetBar } from './components/BudgetBar';
 import { TransactionRow } from './components/TransactionRow';
 import { getTodayTotal, listTransactions } from '../db/transactions';
 import { formatVND } from '../lib/money';
-import { monthOf, todayISO } from '../lib/date';
+import { monthOf, monthStartISO, todayISO } from '../lib/date';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -22,7 +22,7 @@ export function HomeScreen() {
   // monthly spent for the bar
   const [monthSpent, setMonthSpent] = useState(0);
   useEffect(() => {
-    listTransactions({ sinceISO: `${month}-01T00:00:00.000Z` })
+    listTransactions({ sinceISO: monthStartISO(todayISO()) })
       .then(all => setMonthSpent(all.reduce((s, tx) => s + tx.amount, 0)));
   }, [recent, month]);
 
