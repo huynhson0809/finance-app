@@ -3,7 +3,10 @@ import { addTransaction, listTransactions, getTodayTotal } from '../../src/db/tr
 import { openFinanceDB } from '../../src/db';
 
 beforeEach(async () => {
-  indexedDB.deleteDatabase('finance-app');
+  await new Promise<void>(resolve => {
+    const req = indexedDB.deleteDatabase('finance-app');
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
   await openFinanceDB();
 });
 

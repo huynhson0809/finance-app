@@ -14,7 +14,8 @@
     "category": "Category",
     "note": "Note (optional)",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "settings": {
     "title": "Settings",

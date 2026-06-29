@@ -9,6 +9,13 @@ import { listTransactions } from '../../src/db/transactions';
 
 beforeAll(async () => { await initI18n(); });
 
+beforeEach(async () => {
+  await new Promise<void>(resolve => {
+    const req = indexedDB.deleteDatabase('finance-app');
+    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+  });
+});
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>

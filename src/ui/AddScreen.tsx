@@ -14,8 +14,10 @@ export function AddScreen() {
   const [category, setCategory] = useState<Category | null>(null);
 
   function handleKey(k: string) {
-    if (k === '⌫') setRaw(raw.slice(0, -1));
-    else setRaw((raw + k).slice(0, 12));
+    if (k === '⌫') { setRaw(raw.slice(0, -1)); return; }
+    const next = raw + k;
+    if (next.length > 12) return;
+    setRaw(next);
   }
 
   const amount = parseInt(raw || '0', 10);
@@ -23,12 +25,16 @@ export function AddScreen() {
 
   async function handleSave() {
     if (!amount || !category) return;
-    await addTransaction({
-      amount, currency: 'VND',
-      occurredAt: new Date().toISOString(),
-      category, source: 'manual',
-    });
-    navigate('/');
+    try {
+      await addTransaction({
+        amount, currency: 'VND',
+        occurredAt: new Date().toISOString(),
+        category, source: 'manual',
+      });
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to save transaction', err);
+    }
   }
 
   return (
