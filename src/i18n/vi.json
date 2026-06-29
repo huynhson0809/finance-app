@@ -1,0 +1,36 @@
+{
+  "app": { "title": "Quản lý chi tiêu" },
+  "nav": { "home": "Trang chủ", "add": "Thêm", "settings": "Cài đặt" },
+  "home": {
+    "todaySpend": "Chi hôm nay",
+    "remaining": "Còn lại trong tháng",
+    "lastTransactions": "Giao dịch gần đây",
+    "noBudget": "Chưa đặt ngân sách",
+    "empty": "Chưa có giao dịch nào"
+  },
+  "add": {
+    "title": "Thêm giao dịch",
+    "amount": "Số tiền",
+    "category": "Danh mục",
+    "note": "Ghi chú (tuỳ chọn)",
+    "save": "Lưu",
+    "cancel": "Huỷ"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "language": "Ngôn ngữ",
+    "monthlyBudget": "Ngân sách hàng tháng",
+    "save": "Lưu"
+  },
+  "category": {
+    "food-drinks": "Ăn uống",
+    "coffee-bubble-tea": "Cà phê & Trà sữa",
+    "transportation": "Đi lại",
+    "shopping": "Mua sắm",
+    "bills-utilities": "Hoá đơn & Tiện ích",
+    "healthcare": "Sức khoẻ",
+    "entertainment": "Giải trí",
+    "transfers-debt": "Chuyển khoản & Trả nợ",
+    "others": "Khác"
+  }
+}

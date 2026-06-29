@@ -1,0 +1,36 @@
+{
+  "app": { "title": "Finance" },
+  "nav": { "home": "Home", "add": "Add", "settings": "Settings" },
+  "home": {
+    "todaySpend": "Today's spend",
+    "remaining": "Remaining this month",
+    "lastTransactions": "Recent transactions",
+    "noBudget": "No budget set",
+    "empty": "No transactions yet"
+  },
+  "add": {
+    "title": "Add transaction",
+    "amount": "Amount",
+    "category": "Category",
+    "note": "Note (optional)",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "monthlyBudget": "Monthly budget",
+    "save": "Save"
+  },
+  "category": {
+    "food-drinks": "Food & Drinks",
+    "coffee-bubble-tea": "Coffee & Bubble Tea",
+    "transportation": "Transportation",
+    "shopping": "Shopping",
+    "bills-utilities": "Bills & Utilities",
+    "healthcare": "Healthcare",
+    "entertainment": "Entertainment",
+    "transfers-debt": "Transfers & Debt Repayment",
+    "others": "Others"
+  }
+}
