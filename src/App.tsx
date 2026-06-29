@@ -1,6 +1,17 @@
-import { useTranslation } from 'react-i18next';
+import { Routes, Route } from 'react-router-dom';
+import { Layout } from './ui/Layout';
+import { HomeScreen } from './ui/HomeScreen';
+import { AddScreen } from './ui/AddScreen';
+import { SettingsScreen } from './ui/SettingsScreen';
 
 export default function App() {
-  const { t } = useTranslation();
-  return <div className="p-4 text-xl">{t('app.title')}</div>;
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={<HomeScreen />} />
+        <Route path="add" element={<AddScreen />} />
+        <Route path="settings" element={<SettingsScreen />} />
+      </Route>
+    </Routes>
+  );
 }
