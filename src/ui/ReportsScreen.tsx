@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useReports } from '../hooks/useReports';
@@ -30,8 +30,7 @@ export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialMonth = searchParams.get('month') ?? monthOf(todayISO());
-  const [month, setMonth] = useState(initialMonth);
+  const month = searchParams.get('month') ?? monthOf(todayISO());
   const { sums, daily, anomalyHints, bStatus } = useReports(month);
 
   const pieData = useMemo(
@@ -48,7 +47,6 @@ export function ReportsScreen() {
 
   function step(direction: -1 | 1) {
     const next = direction === -1 ? prevMonth(month) : nextMonth(month);
-    setMonth(next);
     setSearchParams({ month: next });
   }
 
@@ -96,16 +94,21 @@ export function ReportsScreen() {
           {CATEGORIES.map(c => {
             const s = bStatus.perCategory[c];
             const barColor = s === 'over' ? 'bg-red-500'
-                           : s === 'warn' ? 'bg-amber-500' : 'bg-blue-500';
+                           : s === 'warn' ? 'bg-amber-500'
+                           : 'bg-blue-500';
+            const showBar = s === 'over' || s === 'warn';
+            const barWidth = s === 'over' ? '100%' : s === 'warn' ? '90%' : '0%';
             return (
               <li key={c}>
                 <div className="flex justify-between text-sm">
                   <span>{t(`category.${c}`)}</span>
                   <span>{formatVND(sums[c], locale)}</span>
                 </div>
-                <div className="h-1 bg-gray-200 rounded mt-1 overflow-hidden">
-                  <div className={`h-full ${barColor}`} style={{ width: '100%' }} />
-                </div>
+                {showBar && (
+                  <div className="h-1 bg-gray-200 rounded mt-1 overflow-hidden">
+                    <div className={`h-full ${barColor}`} style={{ width: barWidth }} />
+                  </div>
+                )}
               </li>
             );
           })}
