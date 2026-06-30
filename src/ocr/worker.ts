@@ -13,6 +13,9 @@ async function getWorker(): Promise<TesseractWorker> {
   workerPromise = (async () => {
     const Tesseract = await import('tesseract.js');
     const worker = await Tesseract.createWorker('vie', 1, {
+      workerPath: '/tesseract/worker.min.js',
+      corePath: '/tesseract/',
+      langPath: '/tesseract/',
       logger: (msg: { status?: string; progress?: number }) => {
         if (msg.status === 'recognizing text' && typeof msg.progress === 'number') {
           currentOnProgress?.(Math.round(msg.progress * 100));
