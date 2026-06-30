@@ -24,6 +24,7 @@
     "monthlyBudget": "Ngân sách hàng tháng",
     "save": "Lưu"
   },
+  "reports": { "noSpending": "Chưa có chi tiêu" },
   "category": {
     "food-drinks": "Ăn uống",
     "coffee-bubble-tea": "Cà phê & Trà sữa",

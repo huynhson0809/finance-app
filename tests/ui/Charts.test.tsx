@@ -1,0 +1,20 @@
+import { render, screen } from '@testing-library/react';
+import { CategoryPie } from '../../src/ui/components/Charts/CategoryPie';
+import { initI18n } from '../../src/i18n';
+
+beforeAll(async () => { await initI18n(); });
+
+it('shows empty state when all totals are 0', () => {
+  render(<CategoryPie data={[
+    { category: 'food-drinks', total: 0, label: 'Food', color: '#888' },
+  ]} />);
+  expect(screen.getByText(/no spending|chưa có chi tiêu/i)).toBeInTheDocument();
+});
+
+it('renders an svg when there is data', () => {
+  const { container } = render(<CategoryPie data={[
+    { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },
+    { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
+  ]} />);
+  expect(container.querySelector('svg')).toBeInTheDocument();
+});

@@ -24,6 +24,7 @@
     "monthlyBudget": "Monthly budget",
     "save": "Save"
   },
+  "reports": { "noSpending": "No spending this month" },
   "category": {
     "food-drinks": "Food & Drinks",
     "coffee-bubble-tea": "Coffee & Bubble Tea",
