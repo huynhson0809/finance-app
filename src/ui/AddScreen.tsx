@@ -18,7 +18,7 @@ export function AddScreen() {
   const [chosen, setChosen] = useState<Category | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
 
-  const { suggestion } = useCategorySuggestion(merchant);
+  const { suggestion, refresh } = useCategorySuggestion(merchant);
 
   // Track suggestion until the user explicitly picks a chip.
   useEffect(() => {
@@ -50,7 +50,10 @@ export function AddScreen() {
         category: chosen, source: 'manual',
       });
       const learned = shouldLearn(suggestion, chosen, merchant);
-      if (learned) await upsertLearnedRule(learned);
+      if (learned) {
+        await upsertLearnedRule(learned);
+        refresh();
+      }
       navigate('/');
     } catch (err) {
       console.error('Failed to save transaction', err);

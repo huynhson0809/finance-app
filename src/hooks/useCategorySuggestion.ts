@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { classify, SEED_RULES } from '../categorizer';
 import { getAllRules } from '../db/category-rules';
 import type { Category, CategoryRule } from '../types';
 
-export function useCategorySuggestion(merchant: string): { suggestion: Category | null } {
+export function useCategorySuggestion(merchant: string): {
+  suggestion: Category | null;
+  refresh: () => void;
+} {
   const [learned, setLearned] = useState<CategoryRule[]>([]);
   const [debouncedMerchant, setDebouncedMerchant] = useState(merchant);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     getAllRules()
       .then(setLearned)
       .catch(err => console.error('useCategorySuggestion: failed to load rules', err));
   }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedMerchant(merchant), 150);
@@ -28,5 +33,5 @@ export function useCategorySuggestion(merchant: string): { suggestion: Category 
     }
   }, [debouncedMerchant, rules]);
 
-  return { suggestion };
+  return { suggestion, refresh };
 }

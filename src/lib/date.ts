@@ -38,3 +38,8 @@ export function monthRangeISO(monthISO: string): { sinceISO: string; untilISO: s
   const until = new Date(y, m, 1, 0, 0, 0, 0);
   return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
 }
+
+export function nextMonth(monthISO: string): string {
+  const [y, m] = monthISO.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+}

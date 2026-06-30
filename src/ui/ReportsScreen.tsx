@@ -5,7 +5,7 @@ import { useReports } from '../hooks/useReports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
-import { monthOf, todayISO, prevMonth } from '../lib/date';
+import { monthOf, todayISO, prevMonth, nextMonth } from '../lib/date';
 import { CATEGORIES, type Category } from '../types';
 import { formatVND } from '../lib/money';
 
@@ -21,16 +21,16 @@ const CHART_COLORS: Record<Category, string> = {
   'others': '#9ca3af',
 };
 
-function nextMonth(monthISO: string): string {
-  const [y, m] = monthISO.split('-').map(Number);
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+function safeMonth(value: string | null): string {
+  return value && VALID_MONTH.test(value) ? value : monthOf(todayISO());
 }
 
 export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
-  const month = searchParams.get('month') ?? monthOf(todayISO());
+  const month = safeMonth(searchParams.get('month'));
   const { sums, daily, anomalyHints, bStatus } = useReports(month);
 
   const pieData = useMemo(
@@ -80,7 +80,7 @@ export function ReportsScreen() {
               <li key={h.category} className="text-sm">
                 {t('reports.anomalyLine', {
                   category: t(`category.${h.category}`),
-                  pct: Math.round(h.deltaPct * 100),
+                  pct: Math.min(Math.round(h.deltaPct * 100), 999),
                 })}
               </li>
             ))}

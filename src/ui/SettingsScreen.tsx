@@ -23,10 +23,10 @@ export function SettingsScreen() {
   async function handleLocale(l: Locale) { await setLocale(l); }
 
   async function handleSaveBudget() {
-    const t = parseVNDInput(raw);
-    if (Number.isNaN(t) || t <= 0) return;
-    await upsertBudget(month, t, caps);
-    setTotal(t);
+    const parsed = parseVNDInput(raw);
+    if (Number.isNaN(parsed) || parsed <= 0) return;
+    await upsertBudget(month, parsed, caps);
+    setTotal(parsed);
   }
 
   return (
