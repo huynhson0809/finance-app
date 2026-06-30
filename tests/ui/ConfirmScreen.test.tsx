@@ -85,4 +85,25 @@ describe('ConfirmScreen', () => {
       expect(all[0].amount).toBe(50000);
     });
   });
+
+  it('suggests category based on OCR note keyword (shopee in transfer memo)', async () => {
+    // OCR text contains "shopee" in the transfer memo line.
+    // Merchant alone (NGUYEN MINH TUAN) wouldn't match any seed; the OCR text does.
+    mountWithImage([
+      '13:24',
+      'Chuyển tiền thành công',
+      '157,000 VND',
+      '13:24 - 16/06/2026',
+      'NGUYEN MINH TUAN',
+      'VPBank (VPB)',
+      '290192471',
+      'HUYNH NGOC SON chuyen tien hang shopee 6/19 do son',
+      'Cảm ơn bạn đã sử dụng dịch vụ của MBBank',
+    ].join('\n'));
+    await waitFor(() => {
+      // Shopping chip should be selected (aria-pressed=true) once OCR completes + categorizer settles
+      const chip = screen.getByRole('button', { name: /shopping|mua sắm/i });
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+    }, { timeout: 1500 });
+  });
 });

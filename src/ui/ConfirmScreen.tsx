@@ -55,7 +55,11 @@ export function ConfirmScreen() {
   const [occurredAt, setOccurredAt] = useState('');
   const [chosen, setChosen] = useState<Category | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
-  const { suggestion } = useCategorySuggestion(merchant);
+  const searchText = useMemo(
+    () => [merchant, text ?? ''].filter(Boolean).join(' '),
+    [merchant, text],
+  );
+  const { suggestion } = useCategorySuggestion(searchText);
 
   // pre-fill on extraction
   useEffect(() => {
