@@ -10,6 +10,7 @@ export function CategoryChips({
       {CATEGORIES.map(c => (
         <button key={c}
           type="button"
+          aria-pressed={value === c}
           onClick={() => onSelect(c)}
           className={`px-3 py-2 rounded-full border text-sm ${value === c ? 'bg-blue-600 text-white' : 'bg-white'}`}
         >{t(`category.${c}`)}</button>

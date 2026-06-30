@@ -51,6 +51,7 @@ export interface CategoryRule {
   category: Category;
   weight: number;
   learned: boolean;
+  createdAt: string; // ISO 8601 — new in Phase 2
 }
 
 export interface Setting<T = unknown> {

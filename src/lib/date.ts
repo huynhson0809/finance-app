@@ -24,3 +24,22 @@ export function isSameDay(a: string, b: string): boolean {
     da.getDate() === db.getDate()
   );
 }
+
+export function prevMonth(monthISO: string): string {
+  const [y, m] = monthISO.split('-').map(Number);
+  if (m === 1) return `${y - 1}-12`;
+  return `${y}-${String(m - 1).padStart(2, '0')}`;
+}
+
+/** Returns ISO strings for local midnight at the start and end of the given month (YYYY-MM). */
+export function monthRangeISO(monthISO: string): { sinceISO: string; untilISO: string } {
+  const [y, m] = monthISO.split('-').map(Number);
+  const since = new Date(y, m - 1, 1, 0, 0, 0, 0);
+  const until = new Date(y, m, 1, 0, 0, 0, 0);
+  return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
+}
+
+export function nextMonth(monthISO: string): string {
+  const [y, m] = monthISO.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+}

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HomeScreen } from '../../src/ui/HomeScreen';
@@ -6,6 +6,7 @@ import { initI18n } from '../../src/i18n';
 import { addTransaction } from '../../src/db/transactions';
 import { upsertBudget } from '../../src/db/budgets';
 import { monthOf, todayISO } from '../../src/lib/date';
+import { __resetDBForTests } from '../../src/db';
 
 beforeAll(async () => { await initI18n(); });
 
@@ -14,6 +15,19 @@ beforeEach(async () => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
   });
+});
+
+it('renders BudgetAlert banner when overall budget is exceeded', async () => {
+  await __resetDBForTests();
+  await upsertBudget(monthOf(todayISO()), 1000);
+  await addTransaction({
+    amount: 1500, currency: 'VND',
+    occurredAt: new Date().toISOString(),
+    category: 'food-drinks', source: 'manual',
+  });
+  render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+  await waitFor(() => screen.getByRole('alert'));
+  expect(screen.getByRole('alert')).toHaveTextContent(/over budget|vượt ngân sách/i);
 });
 
 describe('HomeScreen', () => {

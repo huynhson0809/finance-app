@@ -1,9 +1,10 @@
 {
   "app": { "title": "Finance" },
-  "nav": { "home": "Home", "add": "Add", "settings": "Settings" },
+  "nav": { "home": "Home", "add": "Add", "reports": "Reports", "settings": "Settings" },
   "home": {
     "todaySpend": "Today's spend",
     "remaining": "Remaining this month",
+    "budgetUsed": "Monthly budget used",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
     "empty": "No transactions yet"
@@ -13,15 +14,40 @@
     "amount": "Amount",
     "category": "Category",
     "note": "Note (optional)",
+    "merchant": "Merchant (optional)",
     "save": "Save",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "byImage": "Add by image"
   },
   "settings": {
     "title": "Settings",
     "language": "Language",
     "monthlyBudget": "Monthly budget",
-    "save": "Save"
+    "save": "Save",
+    "caps": {
+      "expand": "Set per-category caps (optional)",
+      "collapse": "Hide per-category caps"
+    }
+  },
+  "alerts": {
+    "title": "Over budget",
+    "overall": "Total spending exceeds the monthly budget",
+    "categories": "Categories over their cap",
+    "dismiss": "Dismiss"
+  },
+  "reports": {
+    "noSpending": "No spending this month",
+    "byCategory": "By category",
+    "anomalies": "Anomalies",
+    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
+  },
+  "confirm": {
+    "title": "Confirm transaction",
+    "reading": "Reading image…",
+    "failed": "Could not read image. Enter manually.",
+    "tryAgain": "Try again",
+    "date": "Date & time"
   },
   "category": {
     "food-drinks": "Food & Drinks",
@@ -33,5 +59,30 @@
     "entertainment": "Entertainment",
     "transfers-debt": "Transfers & Debt Repayment",
     "others": "Others"
+  },
+  "pwa": {
+    "updateAvailable": "A new version is available",
+    "refresh": "Refresh",
+    "dismiss": "Dismiss"
+  },
+  "offline": {
+    "banner": "Offline — your saved data still works"
+  },
+  "install": {
+    "message": "Install to your home screen for quicker access",
+    "cta": "Install",
+    "dismiss": "Dismiss"
+  },
+  "backup": {
+    "title": "Backup & restore",
+    "export": "Export backup",
+    "import": "Restore from file",
+    "confirmReplace": "This will erase all current data and replace it with the backup file. Continue?",
+    "imported": "Restored",
+    "importFailed": "Restore failed — check the file",
+    "exportFailed": "Export failed — try again",
+    "reminderMessage": "It's been over 30 days since your last backup",
+    "reminderCta": "Backup now",
+    "dismiss": "Dismiss"
   }
 }
