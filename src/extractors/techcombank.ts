@@ -4,6 +4,10 @@ const AMOUNT_RE = /-?\s*([0-9.]+)\s*(?:VND|đ|d)/i;
 const MERCHANT_RE = /Diem\s*den\s*:?\s*(.+)/i;
 const DATE_RE = /(\d{2})[\/.\-](\d{2})[\/.\-](\d{4})(?:\s+(\d{2}):(\d{2}))?/;
 
+function stripDiacritics(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
 function parseAmount(raw: string): number | undefined {
   const digits = raw.replace(/[.\s]/g, '');
   const n = Number.parseInt(digits, 10);
@@ -19,7 +23,7 @@ export function extractTechcombank(text: string): Partial<Extracted> {
     if (parsed != null) out.amount = parsed;
   }
 
-  const merchantMatch = text.match(MERCHANT_RE);
+  const merchantMatch = stripDiacritics(text).match(MERCHANT_RE);
   if (merchantMatch) out.merchant = merchantMatch[1].trim();
 
   const dateMatch = text.match(DATE_RE);

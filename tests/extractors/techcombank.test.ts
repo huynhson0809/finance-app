@@ -23,4 +23,13 @@ describe('extractTechcombank', () => {
   it('returns empty object for unrelated text', () => {
     expect(extractTechcombank('Hello world')).toEqual({});
   });
+  it('extracts merchant from diacritic-form "Điểm đến" line', () => {
+    const text = [
+      'Techcombank Mobile',
+      'Thanh toan QR: -120.000d',
+      'Điểm đến: Highlands Coffee Quan 3',
+      'Thoi gian: 20-06-2026 09:15',
+    ].join('\n');
+    expect(extractTechcombank(text).merchant).toBe('Highlands Coffee Quan 3');
+  });
 });
