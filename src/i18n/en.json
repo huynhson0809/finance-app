@@ -72,5 +72,10 @@
     "message": "Install to your home screen for quicker access",
     "cta": "Install",
     "dismiss": "Dismiss"
+  },
+  "backup": {
+    "reminderMessage": "It's been over 30 days since your last backup",
+    "reminderCta": "Backup now",
+    "dismiss": "Dismiss"
   }
 }

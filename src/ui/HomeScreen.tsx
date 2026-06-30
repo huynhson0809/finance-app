@@ -5,6 +5,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
+import { BackupReminder } from './components/BackupReminder';
 import { TransactionRow } from './components/TransactionRow';
 import { AddImageButton } from './AddImageButton';
 import { getTodayTotal, listTransactions } from '../db/transactions';
@@ -42,6 +43,8 @@ export function HomeScreen() {
         <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
         <div className="text-3xl font-semibold">{formatVND(todayTotal, locale)}</div>
       </header>
+
+      <BackupReminder />
 
       {budget
         ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
