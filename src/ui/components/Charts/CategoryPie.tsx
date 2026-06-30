@@ -1,8 +1,9 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useTranslation } from 'react-i18next';
+import type { Category } from '../../../types';
 
 export interface CategoryDatum {
-  category: string;
+  category: Category;
   total: number;
   label: string;
   color: string;
@@ -20,7 +21,7 @@ export function CategoryPie({ data }: { data: CategoryDatum[] }) {
   }
   return (
     <div className="w-full h-64">
-      <ResponsiveContainer width={320} height={256}>
+      <ResponsiveContainer>
         <PieChart>
           <Pie data={nonZero} dataKey="total" nameKey="label" innerRadius={50} outerRadius={90}>
             {nonZero.map(d => <Cell key={d.category} fill={d.color} />)}
