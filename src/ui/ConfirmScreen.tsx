@@ -25,6 +25,12 @@ export function ConfirmScreen() {
   const objectURL = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
   useEffect(() => () => { if (objectURL) URL.revokeObjectURL(objectURL); }, [objectURL]);
 
+  useEffect(() => {
+    return () => {
+      if (imageId) imageHolder.drop(imageId);
+    };
+  }, [imageId]);
+
   const { recognize, status, progress, error: ocrError } = useOcr();
   const [text, setText] = useState<string | null>(null);
   const ranRef = useRef(false);
@@ -100,7 +106,6 @@ export function ConfirmScreen() {
       });
       const learned = shouldLearn(suggestion, chosen!, merchant);
       if (learned) await upsertLearnedRule(learned);
-      if (imageId) imageHolder.drop(imageId);
       navigate('/');
     } catch (e) {
       console.error('ConfirmScreen save failed', e);
@@ -130,12 +135,14 @@ export function ConfirmScreen() {
           <div>{t('confirm.failed')}</div>
           <button
             type="button"
+            disabled={status === 'loading-engine' || status === 'recognizing'}
             onClick={() => {
+              if (status === 'loading-engine' || status === 'recognizing') return;
               ranRef.current = false;
               setText(null);
               if (blob) recognize(blob).then(r => setText(r.text)).catch(() => setText(''));
             }}
-            className="mt-1 underline"
+            className="mt-1 underline disabled:opacity-50"
           >
             {t('confirm.tryAgain')}
           </button>

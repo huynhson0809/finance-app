@@ -28,6 +28,13 @@ describe('runExtractors', () => {
     expect(fields.amount).toBeUndefined();
   });
 
+  it('drops merchant when bank fingerprint matched but extractor produced no amount', () => {
+    const text = 'Vietcombank\nSome unparseable garbage with no amount';
+    const { fields, bankHint } = runExtractors(text);
+    expect(bankHint).toBeNull();
+    expect(fields.merchant).toBeUndefined();
+  });
+
   it('returns empty fields for empty input', () => {
     const { fields, bankHint } = runExtractors('');
     expect(fields).toEqual({});

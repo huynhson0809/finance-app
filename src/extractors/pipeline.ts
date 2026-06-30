@@ -20,6 +20,11 @@ export function runExtractors(text: string):
   if (bank) {
     const fields = BANK_EXTRACTORS[bank](text);
     if (fields.amount != null) return { fields, bankHint: bank };
+    // Bank detected but extractor returned no amount.
+    // Fall back to receipt for amount/date, but drop merchant — the receipt
+    // extractor's "first line" heuristic would otherwise return the bank name.
+    const receiptFields = extractReceipt(text);
+    return { fields: { ...receiptFields, merchant: undefined }, bankHint: null };
   }
   return { fields: extractReceipt(text), bankHint: null };
 }
