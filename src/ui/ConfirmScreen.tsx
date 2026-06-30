@@ -22,14 +22,13 @@ export function ConfirmScreen() {
   const imageId = (location.state as { imageId?: string } | null)?.imageId;
 
   const blob = imageId ? imageHolder.get(imageId) : undefined;
-  const objectURL = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
-  useEffect(() => () => { if (objectURL) URL.revokeObjectURL(objectURL); }, [objectURL]);
-
+  const [objectURL, setObjectURL] = useState<string | null>(null);
   useEffect(() => {
-    return () => {
-      if (imageId) imageHolder.drop(imageId);
-    };
-  }, [imageId]);
+    if (!blob) { setObjectURL(null); return; }
+    const url = URL.createObjectURL(blob);
+    setObjectURL(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
 
   const { recognize, status, progress, error: ocrError } = useOcr();
   const [text, setText] = useState<string | null>(null);
@@ -106,6 +105,7 @@ export function ConfirmScreen() {
       });
       const learned = shouldLearn(suggestion, chosen!, merchant);
       if (learned) await upsertLearnedRule(learned);
+      if (imageId) imageHolder.drop(imageId);
       navigate('/');
     } catch (e) {
       console.error('ConfirmScreen save failed', e);
