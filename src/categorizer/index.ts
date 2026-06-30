@@ -1,0 +1,1 @@
+export { normalizeMerchant } from './normalize';
