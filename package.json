@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/prepare-tesseract.mjs",
     "build": "tsc -b && vite build",
+    "prebuild": "node scripts/prepare-tesseract.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
