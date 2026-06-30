@@ -1,6 +1,6 @@
 {
   "app": { "title": "Finance" },
-  "nav": { "home": "Home", "add": "Add", "settings": "Settings" },
+  "nav": { "home": "Home", "add": "Add", "reports": "Reports", "settings": "Settings" },
   "home": {
     "todaySpend": "Today's spend",
     "remaining": "Remaining this month",
@@ -31,7 +31,12 @@
     "categories": "Categories over their cap",
     "dismiss": "Dismiss"
   },
-  "reports": { "noSpending": "No spending this month" },
+  "reports": {
+    "noSpending": "No spending this month",
+    "byCategory": "By category",
+    "anomalies": "Anomalies",
+    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
+  },
   "category": {
     "food-drinks": "Food & Drinks",
     "coffee-bubble-tea": "Coffee & Bubble Tea",

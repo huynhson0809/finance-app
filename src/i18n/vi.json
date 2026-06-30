@@ -1,6 +1,6 @@
 {
   "app": { "title": "Quản lý chi tiêu" },
-  "nav": { "home": "Trang chủ", "add": "Thêm", "settings": "Cài đặt" },
+  "nav": { "home": "Trang chủ", "add": "Thêm", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
     "todaySpend": "Chi hôm nay",
     "remaining": "Còn lại trong tháng",
@@ -31,7 +31,12 @@
     "categories": "Hạng mục vượt giới hạn",
     "dismiss": "Đóng"
   },
-  "reports": { "noSpending": "Chưa có chi tiêu" },
+  "reports": {
+    "noSpending": "Chưa có chi tiêu",
+    "byCategory": "Theo danh mục",
+    "anomalies": "Bất thường",
+    "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
+  },
   "category": {
     "food-drinks": "Ăn uống",
     "coffee-bubble-tea": "Cà phê & Trà sữa",
