@@ -24,3 +24,5 @@ import { __resetDBForTests } from '../src/db';
 beforeEach(async () => { await __resetDBForTests(); });
 import { __resetOcrForTests } from '../src/ocr';
 beforeEach(async () => { await __resetOcrForTests(); });
+import { imageHolder } from '../src/lib/image';
+beforeEach(() => { imageHolder._clear(); });

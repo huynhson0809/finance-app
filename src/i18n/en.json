@@ -17,7 +17,8 @@
     "merchant": "Merchant (optional)",
     "save": "Save",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "byImage": "Add by image"
   },
   "settings": {
     "title": "Settings",

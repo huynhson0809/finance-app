@@ -6,6 +6,7 @@ import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
+import { AddImageButton } from './AddImageButton';
 import { getTodayTotal, listTransactions } from '../db/transactions';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
@@ -59,6 +60,7 @@ export function HomeScreen() {
         ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
         : <ul>{recent.map(tx => <TransactionRow key={tx.id} t={tx} locale={locale} />)}</ul>}
 
+      <AddImageButton />
       <Link
         to="/add"
         className="fixed right-4 bottom-20 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl flex items-center justify-center shadow-lg"
