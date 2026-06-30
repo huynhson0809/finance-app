@@ -4,26 +4,29 @@ import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
 import { monthOf, todayISO } from '../lib/date';
 import { parseVNDInput } from '../lib/money';
+import { CapsEditor } from './components/CapsEditor';
+import type { Category } from '../types';
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const month = monthOf(todayISO());
   const [raw, setRaw] = useState('');
+  const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
-      if (b) setRaw(String(b.total));
+      if (b) { setRaw(String(b.total)); setTotal(b.total); setCaps(b.caps ?? {}); }
     });
   }, [month]);
 
-  async function handleLocale(l: Locale) {
-    await setLocale(l);
-  }
+  async function handleLocale(l: Locale) { await setLocale(l); }
 
   async function handleSaveBudget() {
-    const total = parseVNDInput(raw);
-    if (Number.isNaN(total) || total <= 0) return;
-    await upsertBudget(month, total);
+    const t = parseVNDInput(raw);
+    if (Number.isNaN(t) || t <= 0) return;
+    await upsertBudget(month, t, caps);
+    setTotal(t);
   }
 
   return (
@@ -60,6 +63,17 @@ export function SettingsScreen() {
           onClick={handleSaveBudget}
           className="mt-2 py-2 px-4 bg-blue-600 text-white rounded"
         >{t('settings.save')}</button>
+
+        {total > 0 && (
+          <div className="mt-4">
+            <CapsEditor
+              month={month}
+              total={total}
+              initialCaps={caps}
+              onSaved={() => getBudgetForMonth(month).then(b => b && setCaps(b.caps ?? {}))}
+            />
+          </div>
+        )}
       </section>
     </div>
   );

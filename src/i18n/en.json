@@ -23,7 +23,11 @@
     "title": "Settings",
     "language": "Language",
     "monthlyBudget": "Monthly budget",
-    "save": "Save"
+    "save": "Save",
+    "caps": {
+      "expand": "Set per-category caps (optional)",
+      "collapse": "Hide per-category caps"
+    }
   },
   "alerts": {
     "title": "Over budget",
