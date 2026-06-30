@@ -24,6 +24,12 @@
     "monthlyBudget": "Monthly budget",
     "save": "Save"
   },
+  "alerts": {
+    "title": "Over budget",
+    "overall": "Total spending exceeds the monthly budget",
+    "categories": "Categories over their cap",
+    "dismiss": "Dismiss"
+  },
   "reports": { "noSpending": "No spending this month" },
   "category": {
     "food-drinks": "Food & Drinks",

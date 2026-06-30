@@ -24,6 +24,12 @@
     "monthlyBudget": "Ngân sách hàng tháng",
     "save": "Lưu"
   },
+  "alerts": {
+    "title": "Cảnh báo ngân sách",
+    "overall": "Tổng chi tiêu đã vượt ngân sách tháng",
+    "categories": "Hạng mục vượt giới hạn",
+    "dismiss": "Đóng"
+  },
   "reports": { "noSpending": "Chưa có chi tiêu" },
   "category": {
     "food-drinks": "Ăn uống",
