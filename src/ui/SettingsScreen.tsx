@@ -34,15 +34,22 @@ export function SettingsScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleExport() {
-    const data = await exportBackup();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finance-backup-${data.exportedAt.slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    await setSetting('lastBackupAt', data.exportedAt);
+    try {
+      const data = await exportBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finance-backup-${data.exportedAt.slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      await setSetting('lastBackupAt', data.exportedAt);
+    } catch (err) {
+      console.error('exportBackup failed', err);
+      alert(t('backup.exportFailed'));
+    }
   }
 
   function handleImportClick() {
