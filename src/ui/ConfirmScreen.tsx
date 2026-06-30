@@ -27,7 +27,6 @@ export function ConfirmScreen() {
 
   const { recognize, status, progress, error: ocrError } = useOcr();
   const [text, setText] = useState<string | null>(null);
-  const [ocrFailed, setOcrFailed] = useState(false);
   const ranRef = useRef(false);
 
   useEffect(() => {
@@ -36,10 +35,10 @@ export function ConfirmScreen() {
     ranRef.current = true;
     recognize(blob)
       .then(r => setText(r.text))
-      .catch(() => { setOcrFailed(true); setText(''); });
+      .catch(() => setText(''));
   }, [blob, recognize, navigate]);
 
-  const error = ocrError ?? (ocrFailed ? new Error('ocr failed') : null);
+  const error = ocrError;
 
   const extracted = useMemo<{ fields: Partial<Extracted>; bankHint: BankHint | null }>(
     () => (text == null ? { fields: {}, bankHint: null } : runExtractors(text)),
@@ -48,10 +47,7 @@ export function ConfirmScreen() {
 
   const [raw, setRaw] = useState('');
   const [merchant, setMerchant] = useState('');
-  const [occurredAt, setOccurredAt] = useState(() => {
-    const now = new Date();
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  });
+  const [occurredAt, setOccurredAt] = useState('');
   const [chosen, setChosen] = useState<Category | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
   const { suggestion } = useCategorySuggestion(merchant);
@@ -131,7 +127,18 @@ export function ConfirmScreen() {
 
       {error && (
         <div className="px-4 py-2 text-sm text-red-600" role="alert">
-          {t('confirm.failed')}
+          <div>{t('confirm.failed')}</div>
+          <button
+            type="button"
+            onClick={() => {
+              ranRef.current = false;
+              setText(null);
+              if (blob) recognize(blob).then(r => setText(r.text)).catch(() => setText(''));
+            }}
+            className="mt-1 underline"
+          >
+            {t('confirm.tryAgain')}
+          </button>
         </div>
       )}
 

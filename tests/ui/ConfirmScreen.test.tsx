@@ -9,12 +9,14 @@ import { ConfirmScreen } from '../../src/ui/ConfirmScreen';
 
 // Mock useOcr so tests don't load Tesseract
 const recognize = vi.fn();
+let ocrError: Error | null = null;
+
 vi.mock('../../src/hooks/useOcr', () => ({
   useOcr: () => ({
     recognize,
-    status: 'idle',
+    status: 'idle' as const,
     progress: 0,
-    error: null,
+    get error() { return ocrError; },
   }),
 }));
 
@@ -23,6 +25,8 @@ beforeEach(async () => {
   await __resetDBForTests();
   indexedDB.deleteDatabase('finance-app');
   recognize.mockReset();
+  ocrError = null;
+  imageHolder._clear();
 });
 
 function mountWithImage(text: string) {
@@ -49,6 +53,7 @@ describe('ConfirmScreen', () => {
   });
 
   it('falls through to empty fields when OCR throws', async () => {
+    ocrError = new Error('engine down');
     recognize.mockRejectedValueOnce(new Error('engine down'));
     const blob = new Blob([new Uint8Array([1])], { type: 'image/png' });
     const imageId = imageHolder.put(blob);
@@ -58,7 +63,8 @@ describe('ConfirmScreen', () => {
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByText(/Could not read|Không đọc được/i)).toBeInTheDocument());
-    expect(screen.getByDisplayValue('')).toBeInTheDocument(); // merchant empty
+    const merchantInput = screen.getByLabelText(/merchant|cửa hàng/i) as HTMLInputElement;
+    expect(merchantInput.value).toBe('');
   });
 
   it('Save writes a transaction with source=bank-screenshot and bankHint', async () => {
