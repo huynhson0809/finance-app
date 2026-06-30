@@ -74,6 +74,12 @@
     "dismiss": "Dismiss"
   },
   "backup": {
+    "title": "Backup & restore",
+    "export": "Export backup",
+    "import": "Restore from file",
+    "confirmReplace": "This will erase all current data and replace it with the backup file. Continue?",
+    "imported": "Restored",
+    "importFailed": "Restore failed — check the file",
     "reminderMessage": "It's been over 30 days since your last backup",
     "reminderCta": "Backup now",
     "dismiss": "Dismiss"

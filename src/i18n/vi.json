@@ -74,6 +74,12 @@
     "dismiss": "Đóng"
   },
   "backup": {
+    "title": "Sao lưu & khôi phục",
+    "export": "Xuất file backup",
+    "import": "Khôi phục từ file",
+    "confirmReplace": "Sẽ xóa toàn bộ dữ liệu hiện tại và thay bằng file backup. Tiếp tục?",
+    "imported": "Đã khôi phục",
+    "importFailed": "Khôi phục thất bại — kiểm tra lại file",
     "reminderMessage": "Đã hơn 30 ngày kể từ lần sao lưu cuối",
     "reminderCta": "Sao lưu ngay",
     "dismiss": "Đóng"
