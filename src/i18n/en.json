@@ -4,6 +4,7 @@
   "home": {
     "todaySpend": "Today's spend",
     "remaining": "Remaining this month",
+    "budgetUsed": "Monthly budget used",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
     "empty": "No transactions yet"

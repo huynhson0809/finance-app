@@ -21,8 +21,8 @@ export function BudgetBar({ spent, total, locale, status = 'ok' }: {
           className={`h-full ${color}`}
           style={{ width: `${Math.min(ratio * 100, 100)}%` }}
           role="progressbar"
-          aria-label={t('home.remaining')}
-          aria-valuenow={Math.round(ratio * 100)}
+          aria-label={t('home.budgetUsed')}
+          aria-valuenow={Math.min(Math.round(ratio * 100), 100)}
           aria-valuemin={0}
           aria-valuemax={100}
         />

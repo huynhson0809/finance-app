@@ -19,7 +19,7 @@ beforeEach(async () => {
 
 it('renders BudgetAlert banner when overall budget is exceeded', async () => {
   await __resetDBForTests();
-  await upsertBudget('2026-06', 1000);
+  await upsertBudget(monthOf(todayISO()), 1000);
   await addTransaction({
     amount: 1500, currency: 'VND',
     occurredAt: new Date().toISOString(),

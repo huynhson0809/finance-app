@@ -4,6 +4,7 @@
   "home": {
     "todaySpend": "Chi hôm nay",
     "remaining": "Còn lại trong tháng",
+    "budgetUsed": "Đã chi tháng này",
     "lastTransactions": "Giao dịch gần đây",
     "noBudget": "Chưa đặt ngân sách",
     "empty": "Chưa có giao dịch nào"
