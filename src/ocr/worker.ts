@@ -6,18 +6,20 @@ type TesseractWorker = {
 };
 
 let workerPromise: Promise<TesseractWorker> | null = null;
+let currentOnProgress: ((pct: number) => void) | undefined;
 
-async function getWorker(opts: RecognizeOpts): Promise<TesseractWorker> {
+async function getWorker(): Promise<TesseractWorker> {
   if (workerPromise) return workerPromise;
   workerPromise = (async () => {
     const Tesseract = await import('tesseract.js');
-    return Tesseract.createWorker(opts.lang ?? 'vie', 1, {
+    const worker = await Tesseract.createWorker('vie', 1, {
       logger: (msg: { status?: string; progress?: number }) => {
         if (msg.status === 'recognizing text' && typeof msg.progress === 'number') {
-          opts.onProgress?.(Math.round(msg.progress * 100));
+          currentOnProgress?.(Math.round(msg.progress * 100));
         }
       },
-    }) as unknown as Promise<TesseractWorker>;
+    });
+    return worker as unknown as TesseractWorker;
   })();
   return workerPromise;
 }
@@ -26,9 +28,14 @@ export async function recognize(
   blob: Blob,
   opts: RecognizeOpts = {},
 ): Promise<{ text: string; confidence: number }> {
-  const worker = await getWorker(opts);
-  const result = await worker.recognize(blob);
-  return { text: result.data.text, confidence: result.data.confidence };
+  currentOnProgress = opts.onProgress;
+  try {
+    const worker = await getWorker();
+    const result = await worker.recognize(blob);
+    return { text: result.data.text, confidence: result.data.confidence };
+  } finally {
+    currentOnProgress = undefined;
+  }
 }
 
 export async function __resetOcrForTests() {
@@ -37,6 +44,7 @@ export async function __resetOcrForTests() {
     await w?.terminate().catch(() => {});
     workerPromise = null;
   }
+  currentOnProgress = undefined;
 }
 
 if (typeof window !== 'undefined') {
