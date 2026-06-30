@@ -1,3 +1,4 @@
+process.env.TZ = 'UTC';
 import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
 import { beforeEach } from 'vitest';

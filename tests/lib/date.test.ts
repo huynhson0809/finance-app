@@ -41,8 +41,14 @@ describe('monthRangeISO', () => {
   it('returns local-midnight boundaries inclusive of month', () => {
     const { sinceISO, untilISO } = monthRangeISO('2026-06');
     expect(sinceISO < untilISO).toBe(true);
-    // since is the first instant of June, until is the first instant of July
-    expect(sinceISO).toContain('2026-06');
-    expect(untilISO.startsWith('2026-07')).toBe(true);
+    expect(new Date(sinceISO).toISOString()).toBe(sinceISO);
+    expect(new Date(untilISO).toISOString()).toBe(untilISO);
+    // With TZ=UTC pinned in tests/setup.ts:
+    expect(sinceISO).toBe('2026-06-01T00:00:00.000Z');
+    expect(untilISO).toBe('2026-07-01T00:00:00.000Z');
+  });
+  it('rolls year boundary in untilISO', () => {
+    const { untilISO } = monthRangeISO('2026-12');
+    expect(untilISO).toBe('2027-01-01T00:00:00.000Z');
   });
 });

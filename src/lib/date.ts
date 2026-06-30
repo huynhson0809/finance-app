@@ -31,13 +31,10 @@ export function prevMonth(monthISO: string): string {
   return `${y}-${String(m - 1).padStart(2, '0')}`;
 }
 
+/** Returns ISO strings for local midnight at the start and end of the given month (YYYY-MM). */
 export function monthRangeISO(monthISO: string): { sinceISO: string; untilISO: string } {
   const [y, m] = monthISO.split('-').map(Number);
-  // Format as ISO 8601 string representing local midnight
-  // Note: This represents the local date/time, not accounting for timezone offset
-  const sinceISO = `${y}-${String(m).padStart(2, '0')}-01T00:00:00.000Z`;
-  const nextMonth = m === 12 ? 1 : m + 1;
-  const nextYear = m === 12 ? y + 1 : y;
-  const untilISO = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00.000Z`;
-  return { sinceISO, untilISO };
+  const since = new Date(y, m - 1, 1, 0, 0, 0, 0);
+  const until = new Date(y, m, 1, 0, 0, 0, 0);
+  return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
 }
