@@ -67,5 +67,10 @@
   },
   "offline": {
     "banner": "Đang ngoài tuyến — vẫn dùng được dữ liệu đã lưu"
+  },
+  "install": {
+    "message": "Cài đặt vào màn hình chính để dùng nhanh hơn",
+    "cta": "Cài đặt",
+    "dismiss": "Đóng"
   }
 }

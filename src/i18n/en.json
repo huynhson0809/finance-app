@@ -67,5 +67,10 @@
   },
   "offline": {
     "banner": "Offline — your saved data still works"
+  },
+  "install": {
+    "message": "Install to your home screen for quicker access",
+    "cta": "Install",
+    "dismiss": "Dismiss"
   }
 }
