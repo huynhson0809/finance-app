@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { OfflineBanner } from './components/OfflineBanner';
 
 export function Layout() {
   const { t } = useTranslation();
@@ -9,6 +10,7 @@ export function Layout() {
     `${tab} ${isActive ? 'font-bold text-blue-600' : 'text-gray-600'}`;
   return (
     <div className="min-h-screen flex flex-col">
+      <OfflineBanner />
       <UpdatePrompt />
       <main className="flex-1 pb-16"><Outlet /></main>
       <nav className="fixed bottom-0 inset-x-0 flex bg-white border-t">

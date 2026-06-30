@@ -64,5 +64,8 @@
     "updateAvailable": "A new version is available",
     "refresh": "Refresh",
     "dismiss": "Dismiss"
+  },
+  "offline": {
+    "banner": "Offline — your saved data still works"
   }
 }

@@ -64,5 +64,8 @@
     "updateAvailable": "Có bản cập nhật mới",
     "refresh": "Tải lại",
     "dismiss": "Đóng"
+  },
+  "offline": {
+    "banner": "Đang ngoài tuyến — vẫn dùng được dữ liệu đã lưu"
   }
 }
