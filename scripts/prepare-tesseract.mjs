@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, copyFileSync, readdirSync, createWriteStream } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, readdirSync, createWriteStream, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { gzipSync } from 'node:zlib';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
@@ -36,19 +37,27 @@ for (const file of readdirSync(coreDir)) {
   }
 }
 
-const lang = join(targetDir, 'vie.traineddata');
+// Remove any leftover uncompressed file from previous runs
+const uncompressedLang = join(targetDir, 'vie.traineddata');
+if (existsSync(uncompressedLang)) {
+  unlinkSync(uncompressedLang);
+}
+
+const lang = join(targetDir, 'vie.traineddata.gz');
 if (!existsSync(lang)) {
   const url = 'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/vie.traineddata';
   console.log(`[tesseract] downloading ${url}`);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
   const buf = Buffer.from(await res.arrayBuffer());
+  const gzipped = gzipSync(buf);
   await new Promise((resolve, reject) => {
     const stream = createWriteStream(lang);
     stream.on('finish', resolve);
     stream.on('error', reject);
-    stream.end(buf);
+    stream.end(gzipped);
   });
+  console.log(`[tesseract] compressed ${buf.length} bytes -> ${gzipped.length} bytes`);
 }
 
 console.log(`✓ Tesseract assets ready in public/tesseract (worker + ${coreCount} core variants + vie.traineddata.gz)`);
