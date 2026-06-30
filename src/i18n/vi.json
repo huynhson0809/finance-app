@@ -59,5 +59,10 @@
     "entertainment": "Giải trí",
     "transfers-debt": "Chuyển khoản & Trả nợ",
     "others": "Khác"
+  },
+  "pwa": {
+    "updateAvailable": "Có bản cập nhật mới",
+    "refresh": "Tải lại",
+    "dismiss": "Đóng"
   }
 }

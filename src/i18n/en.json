@@ -59,5 +59,10 @@
     "entertainment": "Entertainment",
     "transfers-debt": "Transfers & Debt Repayment",
     "others": "Others"
+  },
+  "pwa": {
+    "updateAvailable": "A new version is available",
+    "refresh": "Refresh",
+    "dismiss": "Dismiss"
   }
 }
