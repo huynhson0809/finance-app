@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { todayISO, monthOf, isSameDay, monthStartISO } from '../../src/lib/date';
+import { todayISO, monthOf, isSameDay, monthStartISO, prevMonth, monthRangeISO } from '../../src/lib/date';
 
 describe('date helpers', () => {
   it('monthOf extracts YYYY-MM', () => {
@@ -25,5 +25,24 @@ describe('monthStartISO', () => {
     expect(start.getMonth()).toBe(5);
     expect(start.getDate()).toBe(1);
     expect(start.getHours()).toBe(0);
+  });
+});
+
+describe('prevMonth', () => {
+  it('rolls year back', () => {
+    expect(prevMonth('2026-01')).toBe('2025-12');
+  });
+  it('handles mid-year', () => {
+    expect(prevMonth('2026-06')).toBe('2026-05');
+  });
+});
+
+describe('monthRangeISO', () => {
+  it('returns local-midnight boundaries inclusive of month', () => {
+    const { sinceISO, untilISO } = monthRangeISO('2026-06');
+    expect(sinceISO < untilISO).toBe(true);
+    // since is the first instant of June, until is the first instant of July
+    expect(sinceISO).toContain('2026-06');
+    expect(untilISO.startsWith('2026-07')).toBe(true);
   });
 });
