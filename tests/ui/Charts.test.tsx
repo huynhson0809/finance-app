@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { CategoryPie } from '../../src/ui/components/Charts/CategoryPie';
+import { MonthBar } from '../../src/ui/components/Charts/MonthBar';
 import { initI18n } from '../../src/i18n';
 
 beforeAll(async () => { await initI18n(); });
@@ -16,5 +17,14 @@ it('renders an svg when there is data', () => {
     { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },
     { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
   ]} />);
+  expect(container.querySelector('svg')).toBeInTheDocument();
+});
+
+it('renders MonthBar svg with provided data', () => {
+  const data = Array.from({ length: 30 }, (_, i) => ({
+    date: `2026-06-${String(i + 1).padStart(2, '0')}`,
+    total: i * 100,
+  }));
+  const { container } = render(<MonthBar data={data} />);
   expect(container.querySelector('svg')).toBeInTheDocument();
 });
