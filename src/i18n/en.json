@@ -42,6 +42,13 @@
     "anomalies": "Anomalies",
     "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
   },
+  "confirm": {
+    "title": "Confirm transaction",
+    "reading": "Reading image…",
+    "failed": "Could not read image. Enter manually.",
+    "tryAgain": "Try again",
+    "date": "Date & time"
+  },
   "category": {
     "food-drinks": "Food & Drinks",
     "coffee-bubble-tea": "Coffee & Bubble Tea",

@@ -42,6 +42,13 @@
     "anomalies": "Bất thường",
     "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
   },
+  "confirm": {
+    "title": "Xác nhận giao dịch",
+    "reading": "Đang đọc ảnh…",
+    "failed": "Không đọc được ảnh. Nhập thủ công.",
+    "tryAgain": "Thử lại",
+    "date": "Thời gian"
+  },
   "category": {
     "food-drinks": "Ăn uống",
     "coffee-bubble-tea": "Cà phê & Trà sữa",
