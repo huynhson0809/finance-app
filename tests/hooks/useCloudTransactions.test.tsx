@@ -139,6 +139,20 @@ describe('useCloudTransactions', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('ignores deferred recent loads that resolve after unmount', async () => {
+    const pending = deferred<Transaction[]>();
+    mocks.listCloudTransactions.mockReturnValue(pending.promise);
+
+    const { unmount } = renderHook(() => useRecentCloudTransactions());
+
+    unmount();
+
+    await act(async () => {
+      pending.resolve([tx({ id: 'after-unmount' })]);
+      await pending.promise;
+    });
+  });
+
   it('loads monthly cloud transactions for the month range', async () => {
     const rows = [tx({ id: 'month-1' })];
     mocks.listCloudTransactionsForRange.mockResolvedValue(rows);

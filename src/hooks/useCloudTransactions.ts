@@ -53,7 +53,12 @@ function useCloudTransactionQuery(
     }
   }, [load]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [reload]);
 
   return { ...state, reload };
 }

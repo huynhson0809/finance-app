@@ -143,6 +143,18 @@ describe('HomeScreen', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('shows monthly errors without zeroed budget summary', async () => {
+    await upsertBudget(monthOf(todayISO()), 1000);
+    cloudHooks.monthState.error = 'Month fetch failed';
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Month fetch failed');
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    const headerTotal = document.querySelector('header .text-3xl')?.textContent ?? '';
+    expect(headerTotal).not.toMatch(/0/);
+  });
+
   it('shows cloud fetch errors and retries both cloud hooks', async () => {
     const user = userEvent.setup();
     cloudHooks.recentState.error = 'Recent fetch failed';

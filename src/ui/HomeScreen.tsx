@@ -50,6 +50,7 @@ export function HomeScreen() {
   const cloudErrors = Array.from(new Set(
     [recentError, monthError].filter((error): error is string => Boolean(error)),
   ));
+  const monthUnavailable = monthLoading || Boolean(monthError);
   const retryCloudTransactions = () => {
     void reloadRecent();
     void reloadMonth();
@@ -60,7 +61,7 @@ export function HomeScreen() {
       <header className="p-4">
         <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
         <div className="text-3xl font-semibold">
-          {monthLoading ? t('cloud.loading') : formatVND(todayTotal, locale)}
+          {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayTotal, locale)}
         </div>
       </header>
 
@@ -81,11 +82,13 @@ export function HomeScreen() {
 
       {monthLoading
         ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
+        : monthError
+        ? null
         : budget
         ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
         : <div className="px-4 text-sm text-gray-500">{t('home.noBudget')}</div>}
 
-      {!monthLoading && (
+      {!monthUnavailable && (
         <BudgetAlert
           overall={bStatus.overall}
           perCategoryOver={perCategoryOver}
