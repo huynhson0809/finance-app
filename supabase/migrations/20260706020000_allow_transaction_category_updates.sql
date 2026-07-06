@@ -1,3 +1,6 @@
+revoke update on table public.transactions from anon, authenticated;
+grant update (category) on table public.transactions to authenticated;
+
 drop policy if exists "Users can update own transaction categories" on public.transactions;
 
 create policy "Users can update own transaction categories"
