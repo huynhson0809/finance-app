@@ -61,6 +61,7 @@ describe('SettingsScreen caps editor', () => {
 
 describe('SettingsScreen account', () => {
   it('signs out from the account section', async () => {
+    authMocks.signOut.mockResolvedValue(undefined);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
     const user = userEvent.setup();
 
@@ -68,5 +69,37 @@ describe('SettingsScreen account', () => {
     await user.click(screen.getByRole('button', { name: /sign out|đăng xuất/i }));
 
     expect(authMocks.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables sign out while the request is pending', async () => {
+    let finishSignOut!: () => void;
+    authMocks.signOut.mockReturnValue(new Promise<void>(resolve => {
+      finishSignOut = resolve;
+    }));
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /sign out|đăng xuất/i }));
+
+    const pendingButton = await screen.findByRole('button', { name: /signing out|đang đăng xuất/i });
+    expect(pendingButton).toBeDisabled();
+
+    finishSignOut();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /sign out|đăng xuất/i })).not.toBeDisabled();
+    });
+  });
+
+  it('shows a visible error when sign out fails', async () => {
+    authMocks.signOut.mockRejectedValue(new Error('Supabase rejected sign out'));
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /sign out|đăng xuất/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/sign out failed|đăng xuất thất bại/i);
+    expect(alert).toHaveTextContent('Supabase rejected sign out');
+    expect(screen.getByRole('button', { name: /sign out|đăng xuất/i })).not.toBeDisabled();
   });
 });

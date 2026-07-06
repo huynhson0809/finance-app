@@ -27,6 +27,8 @@
     "save": "Save",
     "account": "Account",
     "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "signOutFailed": "Sign out failed",
     "caps": {
       "expand": "Set per-category caps (optional)",
       "collapse": "Hide per-category caps"

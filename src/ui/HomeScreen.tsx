@@ -7,7 +7,6 @@ import {
 import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
-import { BackupReminder } from './components/BackupReminder';
 import { TransactionRow } from './components/TransactionRow';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
@@ -64,8 +63,6 @@ export function HomeScreen() {
           {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayTotal, locale)}
         </div>
       </header>
-
-      <BackupReminder />
 
       {cloudErrors.length > 0 && (
         <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">

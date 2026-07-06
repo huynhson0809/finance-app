@@ -15,6 +15,8 @@ export function SettingsScreen() {
   const [raw, setRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
@@ -29,6 +31,18 @@ export function SettingsScreen() {
     if (Number.isNaN(parsed) || parsed <= 0) return;
     await upsertBudget(month, parsed, caps);
     setTotal(parsed);
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      await signOut();
+    } catch (err) {
+      setSignOutError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -80,11 +94,17 @@ export function SettingsScreen() {
 
       <section>
         <h2 className="font-semibold">{t('settings.account')}</h2>
+        {signOutError && (
+          <div role="alert" className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+            {t('settings.signOutFailed')}: {signOutError}
+          </div>
+        )}
         <button
           type="button"
-          onClick={() => void signOut()}
-          className="mt-2 py-2 px-4 bg-gray-600 text-white rounded"
-        >{t('settings.signOut')}</button>
+          onClick={() => void handleSignOut()}
+          disabled={signingOut}
+          className="mt-2 py-2 px-4 bg-gray-600 text-white rounded disabled:opacity-60"
+        >{signingOut ? t('settings.signingOut') : t('settings.signOut')}</button>
       </section>
     </div>
   );

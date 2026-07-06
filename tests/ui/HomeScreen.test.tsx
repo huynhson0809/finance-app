@@ -6,6 +6,7 @@ import { initI18n, i18n } from '../../src/i18n';
 import { upsertBudget } from '../../src/db/budgets';
 import { monthOf, todayISO } from '../../src/lib/date';
 import { __resetDBForTests } from '../../src/db';
+import { addTransaction } from '../../src/db/transactions';
 import type { Transaction } from '../../src/types';
 
 const cloudHooks = vi.hoisted(() => ({
@@ -110,6 +111,23 @@ describe('HomeScreen', () => {
   it('shows noBudget message when no budget is set', async () => {
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
     expect(await screen.findByText('No budget set')).toBeInTheDocument();
+  });
+
+  it('does not surface local backup reminders in the cloud home path', async () => {
+    await addTransaction({
+      amount: 1000,
+      currency: 'VND',
+      occurredAt: '2026-06-15T08:00:00.000Z',
+      category: 'others',
+      source: 'manual',
+    });
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    await waitFor(() => {
+      expect(screen.getByText('No budget set')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/backup|sao lưu/i)).not.toBeInTheDocument();
   });
 
   it('renders BudgetAlert banner when cloud monthly rows exceed the budget', async () => {
