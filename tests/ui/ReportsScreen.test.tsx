@@ -78,26 +78,48 @@ describe('ReportsScreen', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Total spending exceeds the monthly budget');
   });
 
-  it('shows cloud loading while preserving the reports layout', () => {
-    reportHooks.state = makeReportState({ loading: true });
+  it('shows cloud loading without stale report content', () => {
+    reportHooks.state = makeUnavailableReportState({ loading: true });
 
     render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
 
     expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
-    expect(screen.getByText('By category')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
+    expect(screen.queryByText('By category')).not.toBeInTheDocument();
+    expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
   });
 
-  it('shows cloud errors with retry while preserving the reports layout', async () => {
+  it('shows cloud errors with retry without stale report content', async () => {
     const user = userEvent.setup();
-    reportHooks.state = makeReportState({ error: 'Cloud report failed' });
+    reportHooks.state = makeUnavailableReportState({ error: 'Cloud report failed' });
 
     render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Cloud report failed');
-    expect(screen.getByText('By category')).toBeInTheDocument();
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('Cloud report failed');
+    expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
+    expect(screen.queryByText('By category')).not.toBeInTheDocument();
+    expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(reportHooks.reload).toHaveBeenCalledTimes(1);
   });
 });
+
+function makeUnavailableReportState(overrides: Partial<UseReportsResult>): UseReportsResult {
+  return makeReportState({
+    sums: { ...zeroSums(), 'food-drinks': 1500 },
+    anomalyHints: [{ category: 'food-drinks', deltaPct: 2 }],
+    bStatus: {
+      overall: 'over',
+      perCategory: { ...okStatuses(), 'food-drinks': 'over' },
+      overallSpent: 1500,
+    },
+    ...overrides,
+  });
+}

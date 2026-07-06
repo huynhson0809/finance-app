@@ -194,4 +194,31 @@ describe('useReports', () => {
     expect(result.current.sums.shopping).toBe(700);
     expect(result.current.sums['food-drinks']).toBe(0);
   });
+
+  it('ignores deferred cloud loads that resolve after unmount', async () => {
+    const current = deferred<Transaction[]>();
+    const previous = deferred<Transaction[]>();
+    mocks.listCloudTransactionsForRange
+      .mockReturnValueOnce(current.promise)
+      .mockReturnValueOnce(previous.promise);
+
+    const { unmount } = renderHook(() => useReports('2026-06'));
+
+    expect(mocks.listCloudTransactionsForRange).toHaveBeenCalledTimes(2);
+
+    unmount();
+
+    await act(async () => {
+      current.resolve([
+        tx({
+          id: 'after-unmount',
+          amount: 1200,
+          occurredAt: '2026-06-05T08:00:00.000Z',
+          category: 'food-drinks',
+        }),
+      ]);
+      previous.resolve([]);
+      await Promise.all([current.promise, previous.promise]);
+    });
+  });
 });
