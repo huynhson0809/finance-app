@@ -1,16 +1,39 @@
 import { useTranslation } from 'react-i18next';
 import { formatVND } from '../../lib/money';
-import type { Transaction } from '../../types';
+import { CATEGORIES, type Category, type Transaction } from '../../types';
 
-export function TransactionRow({ t: tx, locale }: { t: Transaction; locale: 'vi' | 'en' }) {
+interface TransactionRowProps {
+  t: Transaction;
+  locale: 'vi' | 'en';
+  onCategoryChange?: (id: string, category: Category) => void;
+  categorySaving?: boolean;
+}
+
+export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving }: TransactionRowProps) {
   const { t } = useTranslation();
   return (
     <li className="flex justify-between gap-3 px-4 py-2 border-b">
-      <span>
-        <span className="block">{t(`category.${tx.category}`)}</span>
+      <span className="min-w-0">
+        {onCategoryChange ? (
+          <select
+            aria-label={t('transactions.categoryLabel')}
+            className="block max-w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+            disabled={categorySaving}
+            value={tx.category}
+            onChange={event => onCategoryChange(tx.id, event.target.value as Category)}
+          >
+            {CATEGORIES.map(category => (
+              <option key={category} value={category}>
+                {t(`category.${category}`)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="block">{t(`category.${tx.category}`)}</span>
+        )}
         <span className="block text-xs text-gray-500">{formatTransactionDate(tx.occurredAt, locale)}</span>
       </span>
-      <span>{formatVND(tx.amount, locale)}</span>
+      <span className="shrink-0">{formatVND(tx.amount, locale)}</span>
     </li>
   );
 }

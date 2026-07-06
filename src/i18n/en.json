@@ -9,6 +9,9 @@
     "noBudget": "No budget set",
     "empty": "No transactions yet"
   },
+  "transactions": {
+    "categoryLabel": "Transaction category"
+  },
   "add": {
     "title": "Add transaction",
     "amount": "Amount",

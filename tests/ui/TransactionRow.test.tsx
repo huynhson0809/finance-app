@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { beforeAll, describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { initI18n } from '../../src/i18n';
 import { TransactionRow } from '../../src/ui/components/TransactionRow';
 import type { Transaction } from '../../src/types';
@@ -26,5 +27,35 @@ describe('TransactionRow', () => {
 
     expect(screen.getByText('Khác')).toBeInTheDocument();
     expect(screen.getByText(/04\/07\/2026/)).toBeInTheDocument();
+  });
+
+  it('lets the user choose a new category', async () => {
+    const user = userEvent.setup();
+    const onCategoryChange = vi.fn();
+
+    render(
+      <TransactionRow
+        t={tx({ id: 'tx-42', category: 'others' })}
+        locale="vi"
+        onCategoryChange={onCategoryChange}
+      />,
+    );
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Danh mục giao dịch' }), 'shopping');
+
+    expect(onCategoryChange).toHaveBeenCalledWith('tx-42', 'shopping');
+  });
+
+  it('disables category editing while the row is saving', () => {
+    render(
+      <TransactionRow
+        t={tx({ category: 'others' })}
+        locale="vi"
+        onCategoryChange={vi.fn()}
+        categorySaving
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Danh mục giao dịch' })).toBeDisabled();
   });
 });

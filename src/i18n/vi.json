@@ -9,6 +9,9 @@
     "noBudget": "Chưa đặt ngân sách",
     "empty": "Chưa có giao dịch nào"
   },
+  "transactions": {
+    "categoryLabel": "Danh mục giao dịch"
+  },
   "add": {
     "title": "Thêm giao dịch",
     "amount": "Số tiền",
