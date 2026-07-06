@@ -216,6 +216,23 @@ describe('HomeScreen', () => {
     ]);
   });
 
+  it('keeps recent category accessible names unique for matching merchant and amount', () => {
+    cloudHooks.recentState.data = [
+      tx({ id: 'email-1', merchant: 'Corner Store', amount: 10_000, category: 'others' }),
+      tx({ id: 'email-2', merchant: 'Corner Store', amount: 10_000, category: 'food-drinks' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
+    const accessibleNames = categorySelects.map(select => select.getAttribute('aria-label'));
+    expect(new Set(accessibleNames).size).toBe(categorySelects.length);
+    expect(accessibleNames).toEqual([
+      expect.stringContaining('email-1'),
+      expect.stringContaining('email-2'),
+    ]);
+  });
+
   it('shows a visible error when category update fails', async () => {
     const user = userEvent.setup();
     categoryMutationMocks.updateCloudTransactionCategory.mockRejectedValue(

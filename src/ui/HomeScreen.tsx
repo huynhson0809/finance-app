@@ -62,7 +62,9 @@ export function HomeScreen() {
     void reloadMonth();
   };
   const transactionCategoryLabel = (tx: Transaction) =>
-    `${t('transactions.categoryLabel')} ${tx.merchant ?? tx.id} ${formatVND(tx.amount, locale)}`;
+    [t('transactions.categoryLabel'), tx.merchant, tx.id, formatVND(tx.amount, locale)]
+      .filter(Boolean)
+      .join(' ');
   const handleCategoryChange = async (id: string, category: Category) => {
     if (editingCategoryId !== null) {
       return;
