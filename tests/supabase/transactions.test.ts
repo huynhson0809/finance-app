@@ -4,6 +4,7 @@ import {
   type QueryClient,
   listCloudTransactions,
   listCloudTransactionsForRange,
+  updateCloudTransactionCategory,
 } from '../../src/supabase/transactions';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
@@ -22,6 +23,7 @@ interface MockResult {
 function createClient(result: MockResult) {
   const calls: QueryCall[] = [];
   let insertedRow: unknown;
+  let updatedRow: unknown;
   const query = {
     limit(count: number) {
       calls.push({ method: 'limit', args: [count] });
@@ -69,6 +71,29 @@ function createClient(result: MockResult) {
         },
       };
     },
+    update(row: unknown) {
+      updatedRow = row;
+      calls.push({ method: 'update', args: [row] });
+      const updateQuery = {
+        eq(column: string, value: string) {
+          calls.push({ method: 'eq', args: [column, value] });
+          return updateQuery;
+        },
+        select(columns: string) {
+          calls.push({ method: 'select', args: [columns] });
+          return {
+            single() {
+              calls.push({ method: 'single', args: [] });
+              return Promise.resolve({
+                data: Array.isArray(result.data) ? result.data[0] ?? null : null,
+                error: result.error,
+              });
+            },
+          };
+        },
+      };
+      return updateQuery;
+    },
   };
   const client: QueryClient = {
     from(table: 'transactions') {
@@ -77,7 +102,13 @@ function createClient(result: MockResult) {
     },
   };
 
-  return { client, calls, fromStage, get insertedRow() { return insertedRow; } };
+  return {
+    client,
+    calls,
+    fromStage,
+    get insertedRow() { return insertedRow; },
+    get updatedRow() { return updatedRow; },
+  };
 }
 
 function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow {
@@ -100,10 +131,10 @@ function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow 
 }
 
 describe('cloud transaction queries', () => {
-  it('keeps the from stage select-only before building a query', () => {
+  it('keeps the from stage free of query methods before building a query', () => {
     const { fromStage } = createClient({ data: [], error: null });
 
-    expect(Object.keys(fromStage)).toEqual(['select', 'insert']);
+    expect(Object.keys(fromStage)).toEqual(['select', 'insert', 'update']);
     expect('limit' in fromStage).toBe(false);
     expect('order' in fromStage).toBe(false);
     expect('gte' in fromStage).toBe(false);
@@ -207,5 +238,57 @@ describe('cloud transaction queries', () => {
     expect((context.insertedRow as { external_hash: string }).external_hash).toMatch(/^manual:/);
     expect(tx.source).toBe('manual');
     expect(tx.category).toBe('coffee-bubble-tea');
+  });
+
+  it('updates only the category for a cloud transaction and maps the returned row', async () => {
+    const returned = row({
+      id: 'email-1',
+      bank: null,
+      type: 'manual',
+      amount: 99000,
+      transaction_time: '2026-07-06T06:00:00.000Z',
+      content: 'Lazada',
+      raw_source: 'manual',
+      merchant: 'Lazada',
+      category: 'shopping',
+      created_at: '2026-07-06T06:00:10.000Z',
+    });
+    const context = createClient({ data: [returned], error: null });
+
+    const tx = await updateCloudTransactionCategory(context.client, 'email-1', 'shopping');
+
+    expect(context.calls).toEqual([
+      { method: 'from', args: ['transactions'] },
+      { method: 'update', args: [{ category: 'shopping' }] },
+      { method: 'eq', args: ['id', 'email-1'] },
+      { method: 'select', args: [SELECT_COLUMNS] },
+      { method: 'single', args: [] },
+    ]);
+    expect(context.updatedRow).toEqual({ category: 'shopping' });
+    expect(tx).toMatchObject({
+      id: 'email-1',
+      merchant: 'Lazada',
+      category: 'shopping',
+      source: 'manual',
+    });
+  });
+
+  it('throws Supabase update error messages', async () => {
+    const { client } = createClient({
+      data: null,
+      error: { message: 'permission denied for update' },
+    });
+
+    await expect(updateCloudTransactionCategory(client, 'email-1', 'shopping')).rejects.toThrow(
+      new Error('permission denied for update'),
+    );
+  });
+
+  it('throws when an update returns no transaction', async () => {
+    const { client } = createClient({ data: null, error: null });
+
+    await expect(updateCloudTransactionCategory(client, 'email-1', 'shopping')).rejects.toThrow(
+      new Error('No updated transaction returned'),
+    );
   });
 });

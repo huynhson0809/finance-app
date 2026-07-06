@@ -28,6 +28,7 @@ export interface QueryBuilder extends PromiseLike<QueryResult> {
 export interface QuerySelectBuilder {
   select(columns: string): QueryBuilder;
   insert(row: CloudTransactionInsert): InsertSelectBuilder;
+  update(row: CloudTransactionUpdate): UpdateFilterBuilder;
 }
 
 export interface InsertSelectBuilder {
@@ -36,6 +37,14 @@ export interface InsertSelectBuilder {
 
 export interface InsertSingleBuilder {
   single(): PromiseLike<MutationResult>;
+}
+
+export interface UpdateFilterBuilder {
+  eq(column: string, value: string): UpdateSelectBuilder;
+}
+
+export interface UpdateSelectBuilder {
+  select(columns: string): InsertSingleBuilder;
 }
 
 export interface QueryClient {
@@ -71,6 +80,10 @@ interface CloudTransactionInsert {
   note: string | null;
   bank_hint: BankHint | null;
   external_hash: string;
+}
+
+export interface CloudTransactionUpdate {
+  category: Category;
 }
 
 function mapResult({ data, error }: QueryResult): Transaction[] {
@@ -126,6 +139,28 @@ export async function addCloudTransaction(
   }
   if (!result.data) {
     throw new Error('No inserted transaction returned');
+  }
+
+  return mapTransactionRow(result.data);
+}
+
+export async function updateCloudTransactionCategory(
+  client: QueryClient,
+  id: string,
+  category: Category,
+): Promise<Transaction> {
+  const result = await client
+    .from('transactions')
+    .update({ category })
+    .eq('id', id)
+    .select(TRANSACTION_COLUMNS)
+    .single();
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  if (!result.data) {
+    throw new Error('No updated transaction returned');
   }
 
   return mapTransactionRow(result.data);
