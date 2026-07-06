@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 
 interface SignInScreenProps {
   setupError: boolean;
+  authError?: string | null;
   onSignIn: () => Promise<void>;
 }
 
-export function SignInScreen({ setupError, onSignIn }: SignInScreenProps) {
+export function SignInScreen({ setupError, authError = null, onSignIn }: SignInScreenProps) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +33,12 @@ export function SignInScreen({ setupError, onSignIn }: SignInScreenProps) {
         {setupError && (
           <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {t('auth.setupError')}
+          </div>
+        )}
+
+        {authError && (
+          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {authError}
           </div>
         )}
 

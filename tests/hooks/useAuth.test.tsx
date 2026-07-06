@@ -5,6 +5,17 @@ import { useAuth, type AuthClient } from '../../src/hooks/useAuth';
 
 const session = { access_token: 'token', user: { id: 'user-1' } } as Session;
 const nextSession = { access_token: 'next-token', user: { id: 'user-2' } } as Session;
+const staleSession = { access_token: 'stale-token', user: { id: 'user-stale' } } as Session;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 function makeClient(overrides: Partial<AuthClient['auth']> = {}) {
   const unsubscribe = vi.fn();
@@ -56,7 +67,58 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.setupError).toBe(true);
+    expect(result.current.error).toBeNull();
     expect(result.current.session).toBeNull();
+  });
+
+  it('stores an auth error when getSession resolves with an error', async () => {
+    const { client } = makeClient({
+      getSession: vi.fn(async () => ({
+        data: { session: null },
+        error: { message: 'could not load session' },
+      })),
+    });
+    const { result } = renderHook(() => useAuth(client));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe('could not load session');
+    expect(result.current.session).toBeNull();
+  });
+
+  it('stores an auth error when getSession rejects', async () => {
+    const { client } = makeClient({
+      getSession: vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    });
+    const { result } = renderHook(() => useAuth(client));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe('network down');
+    expect(result.current.session).toBeNull();
+  });
+
+  it('keeps a newer auth-state session when getSession resolves later', async () => {
+    const load = deferred<{ data: { session: Session | null }; error: null }>();
+    const { client, emitAuthChange } = makeClient({
+      getSession: vi.fn(() => load.promise),
+    });
+    const { result } = renderHook(() => useAuth(client));
+
+    act(() => {
+      emitAuthChange(nextSession);
+    });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.session).toBe(nextSession);
+
+    await act(async () => {
+      load.resolve({ data: { session: staleSession }, error: null });
+      await load.promise;
+    });
+
+    expect(result.current.session).toBe(nextSession);
   });
 
   it('starts Google OAuth with redirect to the current origin', async () => {
@@ -106,12 +168,23 @@ describe('useAuth', () => {
     await expect(result.current.signOut()).rejects.toThrow('sign out failed');
   });
 
-  it('cleans up the auth subscription on unmount', async () => {
-    const { client, unsubscribe } = makeClient();
+  it('cleans up the auth subscription and ignores callbacks after unmount', async () => {
+    const load = deferred<{ data: { session: Session | null }; error: null }>();
+    const { client, emitAuthChange, unsubscribe } = makeClient({
+      getSession: vi.fn(() => load.promise),
+    });
     const { result, unmount } = renderHook(() => useAuth(client));
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.loading).toBe(true);
     unmount();
+
+    act(() => {
+      emitAuthChange(nextSession);
+    });
+    await act(async () => {
+      load.resolve({ data: { session }, error: null });
+      await load.promise;
+    });
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });

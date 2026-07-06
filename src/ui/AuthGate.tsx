@@ -9,7 +9,7 @@ interface AuthGateProps {
 
 export function AuthGate({ children }: AuthGateProps) {
   const { t } = useTranslation();
-  const { session, loading, setupError, signInWithGoogle } = useAuth();
+  const { session, loading, setupError, error, signInWithGoogle } = useAuth();
 
   if (loading) {
     return (
@@ -20,7 +20,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   if (setupError || !session) {
-    return <SignInScreen setupError={setupError} onSignIn={signInWithGoogle} />;
+    return <SignInScreen setupError={setupError} authError={error} onSignIn={signInWithGoogle} />;
   }
 
   return <>{children}</>;
