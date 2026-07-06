@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type QueryClient,
   listCloudTransactions,
   listCloudTransactionsForRange,
 } from '../../src/supabase/transactions';
+import type { AppSupabaseClient } from '../../src/supabase/client';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
 const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,raw_source,created_at';
+
+const acceptsQueryClient = (_client: QueryClient) => undefined;
+acceptsQueryClient({} as AppSupabaseClient);
 
 interface QueryCall {
   method: string;
@@ -20,10 +25,6 @@ interface MockResult {
 function createClient(result: MockResult) {
   const calls: QueryCall[] = [];
   const query = {
-    select(columns: string) {
-      calls.push({ method: 'select', args: [columns] });
-      return query;
-    },
     limit(count: number) {
       calls.push({ method: 'limit', args: [count] });
       return query;
@@ -40,18 +41,27 @@ function createClient(result: MockResult) {
       calls.push({ method: 'lt', args: [column, value] });
       return query;
     },
-    then(resolve: (value: MockResult) => void) {
-      resolve(result);
+    then<TResult1 = MockResult, TResult2 = never>(
+      onfulfilled?: ((value: MockResult) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ): PromiseLike<TResult1 | TResult2> {
+      return Promise.resolve(result).then(onfulfilled, onrejected);
     },
   };
-  const client = {
-    from(table: string) {
-      calls.push({ method: 'from', args: [table] });
+  const fromStage = {
+    select(columns: string) {
+      calls.push({ method: 'select', args: [columns] });
       return query;
     },
   };
+  const client: QueryClient = {
+    from(table: string) {
+      calls.push({ method: 'from', args: [table] });
+      return fromStage;
+    },
+  };
 
-  return { client, calls };
+  return { client, calls, fromStage };
 }
 
 function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow {
@@ -70,6 +80,17 @@ function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow 
 }
 
 describe('cloud transaction queries', () => {
+  it('keeps the from stage select-only before building a query', () => {
+    const { fromStage } = createClient({ data: [], error: null });
+
+    expect(Object.keys(fromStage)).toEqual(['select']);
+    expect('limit' in fromStage).toBe(false);
+    expect('order' in fromStage).toBe(false);
+    expect('gte' in fromStage).toBe(false);
+    expect('lt' in fromStage).toBe(false);
+    expect('then' in fromStage).toBe(false);
+  });
+
   it('lists recent cloud transactions with a limit and maps rows to app transactions', async () => {
     const { client, calls } = createClient({ data: [row()], error: null });
 

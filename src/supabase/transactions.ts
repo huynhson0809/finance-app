@@ -13,15 +13,18 @@ interface QueryResult {
 }
 
 export interface QueryBuilder extends PromiseLike<QueryResult> {
-  select(columns: string): QueryBuilder;
   limit(count: number): QueryBuilder;
   order(column: string, opts: { ascending: boolean }): QueryBuilder;
   gte(column: string, value: string): QueryBuilder;
   lt(column: string, value: string): QueryBuilder;
 }
 
+export interface QuerySelectBuilder {
+  select(columns: string): QueryBuilder;
+}
+
 export interface QueryClient {
-  from(table: string): QueryBuilder;
+  from(table: string): QuerySelectBuilder;
 }
 
 function mapResult({ data, error }: QueryResult): Transaction[] {
