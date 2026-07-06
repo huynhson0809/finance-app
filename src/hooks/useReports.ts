@@ -4,7 +4,7 @@ import {
   sumByCategory, dailyTotals, monthOverMonth, hints, status,
   type BudgetStatus,
 } from '../reports';
-import { monthRangeISO, prevMonth } from '../lib/date';
+import { monthRangeVietnamISO, prevMonth } from '../lib/date';
 import { supabase } from '../supabase/client';
 import { listCloudTransactionsForRange } from '../supabase/transactions';
 import type { Budget, Category, Transaction } from '../types';
@@ -41,8 +41,8 @@ export function useReports(monthISO: string): UseReportsResult {
     setLoading(true);
     setError(null);
 
-    const currentRange = monthRangeISO(monthISO);
-    const previousRange = monthRangeISO(prevMonth(monthISO));
+    const currentRange = monthRangeVietnamISO(monthISO);
+    const previousRange = monthRangeVietnamISO(prevMonth(monthISO));
     const budgetPromise = getBudgetForMonth(monthISO);
     const client = supabase;
 

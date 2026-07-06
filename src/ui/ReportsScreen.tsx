@@ -5,7 +5,7 @@ import { useReports } from '../hooks/useReports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
-import { monthOf, todayISO, prevMonth, nextMonth } from '../lib/date';
+import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
 import { CATEGORIES, type Category } from '../types';
 import { formatVND } from '../lib/money';
 
@@ -23,7 +23,7 @@ const CHART_COLORS: Record<Category, string> = {
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 function safeMonth(value: string | null): string {
-  return value && VALID_MONTH.test(value) ? value : monthOf(todayISO());
+  return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(todayVietnamDate());
 }
 
 export function ReportsScreen() {

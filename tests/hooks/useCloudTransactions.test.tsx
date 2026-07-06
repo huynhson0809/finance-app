@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { monthRangeISO } from '../../src/lib/date';
+import { monthRangeVietnamISO } from '../../src/lib/date';
 import type { Transaction } from '../../src/types';
 
 const mocks = vi.hoisted(() => ({
@@ -163,7 +163,7 @@ describe('useCloudTransactions', () => {
 
     expect(mocks.listCloudTransactionsForRange).toHaveBeenCalledWith(
       mocks.supabase,
-      monthRangeISO('2026-06'),
+      monthRangeVietnamISO('2026-06'),
     );
     expect(result.current.data).toBe(rows);
     expect(result.current.error).toBeNull();

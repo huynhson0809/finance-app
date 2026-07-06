@@ -10,14 +10,14 @@ import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
-import { isSameDay, monthOf, todayISO } from '../lib/date';
+import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { CATEGORIES, type Category } from '../types';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
-  const today = todayISO();
-  const month = monthOf(today);
+  const today = todayVietnamDate();
+  const month = monthOfVietnamDate(today);
   const { data: budget } = useBudget(month);
   const {
     data: recent,
@@ -34,7 +34,7 @@ export function HomeScreen() {
 
   const todayTotal = useMemo(
     () => monthTx
-      .filter(tx => isSameDay(tx.occurredAt, today))
+      .filter(tx => isSameVietnamDay(tx.occurredAt, today))
       .reduce((sum, tx) => sum + tx.amount, 0),
     [monthTx, today],
   );

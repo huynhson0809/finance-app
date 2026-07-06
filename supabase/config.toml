@@ -1,0 +1,2 @@
+[functions.ingest-transaction]
+verify_jwt = false

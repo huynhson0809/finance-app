@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { monthRangeISO } from '../lib/date';
+import { monthRangeVietnamISO } from '../lib/date';
 import { supabase } from '../supabase/client';
 import {
   listCloudTransactions,
@@ -75,7 +75,7 @@ export function useRecentCloudTransactions(limit = 5): CloudTransactionsResult {
 export function useMonthCloudTransactions(monthISO: string): CloudTransactionsResult {
   const load = useCallback(async () => {
     if (!supabase) return [];
-    return listCloudTransactionsForRange(supabase, monthRangeISO(monthISO));
+    return listCloudTransactionsForRange(supabase, monthRangeVietnamISO(monthISO));
   }, [monthISO]);
 
   return useCloudTransactionQuery(load);

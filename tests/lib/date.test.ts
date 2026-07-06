@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { todayISO, monthOf, isSameDay, monthStartISO, prevMonth, monthRangeISO } from '../../src/lib/date';
+import {
+  todayISO,
+  monthOf,
+  isSameDay,
+  monthStartISO,
+  prevMonth,
+  monthRangeISO,
+  todayVietnamDate,
+  monthOfVietnamDate,
+  monthRangeVietnamISO,
+  isSameVietnamDay,
+} from '../../src/lib/date';
 
 describe('date helpers', () => {
   it('monthOf extracts YYYY-MM', () => {
@@ -50,5 +61,30 @@ describe('monthRangeISO', () => {
   it('rolls year boundary in untilISO', () => {
     const { untilISO } = monthRangeISO('2026-12');
     expect(untilISO).toBe('2027-01-01T00:00:00.000Z');
+  });
+});
+
+describe('Vietnam calendar helpers', () => {
+  it('derives Vietnam dates across UTC day boundaries', () => {
+    expect(todayVietnamDate(new Date('2026-06-30T17:30:00.000Z'))).toBe('2026-07-01');
+    expect(monthOfVietnamDate('2026-06-30T17:00:00.000Z')).toBe('2026-07');
+  });
+
+  it('returns UTC instants for Vietnam month boundaries', () => {
+    const { sinceISO, untilISO } = monthRangeVietnamISO('2026-07');
+
+    expect(sinceISO).toBe('2026-06-30T17:00:00.000Z');
+    expect(untilISO).toBe('2026-07-31T17:00:00.000Z');
+  });
+
+  it('compares Vietnam calendar days instead of UTC days', () => {
+    expect(isSameVietnamDay(
+      '2026-06-30T17:00:00.000Z',
+      '2026-07-01T16:59:59.000Z',
+    )).toBe(true);
+    expect(isSameVietnamDay(
+      '2026-06-30T17:00:00.000Z',
+      '2026-07-01T17:00:00.000Z',
+    )).toBe(false);
   });
 });

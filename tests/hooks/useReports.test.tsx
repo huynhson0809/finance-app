@@ -3,7 +3,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { __resetDBForTests } from '../../src/db';
 import { upsertBudget } from '../../src/db/budgets';
-import { monthRangeISO, prevMonth } from '../../src/lib/date';
+import { monthRangeVietnamISO, prevMonth } from '../../src/lib/date';
 import type { Transaction } from '../../src/types';
 
 const mocks = vi.hoisted(() => ({
@@ -71,12 +71,12 @@ describe('useReports', () => {
     expect(mocks.listCloudTransactionsForRange).toHaveBeenNthCalledWith(
       1,
       mocks.supabase,
-      monthRangeISO('2026-06'),
+      monthRangeVietnamISO('2026-06'),
     );
     expect(mocks.listCloudTransactionsForRange).toHaveBeenNthCalledWith(
       2,
       mocks.supabase,
-      monthRangeISO(prevMonth('2026-06')),
+      monthRangeVietnamISO(prevMonth('2026-06')),
     );
     expect(result.current.sums['food-drinks']).toBe(0);
     expect(result.current.bStatus.overall).toBe('ok');

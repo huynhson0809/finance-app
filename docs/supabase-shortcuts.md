@@ -118,6 +118,13 @@ The function uses `x-ingest-secret` instead of Supabase JWT auth because iOS Sho
 
 Warning: every redeploy must preserve `--no-verify-jwt`, or the equivalent Supabase function config, because Shortcuts do not send Supabase JWTs. If JWT verification is enabled later, the same Shortcut requests will fail before the function can check `x-ingest-secret`.
 
+The repository also pins this setting in `supabase/config.toml`:
+
+```toml
+[functions.ingest-transaction]
+verify_jwt = false
+```
+
 ### 8. Configure PWA env
 
 Create the PWA environment file for local development and set the same values in production hosting:
@@ -332,7 +339,7 @@ If the first request returns `duplicate`, that exact transaction was already ins
 - Google provider is enabled in Supabase Auth.
 - Local and production PWA redirect URLs are configured.
 - Migration `supabase/migrations/20260706000000_create_transactions.sql` has been applied.
-- Edge Function `supabase/functions/ingest-transaction` is deployed with `--no-verify-jwt`.
+- Edge Function `supabase/functions/ingest-transaction` is deployed with `--no-verify-jwt` or the committed `supabase/config.toml` setting.
 - Edge Function secrets are set: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INGEST_SECRET`, `DEFAULT_USER_ID`.
 - PWA env is set: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - All three iOS Mail automations are enabled.

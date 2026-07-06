@@ -4,9 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
 import { upsertBudget } from '../../src/db/budgets';
-import { monthOf, todayISO } from '../../src/lib/date';
+import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
 import { __resetDBForTests } from '../../src/db';
-import { addTransaction } from '../../src/db/transactions';
 import type { Transaction } from '../../src/types';
 
 const cloudHooks = vi.hoisted(() => ({
@@ -61,7 +60,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     id: crypto.randomUUID(),
     amount: 10_000,
     currency: 'VND',
-    occurredAt: new Date().toISOString(),
+    occurredAt: vietnamNoonISO(todayVietnamDate()),
     category: 'others',
     source: 'bank-email',
     ...overrides,
@@ -69,14 +68,23 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
 }
 
 function anotherDayThisMonth(): string {
-  const date = new Date(todayISO());
-  date.setDate(date.getDate() === 1 ? 2 : date.getDate() - 1);
-  return date.toISOString();
+  const today = todayVietnamDate();
+  const day = Number(today.slice(8, 10));
+  const otherDay = String(day === 1 ? 2 : day - 1).padStart(2, '0');
+  return vietnamNoonISO(`${today.slice(0, 8)}${otherDay}`);
+}
+
+function currentVietnamMonth(): string {
+  return monthOfVietnamDate(todayVietnamDate());
+}
+
+function vietnamNoonISO(date: string): string {
+  return new Date(`${date}T12:00:00+07:00`).toISOString();
 }
 
 describe('HomeScreen', () => {
   it('shows today total, budget status, and recent cloud rows', async () => {
-    await upsertBudget(monthOf(todayISO()), 5_000_000);
+    await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.recentState.data = [
       tx({ id: 'recent-1', amount: 10_000, category: 'food-drinks' }),
       tx({ id: 'recent-2', amount: 20_000, category: 'transportation' }),
@@ -114,14 +122,6 @@ describe('HomeScreen', () => {
   });
 
   it('does not surface local backup reminders in the cloud home path', async () => {
-    await addTransaction({
-      amount: 1000,
-      currency: 'VND',
-      occurredAt: '2026-06-15T08:00:00.000Z',
-      category: 'others',
-      source: 'manual',
-    });
-
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
     await waitFor(() => {
@@ -131,7 +131,7 @@ describe('HomeScreen', () => {
   });
 
   it('renders BudgetAlert banner when cloud monthly rows exceed the budget', async () => {
-    await upsertBudget(monthOf(todayISO()), 1000);
+    await upsertBudget(currentVietnamMonth(), 1000);
     cloudHooks.monthState.data = [
       tx({ amount: 1500, category: 'food-drinks' }),
     ];
@@ -151,7 +151,7 @@ describe('HomeScreen', () => {
   });
 
   it('shows monthly loading instead of zeroed budget summary while month rows load', async () => {
-    await upsertBudget(monthOf(todayISO()), 1000);
+    await upsertBudget(currentVietnamMonth(), 1000);
     cloudHooks.monthState.loading = true;
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
@@ -162,7 +162,7 @@ describe('HomeScreen', () => {
   });
 
   it('shows monthly errors without zeroed budget summary', async () => {
-    await upsertBudget(monthOf(todayISO()), 1000);
+    await upsertBudget(currentVietnamMonth(), 1000);
     cloudHooks.monthState.error = 'Month fetch failed';
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);

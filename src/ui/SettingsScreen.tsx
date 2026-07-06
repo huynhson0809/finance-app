@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
-import { monthOf, todayISO } from '../lib/date';
+import { monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
@@ -11,7 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
-  const month = monthOf(todayISO());
+  const month = monthOfVietnamDate(todayVietnamDate());
   const [raw, setRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);

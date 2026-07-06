@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto';
 import { MemoryRouter } from 'react-router-dom';
 import { __resetDBForTests } from '../../src/db';
 import { upsertBudget, getBudgetForMonth } from '../../src/db/budgets';
-import { monthOf, todayISO } from '../../src/lib/date';
+import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
 import { initI18n } from '../../src/i18n';
 import { SettingsScreen } from '../../src/ui/SettingsScreen';
 
@@ -34,30 +34,34 @@ beforeEach(async () => {
 
 describe('SettingsScreen caps editor', () => {
   it('saves a per-category cap after debounce', async () => {
-    await upsertBudget(monthOf(todayISO()), 5000000);
+    await upsertBudget(currentVietnamMonth(), 5000000);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
     // open the disclosure
     fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
     const coffeeInput = await screen.findByLabelText(/coffee|cà phê/i);
     fireEvent.change(coffeeInput, { target: { value: '500000' } });
     await waitFor(async () => {
-      const b = await getBudgetForMonth(monthOf(todayISO()));
+      const b = await getBudgetForMonth(currentVietnamMonth());
       expect(b?.caps?.['coffee-bubble-tea']).toBe(500000);
     }, { timeout: 1500 });
   });
 
   it('clears a cap when input is emptied', async () => {
-    await upsertBudget(monthOf(todayISO()), 5000000, { 'coffee-bubble-tea': 500000 });
+    await upsertBudget(currentVietnamMonth(), 5000000, { 'coffee-bubble-tea': 500000 });
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
     const coffeeInput = await screen.findByLabelText(/coffee|cà phê/i);
     fireEvent.change(coffeeInput, { target: { value: '' } });
     await waitFor(async () => {
-      const b = await getBudgetForMonth(monthOf(todayISO()));
+      const b = await getBudgetForMonth(currentVietnamMonth());
       expect(b?.caps?.['coffee-bubble-tea']).toBeUndefined();
     }, { timeout: 1500 });
   });
 });
+
+function currentVietnamMonth(): string {
+  return monthOfVietnamDate(todayVietnamDate());
+}
 
 describe('SettingsScreen account', () => {
   it('signs out from the account section', async () => {

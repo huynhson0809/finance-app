@@ -31,9 +31,20 @@ describe('dailyTotals', () => {
   });
   it('ignores transactions outside the month', () => {
     const out = dailyTotals([
-      tx(999, '2026-05-31T23:00:00.000Z'),
-      tx(999, '2026-07-01T00:00:00.000Z'),
+      tx(999, '2026-05-31T16:59:59.000Z'),
+      tx(999, '2026-06-30T17:00:00.000Z'),
     ], '2026-06');
     expect(out.every(d => d.total === 0)).toBe(true);
+  });
+
+  it('groups bank transactions by Vietnam calendar day', () => {
+    const out = dailyTotals([
+      tx(100, '2026-06-30T17:30:00.000Z'),
+      tx(200, '2026-07-31T16:30:00.000Z'),
+      tx(999, '2026-07-31T17:00:00.000Z'),
+    ], '2026-07');
+
+    expect(out.find(d => d.date === '2026-07-01')?.total).toBe(100);
+    expect(out.find(d => d.date === '2026-07-31')?.total).toBe(200);
   });
 });
