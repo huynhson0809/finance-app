@@ -71,6 +71,20 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.amount).toBe(52043);
   });
 
+  it('adds a category based on email content', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'card',
+      amount: '-52,043',
+      datetime: '2026-07-06 11:19:20',
+      content: 'Grab* BWCFLJMBDWRJ-G-1',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.category).toBe('transportation');
+  });
+
   it('accepts ACB dotted amount', () => {
     const result = normalizeIngestPayload({
       bank: 'ACB',
@@ -83,6 +97,20 @@ describe('normalizeIngestPayload', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
     expect(result.value.amount).toBe(10000);
+  });
+
+  it('uses others for generic transfer memo content', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '-10,000.00',
+      datetime: '060726-14:47:32',
+      content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.category).toBe('others');
   });
 
   it('accepts ACB thousands-dot amount', () => {

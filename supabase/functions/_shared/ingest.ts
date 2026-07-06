@@ -1,3 +1,5 @@
+import { classifyEmailContent, type Category } from './category.ts';
+
 export type Bank = 'MB' | 'ACB';
 export type TransactionKind = 'transfer' | 'card' | 'balance_alert';
 
@@ -7,6 +9,7 @@ export interface NormalizedIngestPayload {
   amount: number;
   transaction_time: string;
   content: string;
+  category: Category;
   raw_source: 'email';
 }
 
@@ -62,6 +65,7 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
   if (typeof input.content !== 'string' || input.content.trim() === '') {
     return { ok: false, error: 'invalid_content' };
   }
+  const content = input.content.trim();
 
   if (input.raw_source !== undefined && input.raw_source !== null && input.raw_source !== 'email') {
     return { ok: false, error: 'invalid_raw_source' };
@@ -74,7 +78,8 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
       type: input.type as TransactionKind,
       amount,
       transaction_time: transactionTime,
-      content: input.content.trim(),
+      content,
+      category: classifyEmailContent(content),
       raw_source: 'email',
     },
   };

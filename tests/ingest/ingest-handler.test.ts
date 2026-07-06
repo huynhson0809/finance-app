@@ -117,6 +117,7 @@ describe('createIngestTransactionHandler', () => {
         amount: 297000,
         transaction_time: '2026-07-04T14:48:49.000Z',
         content: '159287 1PEV8',
+        category: 'others',
         raw_source: 'email',
         user_id: 'user-1',
       },
