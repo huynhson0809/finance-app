@@ -83,6 +83,8 @@ Push pending migrations:
 supabase db push
 ```
 
+After pulling updates, run `npx supabase db push` so Supabase has the latest transaction columns and the category update RLS policy. Without the latest migrations, manual/image saves or category edits may fail with a schema or row-level security error.
+
 ### 5. Get `DEFAULT_USER_ID`
 
 1. Start the PWA with the Supabase env vars from the next section.
