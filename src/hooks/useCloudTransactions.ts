@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { monthRangeISO } from '../lib/date';
 import { supabase } from '../supabase/client';
 import {
@@ -26,6 +26,7 @@ function errorMessage(error: unknown): string {
 function useCloudTransactionQuery(
   load: () => Promise<Transaction[]>,
 ): CloudTransactionsResult {
+  const requestIdRef = useRef(0);
   const [state, setState] = useState<CloudTransactionsState>({
     data: [],
     loading: true,
@@ -33,6 +34,9 @@ function useCloudTransactionQuery(
   });
 
   const reload = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     if (!supabase) {
       setState({ data: [], loading: false, error: SUPABASE_NOT_CONFIGURED });
       return;
@@ -41,8 +45,10 @@ function useCloudTransactionQuery(
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
       const data = await load();
+      if (requestId !== requestIdRef.current) return;
       setState({ data, loading: false, error: null });
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       setState({ data: [], loading: false, error: errorMessage(error) });
     }
   }, [load]);

@@ -28,6 +28,7 @@ export function HomeScreen() {
   } = useRecentCloudTransactions(5);
   const {
     data: monthTx,
+    loading: monthLoading,
     error: monthError,
     reload: reloadMonth,
   } = useMonthCloudTransactions(month);
@@ -46,7 +47,9 @@ export function HomeScreen() {
     [bStatus],
   );
   const categoryLabel = (c: Category) => t(`category.${c}`);
-  const cloudErrors = [recentError, monthError].filter(Boolean);
+  const cloudErrors = Array.from(new Set(
+    [recentError, monthError].filter((error): error is string => Boolean(error)),
+  ));
   const retryCloudTransactions = () => {
     void reloadRecent();
     void reloadMonth();
@@ -56,7 +59,9 @@ export function HomeScreen() {
     <div>
       <header className="p-4">
         <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
-        <div className="text-3xl font-semibold">{formatVND(todayTotal, locale)}</div>
+        <div className="text-3xl font-semibold">
+          {monthLoading ? t('cloud.loading') : formatVND(todayTotal, locale)}
+        </div>
       </header>
 
       <BackupReminder />
@@ -74,15 +79,19 @@ export function HomeScreen() {
         </div>
       )}
 
-      {budget
+      {monthLoading
+        ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
+        : budget
         ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
         : <div className="px-4 text-sm text-gray-500">{t('home.noBudget')}</div>}
 
-      <BudgetAlert
-        overall={bStatus.overall}
-        perCategoryOver={perCategoryOver}
-        categoryLabel={categoryLabel}
-      />
+      {!monthLoading && (
+        <BudgetAlert
+          overall={bStatus.overall}
+          perCategoryOver={perCategoryOver}
+          categoryLabel={categoryLabel}
+        />
+      )}
 
       <h2 className="px-4 pt-4 pb-2 text-sm uppercase text-gray-500">
         {t('home.lastTransactions')}

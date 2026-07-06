@@ -129,7 +129,18 @@ describe('HomeScreen', () => {
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
-    expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
+    expect(screen.getAllByText('Loading transactions...').length).toBeGreaterThan(0);
+  });
+
+  it('shows monthly loading instead of zeroed budget summary while month rows load', async () => {
+    await upsertBudget(monthOf(todayISO()), 1000);
+    cloudHooks.monthState.loading = true;
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getAllByText('Loading transactions...').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows cloud fetch errors and retries both cloud hooks', async () => {
@@ -147,5 +158,16 @@ describe('HomeScreen', () => {
 
     expect(cloudHooks.recentReload).toHaveBeenCalledTimes(1);
     expect(cloudHooks.monthReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('deduplicates identical cloud fetch errors', () => {
+    cloudHooks.recentState.error = 'Supabase is not configured';
+    cloudHooks.monthState.error = 'Supabase is not configured';
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    const alertText = screen.getByRole('alert').textContent ?? '';
+    const matches = alertText.match(/Supabase is not configured/g) ?? [];
+    expect(matches).toHaveLength(1);
   });
 });
