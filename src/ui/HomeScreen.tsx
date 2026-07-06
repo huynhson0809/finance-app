@@ -101,6 +101,8 @@ export function HomeScreen() {
       </h2>
       {recentLoading
         ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
+        : recentError
+        ? null
         : recent.length === 0
         ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
         : <ul>{recent.map(tx => <TransactionRow key={tx.id} t={tx} locale={locale} />)}</ul>}

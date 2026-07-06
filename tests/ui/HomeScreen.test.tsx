@@ -172,6 +172,16 @@ describe('HomeScreen', () => {
     expect(cloudHooks.monthReload).toHaveBeenCalledTimes(1);
   });
 
+  it('does not show an empty recent list message when recent loading fails', () => {
+    cloudHooks.recentState.error = 'Recent fetch failed';
+    cloudHooks.recentState.data = [];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Recent fetch failed');
+    expect(screen.queryByText('No transactions yet')).not.toBeInTheDocument();
+  });
+
   it('deduplicates identical cloud fetch errors', () => {
     cloudHooks.recentState.error = 'Supabase is not configured';
     cloudHooks.monthState.error = 'Supabase is not configured';
