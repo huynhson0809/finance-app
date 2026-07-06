@@ -81,6 +81,10 @@
     "signInFailed": "Sign in failed",
     "setupError": "Supabase environment variables are missing."
   },
+  "cloud": {
+    "loading": "Loading transactions...",
+    "retry": "Retry"
+  },
   "backup": {
     "title": "Backup & restore",
     "export": "Export backup",

@@ -81,6 +81,10 @@
     "signInFailed": "Đăng nhập thất bại",
     "setupError": "Thiếu biến môi trường Supabase."
   },
+  "cloud": {
+    "loading": "Đang tải giao dịch...",
+    "retry": "Thử lại"
+  },
   "backup": {
     "title": "Sao lưu & khôi phục",
     "export": "Xuất file backup",

@@ -1,33 +1,43 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useTransactions } from '../hooks/useTransactions';
+import {
+  useMonthCloudTransactions,
+  useRecentCloudTransactions,
+} from '../hooks/useCloudTransactions';
 import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { BackupReminder } from './components/BackupReminder';
 import { TransactionRow } from './components/TransactionRow';
-import { AddImageButton } from './AddImageButton';
-import { getTodayTotal, listTransactions } from '../db/transactions';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
-import { monthOf, monthStartISO, todayISO } from '../lib/date';
-import { CATEGORIES, type Category, type Transaction } from '../types';
+import { isSameDay, monthOf, todayISO } from '../lib/date';
+import { CATEGORIES, type Category } from '../types';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
-  const month = monthOf(todayISO());
+  const today = todayISO();
+  const month = monthOf(today);
   const { data: budget } = useBudget(month);
-  const { data: recent } = useTransactions(5);
-  const [todayTotal, setTodayTotal] = useState(0);
-  const [monthTx, setMonthTx] = useState<Transaction[]>([]);
+  const {
+    data: recent,
+    loading: recentLoading,
+    error: recentError,
+    reload: reloadRecent,
+  } = useRecentCloudTransactions(5);
+  const {
+    data: monthTx,
+    error: monthError,
+    reload: reloadMonth,
+  } = useMonthCloudTransactions(month);
 
-  useEffect(() => { getTodayTotal().then(setTodayTotal); }, [recent]);
-  useEffect(() => {
-    listTransactions({ sinceISO: monthStartISO(todayISO()) }).then(setMonthTx);
-  }, [recent, month]);
-
+  const todayTotal = useMemo(
+    () => monthTx
+      .filter(tx => isSameDay(tx.occurredAt, today))
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [monthTx, today],
+  );
   const sums = useMemo(() => sumByCategory(monthTx), [monthTx]);
   const bStatus = useMemo(() => budgetStatus(budget, sums), [budget, sums]);
   const monthSpent = bStatus.overallSpent;
@@ -36,6 +46,11 @@ export function HomeScreen() {
     [bStatus],
   );
   const categoryLabel = (c: Category) => t(`category.${c}`);
+  const cloudErrors = [recentError, monthError].filter(Boolean);
+  const retryCloudTransactions = () => {
+    void reloadRecent();
+    void reloadMonth();
+  };
 
   return (
     <div>
@@ -45,6 +60,19 @@ export function HomeScreen() {
       </header>
 
       <BackupReminder />
+
+      {cloudErrors.length > 0 && (
+        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div>{cloudErrors.join(' ')}</div>
+          <button
+            type="button"
+            className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
+            onClick={retryCloudTransactions}
+          >
+            {t('cloud.retry')}
+          </button>
+        </div>
+      )}
 
       {budget
         ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
@@ -59,16 +87,11 @@ export function HomeScreen() {
       <h2 className="px-4 pt-4 pb-2 text-sm uppercase text-gray-500">
         {t('home.lastTransactions')}
       </h2>
-      {recent.length === 0
+      {recentLoading
+        ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
+        : recent.length === 0
         ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
         : <ul>{recent.map(tx => <TransactionRow key={tx.id} t={tx} locale={locale} />)}</ul>}
-
-      <AddImageButton />
-      <Link
-        to="/add"
-        className="fixed right-4 bottom-20 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl flex items-center justify-center shadow-lg"
-        aria-label={t('nav.add')}
-      >+</Link>
     </div>
   );
 }
