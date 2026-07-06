@@ -73,6 +73,14 @@
     "cta": "Cài đặt",
     "dismiss": "Đóng"
   },
+  "auth": {
+    "title": "Quản lý chi tiêu",
+    "subtitle": "Đăng nhập để xem chi tiêu từ email ngân hàng trên Supabase.",
+    "loading": "Đang kiểm tra đăng nhập...",
+    "signInWithGoogle": "Tiếp tục với Google",
+    "signInFailed": "Đăng nhập thất bại",
+    "setupError": "Thiếu biến môi trường Supabase."
+  },
   "backup": {
     "title": "Sao lưu & khôi phục",
     "export": "Xuất file backup",

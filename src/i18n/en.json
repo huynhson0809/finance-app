@@ -73,6 +73,14 @@
     "cta": "Install",
     "dismiss": "Dismiss"
   },
+  "auth": {
+    "title": "Finance",
+    "subtitle": "Sign in to view bank-email spending from Supabase.",
+    "loading": "Checking sign-in...",
+    "signInWithGoogle": "Continue with Google",
+    "signInFailed": "Sign in failed",
+    "setupError": "Supabase environment variables are missing."
+  },
   "backup": {
     "title": "Backup & restore",
     "export": "Export backup",
