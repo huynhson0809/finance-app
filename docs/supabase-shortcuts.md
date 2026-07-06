@@ -39,11 +39,23 @@ http://127.0.0.1:54321/auth/v1/callback
 
 3. In Supabase, go to Authentication -> Providers -> Google.
 4. Enable Google and paste the Google OAuth client ID and client secret.
-5. In Authentication -> URL Configuration, add redirect URLs for local and production PWA usage:
+5. In Google Cloud Console, add Authorized JavaScript origins for the local PWA and production PWA:
 
 ```text
+http://localhost:5173
+http://127.0.0.1:5173
+https://<your-production-domain>
+```
+
+6. In Supabase, go to Authentication -> URL Configuration.
+7. Add redirect URLs for local and production PWA usage. Include the exact bare origins because the app uses `redirectTo: window.location.origin`; wildcard entries are useful for any future callback paths.
+
+```text
+http://localhost:5173
 http://localhost:5173/**
+http://127.0.0.1:5173
 http://127.0.0.1:5173/**
+https://<your-production-domain>
 https://<your-production-domain>/**
 ```
 
@@ -76,7 +88,9 @@ supabase db push
 1. Start the PWA with the Supabase env vars from the next section.
 2. Sign in once with Google.
 3. In Supabase, open Authentication -> Users.
-4. Copy the signed-in user's UUID. This is `DEFAULT_USER_ID`.
+4. Copy the UUID for the exact Google email/account that will sign into the PWA. This is `DEFAULT_USER_ID`.
+
+If `DEFAULT_USER_ID` belongs to a different auth user, the Edge Function will insert rows for that other user and row-level security will hide the inserted transactions from the signed-in PWA user.
 
 ### 6. Set Edge Function secrets
 
@@ -102,6 +116,8 @@ supabase functions deploy ingest-transaction --no-verify-jwt
 
 The function uses `x-ingest-secret` instead of Supabase JWT auth because iOS Shortcuts is the ingestion bridge.
 
+Warning: every redeploy must preserve `--no-verify-jwt`, or the equivalent Supabase function config, because Shortcuts do not send Supabase JWTs. If JWT verification is enabled later, the same Shortcut requests will fail before the function can check `x-ingest-secret`.
+
 ### 8. Configure PWA env
 
 Create the PWA environment file for local development and set the same values in production hosting:
@@ -118,7 +134,7 @@ Only use the anon key in the frontend.
 Production endpoint:
 
 ```text
-POST https://<project-ref>.functions.supabase.co/ingest-transaction
+POST https://<project-ref>.supabase.co/functions/v1/ingest-transaction
 ```
 
 Required headers:
@@ -162,10 +178,10 @@ Create one Mail automation per sender. For each automation:
 2. Sender: use the exact sender address from the matching section below.
 3. Action: Get Details of Emails -> Message.
 4. Action: Match Text against Message with each regex.
-5. Action: Get the first match where needed.
+5. Action: From each Match Text result, use the first match and Group 1 / first capture group for the field value. Do not send the full regex match.
 6. Action: Build a Dictionary with `bank`, `type`, `amount`, `datetime`, `content`, and `raw_source`.
 7. Action: Get Contents of URL.
-8. URL: `https://<project-ref>.functions.supabase.co/ingest-transaction`.
+8. URL: `https://<project-ref>.supabase.co/functions/v1/ingest-transaction`.
 9. Method: `POST`.
 10. Headers:
 
@@ -194,7 +210,7 @@ content: Nội dung chuyển tiền\s*\n?\s*(.+)
 datetime: Ngày, giờ giao dịch:\s*(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})
 ```
 
-Use the first capture group from each match.
+Use Group 1 / the first capture group from the first match for each field.
 
 Sample POST JSON:
 
@@ -225,7 +241,7 @@ content: Nội dung\s*Giao dịch chi tiêu tại\s*(.+)
 datetime: Ngày, giờ giao dịch:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})
 ```
 
-Use the first capture group from each match. Keep the leading minus sign if the email includes it; the Edge Function normalizes spending amounts to positive VND.
+Use Group 1 / the first capture group from the first match for each field. Keep the leading minus sign if the email includes it; the Edge Function normalizes spending amounts to positive VND.
 
 Sample POST JSON:
 
@@ -258,7 +274,7 @@ datetime: (\d{6}-\d{2}:\d{2}:\d{2})
 
 Use the first Vietnamese match only. ACB includes Vietnamese and English sections in the same email, and later English matches can duplicate or distort the transaction fields.
 
-Use the first capture group from each match. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly by the Edge Function.
+Use Group 1 / the first capture group from the first match for each field. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly by the Edge Function.
 
 Sample POST JSON:
 
@@ -281,7 +297,7 @@ Example:
 
 ```bash
 curl -i \
-  -X POST "https://<project-ref>.functions.supabase.co/ingest-transaction" \
+  -X POST "https://<project-ref>.supabase.co/functions/v1/ingest-transaction" \
   -H "x-ingest-secret: <INGEST_SECRET>" \
   -H "content-type: application/json" \
   --data '{
@@ -294,7 +310,7 @@ curl -i \
   }'
 ```
 
-Expected first response body:
+Expected first response: HTTP `201` with body:
 
 ```json
 { "ok": true, "status": "inserted" }
@@ -302,7 +318,7 @@ Expected first response body:
 
 Run the same `curl` command again.
 
-Expected second response body:
+Expected second response: HTTP `200` with body:
 
 ```json
 { "ok": true, "status": "duplicate" }
