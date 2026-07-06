@@ -21,8 +21,8 @@ export const CATEGORIES: readonly Category[] = [
   'others',
 ];
 
-export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot';
-export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay';
+export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot' | 'bank-email';
+export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay' | 'mb' | 'acb';
 
 export interface Transaction {
   id: string;

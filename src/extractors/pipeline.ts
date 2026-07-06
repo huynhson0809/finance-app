@@ -6,18 +6,24 @@ import { extractMomo } from './momo';
 import { extractZaloPay } from './zalopay';
 import { extractReceipt } from './receipt';
 
-const BANK_EXTRACTORS: Record<BankHint, (text: string) => Partial<Extracted>> = {
+type OcrBankHint = Exclude<BankHint, 'mb' | 'acb'>;
+
+const BANK_EXTRACTORS: Record<OcrBankHint, (text: string) => Partial<Extracted>> = {
   vietcombank: extractVietcombank,
   techcombank: extractTechcombank,
   momo: extractMomo,
   zalopay: extractZaloPay,
 };
 
+function isOcrBankHint(bank: BankHint): bank is OcrBankHint {
+  return bank in BANK_EXTRACTORS;
+}
+
 export function runExtractors(text: string):
   { fields: Partial<Extracted>; bankHint: BankHint | null }
 {
   const bank = detectBank(text);
-  if (bank) {
+  if (bank && isOcrBankHint(bank)) {
     const fields = BANK_EXTRACTORS[bank](text);
     if (fields.amount != null) return { fields, bankHint: bank };
     // Bank detected but extractor returned no amount.
