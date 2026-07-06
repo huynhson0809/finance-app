@@ -21,6 +21,16 @@ describe('parseVietnamDatetime', () => {
   it('parses slash-separated day-first datetime as Vietnam local time', () => {
     expect(parseVietnamDatetime('06/07/2026 14:47:32')).toBe('2026-07-06T07:47:32.000Z');
   });
+
+  it('rejects mixed day-first separators', () => {
+    expect(parseVietnamDatetime('06/07-2026 14:47:32')).toBeNull();
+    expect(parseVietnamDatetime('06-07/2026 14:47:32')).toBeNull();
+  });
+
+  it('rejects invalid calendar rollovers', () => {
+    expect(parseVietnamDatetime('31-04-2026 10:00:00')).toBeNull();
+    expect(parseVietnamDatetime('2026-02-29 10:00:00')).toBeNull();
+  });
 });
 
 describe('normalizeIngestPayload', () => {
@@ -65,6 +75,34 @@ describe('normalizeIngestPayload', () => {
       bank: 'ACB',
       type: 'balance_alert',
       amount: '-10,000.00',
+      datetime: '060726-14:47:32',
+      content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.amount).toBe(10000);
+  });
+
+  it('accepts ACB thousands-dot amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '10.000',
+      datetime: '060726-14:47:32',
+      content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.amount).toBe(10000);
+  });
+
+  it('accepts ACB thousands-dot decimal-comma amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '10.000,00',
       datetime: '060726-14:47:32',
       content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
     });

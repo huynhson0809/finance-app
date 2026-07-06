@@ -97,9 +97,9 @@ function parseDatetimeParts(input: string):
     return toParts(isoLike[1], isoLike[2], isoLike[3], isoLike[4], isoLike[5], isoLike[6]);
   }
 
-  const dayFirst = /^(\d{2})[-/](\d{2})[-/](\d{4}) (\d{2}):(\d{2}):(\d{2})$/.exec(input);
+  const dayFirst = /^(\d{2})([-/])(\d{2})\2(\d{4}) (\d{2}):(\d{2}):(\d{2})$/.exec(input);
   if (dayFirst) {
-    return toParts(dayFirst[3], dayFirst[2], dayFirst[1], dayFirst[4], dayFirst[5], dayFirst[6]);
+    return toParts(dayFirst[4], dayFirst[3], dayFirst[1], dayFirst[5], dayFirst[6], dayFirst[7]);
   }
 
   const acbEmbedded = /^(\d{2})(\d{2})(\d{2})-(\d{2}):(\d{2}):(\d{2})$/.exec(input);
