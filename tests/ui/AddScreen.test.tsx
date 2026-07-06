@@ -57,6 +57,22 @@ describe('AddScreen manual entry', () => {
   });
 });
 
+it('shows a visible error when saving a manual transaction fails', async () => {
+  saveMocks.saveUserTransaction.mockRejectedValue(new Error('new row violates row-level security policy'));
+  const user = userEvent.setup();
+
+  render(<MemoryRouter><AddScreen /></MemoryRouter>);
+
+  await user.click(screen.getByRole('button', { name: '4' }));
+  await user.click(screen.getByRole('button', { name: '5' }));
+  await user.click(screen.getByRole('button', { name: '000' }));
+  await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
+  await user.click(screen.getByRole('button', { name: /Lưu|Save/ }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/could not save|không thể lưu/i);
+  expect(screen.getByRole('alert')).toHaveTextContent('new row violates row-level security policy');
+});
+
 it('auto-highlights category chip when merchant matches seed', async () => {
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
   const input = screen.getByLabelText(/merchant|cửa hàng/i);

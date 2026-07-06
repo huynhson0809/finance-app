@@ -7,6 +7,7 @@ import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
+import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
 import type { Category } from '../types';
 
@@ -17,6 +18,8 @@ export function AddScreen() {
   const [merchant, setMerchant] = useState('');
   const [chosen, setChosen] = useState<Category | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { suggestion, refresh } = useCategorySuggestion(merchant);
 
@@ -41,7 +44,9 @@ export function AddScreen() {
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
 
   async function handleSave() {
-    if (!amount || !chosen) return;
+    if (!amount || !chosen || saving) return;
+    setSaving(true);
+    setSaveError(null);
     try {
       await saveUserTransaction({
         amount, currency: 'VND',
@@ -57,6 +62,9 @@ export function AddScreen() {
       navigate('/');
     } catch (err) {
       console.error('Failed to save transaction', err);
+      setSaveError(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -75,12 +83,18 @@ export function AddScreen() {
       </label>
       <Keypad onChange={handleKey} />
       <CategoryChips value={chosen} onSelect={handleChip} />
+      {saveError && (
+        <div role="alert" className="mx-4 mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div>{t('add.saveFailed')}</div>
+          <div>{saveError}</div>
+        </div>
+      )}
       <button
         type="button"
         onClick={handleSave}
-        disabled={!amount || !chosen}
+        disabled={!amount || !chosen || saving}
         className="mx-4 my-4 py-3 bg-blue-600 text-white rounded disabled:bg-gray-300"
-      >{t('add.save')}</button>
+      >{saving ? t('add.saving') : t('add.save')}</button>
     </div>
   );
 }

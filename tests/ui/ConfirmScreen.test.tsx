@@ -94,6 +94,22 @@ describe('ConfirmScreen', () => {
     });
   });
 
+  it('shows a visible error when saving an image transaction fails', async () => {
+    saveMocks.saveUserTransaction.mockRejectedValue(new Error('column category does not exist'));
+    mountWithImage([
+      'Vietcombank',
+      'So tien: -50.000 VND',
+      'Noi dung: Test',
+    ].join('\n'));
+
+    await waitFor(() => screen.getByText(/50.*000/));
+    fireEvent.click(screen.getByRole('button', { name: /coffee|cà phê/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save|không thể lưu/i);
+    expect(screen.getByRole('alert')).toHaveTextContent('column category does not exist');
+  });
+
   it('suggests category based on OCR note keyword (shopee in transfer memo)', async () => {
     // OCR text contains "shopee" in the transfer memo line.
     // Merchant alone (NGUYEN MINH TUAN) wouldn't match any seed; the OCR text does.

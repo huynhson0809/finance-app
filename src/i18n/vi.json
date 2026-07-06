@@ -18,7 +18,9 @@
     "save": "Lưu",
     "cancel": "Huỷ",
     "delete": "Xoá",
-    "byImage": "Thêm bằng ảnh"
+    "byImage": "Thêm bằng ảnh",
+    "saving": "Đang lưu...",
+    "saveFailed": "Không thể lưu giao dịch"
   },
   "settings": {
     "title": "Cài đặt",

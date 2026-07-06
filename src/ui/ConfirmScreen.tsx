@@ -10,6 +10,7 @@ import { imageHolder } from '../lib/image';
 import { upsertLearnedRule } from '../db/category-rules';
 import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
+import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
 import type { Category } from '../types';
 import type { BankHint, Extracted } from '../extractors';
@@ -55,6 +56,8 @@ export function ConfirmScreen() {
   const [occurredAt, setOccurredAt] = useState('');
   const [chosen, setChosen] = useState<Category | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const searchText = useMemo(
     () => [merchant, text ?? ''].filter(Boolean).join(' '),
     [merchant, text],
@@ -91,10 +94,12 @@ export function ConfirmScreen() {
   }
 
   const amount = Number.parseInt(raw || '0', 10);
-  const canSave = amount > 0 && chosen != null;
+  const canSave = amount > 0 && chosen != null && !saving;
 
   async function handleSave() {
     if (!canSave) return;
+    setSaving(true);
+    setSaveError(null);
     const source = extracted.bankHint != null ? 'bank-screenshot' : 'receipt';
     const occurred = occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString();
     try {
@@ -113,6 +118,9 @@ export function ConfirmScreen() {
       navigate('/');
     } catch (e) {
       console.error('ConfirmScreen save failed', e);
+      setSaveError(errorMessage(e));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -177,13 +185,19 @@ export function ConfirmScreen() {
 
       <Keypad onChange={handleKey} />
       <CategoryChips value={chosen} onSelect={handleChip} />
+      {saveError && (
+        <div role="alert" className="mx-4 mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div>{t('add.saveFailed')}</div>
+          <div>{saveError}</div>
+        </div>
+      )}
 
       <button
         type="button"
         onClick={handleSave}
         disabled={!canSave}
         className="mx-4 my-4 py-3 bg-blue-600 text-white rounded disabled:bg-gray-300"
-      >{t('add.save')}</button>
+      >{saving ? t('add.saving') : t('add.save')}</button>
     </div>
   );
 }

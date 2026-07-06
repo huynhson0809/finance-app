@@ -18,7 +18,9 @@
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
-    "byImage": "Add by image"
+    "byImage": "Add by image",
+    "saving": "Saving...",
+    "saveFailed": "Could not save transaction"
   },
   "settings": {
     "title": "Settings",
