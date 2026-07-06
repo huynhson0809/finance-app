@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
@@ -6,11 +6,11 @@ import { monthOf, todayISO } from '../lib/date';
 import { parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
-import { exportBackup, importBackup } from '../backup';
-import { setSetting } from '../db/settings';
+import { useAuth } from '../hooks/useAuth';
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
+  const { signOut } = useAuth();
   const month = monthOf(todayISO());
   const [raw, setRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
@@ -29,46 +29,6 @@ export function SettingsScreen() {
     if (Number.isNaN(parsed) || parsed <= 0) return;
     await upsertBudget(month, parsed, caps);
     setTotal(parsed);
-  }
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  async function handleExport() {
-    try {
-      const data = await exportBackup();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `finance-backup-${data.exportedAt.slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      await setSetting('lastBackupAt', data.exportedAt);
-    } catch (err) {
-      console.error('exportBackup failed', err);
-      alert(t('backup.exportFailed'));
-    }
-  }
-
-  function handleImportClick() {
-    if (!confirm(t('backup.confirmReplace'))) return;
-    fileInputRef.current?.click();
-  }
-
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    try {
-      await importBackup(file);
-      alert(t('backup.imported'));
-      window.location.reload();
-    } catch (err) {
-      console.error('importBackup failed', err);
-      alert(t('backup.importFailed'));
-    }
   }
 
   return (
@@ -119,27 +79,12 @@ export function SettingsScreen() {
       </section>
 
       <section>
-        <h2 className="font-semibold">{t('backup.title')}</h2>
-        <div className="flex gap-3 mt-2">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="py-2 px-4 bg-blue-600 text-white rounded"
-          >{t('backup.export')}</button>
-          <button
-            type="button"
-            onClick={handleImportClick}
-            className="py-2 px-4 bg-gray-600 text-white rounded"
-          >{t('backup.import')}</button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            data-testid="backup-import-input"
-            onChange={handleImportFile}
-          />
-        </div>
+        <h2 className="font-semibold">{t('settings.account')}</h2>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-2 py-2 px-4 bg-gray-600 text-white rounded"
+        >{t('settings.signOut')}</button>
       </section>
     </div>
   );

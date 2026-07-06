@@ -25,6 +25,8 @@
     "language": "Language",
     "monthlyBudget": "Monthly budget",
     "save": "Save",
+    "account": "Account",
+    "signOut": "Sign out",
     "caps": {
       "expand": "Set per-category caps (optional)",
       "collapse": "Hide per-category caps"
