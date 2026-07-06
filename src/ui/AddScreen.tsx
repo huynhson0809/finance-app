@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Keypad } from './components/Keypad';
 import { CategoryChips } from './components/CategoryChips';
-import { addTransaction } from '../db/transactions';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
+import { saveUserTransaction } from '../transactions/save';
 import type { Category } from '../types';
 
 export function AddScreen() {
@@ -43,7 +43,7 @@ export function AddScreen() {
   async function handleSave() {
     if (!amount || !chosen) return;
     try {
-      await addTransaction({
+      await saveUserTransaction({
         amount, currency: 'VND',
         occurredAt: new Date().toISOString(),
         merchant: merchant.trim() || undefined,

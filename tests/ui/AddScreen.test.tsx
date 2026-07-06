@@ -1,18 +1,27 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AddScreen } from '../../src/ui/AddScreen';
 import { HomeScreen } from '../../src/ui/HomeScreen';
 import { initI18n } from '../../src/i18n';
-import { listTransactions } from '../../src/db/transactions';
 import { __resetDBForTests } from '../../src/db';
 import { getAllRules } from '../../src/db/category-rules';
+
+const saveMocks = vi.hoisted(() => ({
+  saveUserTransaction: vi.fn(),
+}));
+
+vi.mock('../../src/transactions/save', () => ({
+  saveUserTransaction: saveMocks.saveUserTransaction,
+}));
 
 beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
   await __resetDBForTests();
+  saveMocks.saveUserTransaction.mockReset();
+  saveMocks.saveUserTransaction.mockResolvedValue({});
   await new Promise<void>(resolve => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
@@ -40,10 +49,11 @@ describe('AddScreen manual entry', () => {
     await user.click(screen.getByRole('button', { name: '000' }));
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
     await user.click(screen.getByRole('button', { name: /Lưu|Save/ }));
-    const all = await listTransactions();
-    expect(all).toHaveLength(1);
-    expect(all[0].amount).toBe(45000);
-    expect(all[0].category).toBe('coffee-bubble-tea');
+    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 45000,
+      category: 'coffee-bubble-tea',
+      source: 'manual',
+    }));
   });
 });
 

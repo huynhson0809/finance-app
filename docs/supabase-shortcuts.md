@@ -69,12 +69,12 @@ From the repository root:
 supabase link --project-ref <project-ref>
 ```
 
-### 4. Apply the transaction migration
+### 4. Apply the transaction migrations
 
-The migration to apply is:
+The migrations under `supabase/migrations/` create the transaction table, allow bank-email ingestion, and allow signed-in users to add manual, receipt, and bank-screenshot transactions from the PWA.
 
 ```text
-supabase/migrations/20260706000000_create_transactions.sql
+supabase/migrations/
 ```
 
 Push pending migrations:
@@ -338,7 +338,7 @@ If the first request returns `duplicate`, that exact transaction was already ins
 - Supabase project exists.
 - Google provider is enabled in Supabase Auth.
 - Local and production PWA redirect URLs are configured.
-- Migration `supabase/migrations/20260706000000_create_transactions.sql` has been applied.
+- All migrations in `supabase/migrations/` have been applied.
 - Edge Function `supabase/functions/ingest-transaction` is deployed with `--no-verify-jwt` or the committed `supabase/config.toml` setting.
 - Edge Function secrets are set: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INGEST_SECRET`, `DEFAULT_USER_ID`.
 - PWA env is set: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.

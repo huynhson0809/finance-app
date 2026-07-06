@@ -7,10 +7,10 @@ import { useOcr } from '../hooks/useOcr';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { runExtractors } from '../extractors';
 import { imageHolder } from '../lib/image';
-import { addTransaction } from '../db/transactions';
 import { upsertLearnedRule } from '../db/category-rules';
 import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
+import { saveUserTransaction } from '../transactions/save';
 import type { Category } from '../types';
 import type { BankHint, Extracted } from '../extractors';
 
@@ -98,7 +98,7 @@ export function ConfirmScreen() {
     const source = extracted.bankHint != null ? 'bank-screenshot' : 'receipt';
     const occurred = occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString();
     try {
-      await addTransaction({
+      await saveUserTransaction({
         amount,
         currency: 'VND',
         occurredAt: occurred,
