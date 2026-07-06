@@ -10,14 +10,25 @@ export interface NormalizedIngestPayload {
   raw_source: 'email';
 }
 
+export type NormalizeError =
+  | 'invalid_json'
+  | 'invalid_bank'
+  | 'invalid_type'
+  | 'invalid_amount'
+  | 'invalid_datetime'
+  | 'invalid_content'
+  | 'invalid_raw_source';
+
 export type NormalizeResult =
   | { ok: true; value: NormalizedIngestPayload }
-  | { ok: false; error: string };
+  | { ok: false; error: NormalizeError };
 
 type InputRecord = Record<string, unknown>;
 
 const BANKS = new Set<Bank>(['MB', 'ACB']);
 const TRANSACTION_KINDS = new Set<TransactionKind>(['transfer', 'card', 'balance_alert']);
+const POSTGRES_INT4_MAX = 2147483647;
+const POSTGRES_INT4_MAX_TEXT = String(POSTGRES_INT4_MAX);
 const VIETNAM_UTC_OFFSET_HOURS = 7;
 
 export function parseVietnamDatetime(input: string): string | null {
@@ -164,8 +175,7 @@ function isValidLocalDatetime(
 
 function normalizeAmount(input: unknown): number | null {
   if (typeof input === 'number') {
-    if (!Number.isFinite(input)) return null;
-    return positiveIntegerAmount(input);
+    return positiveBoundedIntegerAmount(input);
   }
 
   if (typeof input !== 'string') return null;
@@ -176,10 +186,7 @@ function normalizeAmount(input: unknown): number | null {
   const normalized = normalizeAmountString(trimmed);
   if (normalized === null) return null;
 
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) return null;
-
-  return positiveIntegerAmount(parsed);
+  return positiveBoundedIntegerString(normalized);
 }
 
 function normalizeAmountString(input: string): string | null {
@@ -250,9 +257,21 @@ function isValidThousands(value: string, separator: ',' | '.'): boolean {
   return parts.slice(1).every((part) => /^\d{3}$/.test(part));
 }
 
-function positiveIntegerAmount(input: number): number | null {
+function positiveBoundedIntegerString(input: string): number | null {
+  const unsigned = input.replace(/^[+-]/, '');
+  const canonical = unsigned.replace(/^0+/, '') || '0';
+  if (canonical === '0') return null;
+  if (canonical.length > POSTGRES_INT4_MAX_TEXT.length) return null;
+  if (canonical.length === POSTGRES_INT4_MAX_TEXT.length && canonical > POSTGRES_INT4_MAX_TEXT) {
+    return null;
+  }
+
+  return Number(canonical);
+}
+
+function positiveBoundedIntegerAmount(input: number): number | null {
   const amount = Math.abs(input);
-  if (amount <= 0 || !Number.isInteger(amount)) return null;
+  if (amount <= 0 || !Number.isSafeInteger(amount) || amount > POSTGRES_INT4_MAX) return null;
 
   return amount;
 }

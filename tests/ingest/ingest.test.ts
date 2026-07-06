@@ -232,6 +232,44 @@ describe('normalizeIngestPayload', () => {
     expect(result).toEqual({ ok: false, error: 'invalid_amount' });
   });
 
+  it('accepts Postgres int4 max amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 2147483647,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.amount).toBe(2147483647);
+  });
+
+  it('rejects amount above Postgres int4 max', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 2147483648,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
+  it('rejects unsafe integer string amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: '9007199254740993',
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
   it('rejects invalid datetime', () => {
     const result = normalizeIngestPayload({
       bank: 'MB',
@@ -292,5 +330,43 @@ describe('buildExternalHash', () => {
     if (!one.ok || !two.ok) throw new Error('normalization failed');
 
     await expect(buildExternalHash(one.value)).resolves.toBe(await buildExternalHash(two.value));
+  });
+
+  it('returns a lowercase SHA-256 hex string', async () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 297000,
+      datetime: '2026-07-04 21:48:49',
+      content: '159287 1PEV8',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+
+    await expect(buildExternalHash(result.value)).resolves.toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('changes when a stable field changes', async () => {
+    const one = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 297000,
+      datetime: '2026-07-04 21:48:49',
+      content: '159287 1PEV8',
+    });
+    const two = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 297001,
+      datetime: '2026-07-04 21:48:49',
+      content: '159287 1PEV8',
+    });
+
+    expect(one.ok).toBe(true);
+    expect(two.ok).toBe(true);
+    if (!one.ok || !two.ok) throw new Error('normalization failed');
+
+    await expect(buildExternalHash(one.value)).resolves.not.toBe(await buildExternalHash(two.value));
   });
 });
