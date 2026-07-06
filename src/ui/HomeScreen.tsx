@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useMonthCloudTransactions,
   useRecentCloudTransactions,
 } from '../hooks/useCloudTransactions';
+import { AddImageButton } from './AddImageButton';
 import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
@@ -103,6 +105,13 @@ export function HomeScreen() {
         : recent.length === 0
         ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
         : <ul>{recent.map(tx => <TransactionRow key={tx.id} t={tx} locale={locale} />)}</ul>}
+
+      <AddImageButton />
+      <Link
+        to="/add"
+        className="fixed right-4 bottom-20 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl flex items-center justify-center shadow-lg"
+        aria-label={t('nav.add')}
+      >+</Link>
     </div>
   );
 }

@@ -15,6 +15,7 @@ export function Layout() {
       <main className="flex-1 pb-16"><Outlet /></main>
       <nav className="fixed bottom-0 inset-x-0 flex bg-white border-t">
         <NavLink to="/" end className={active}>{t('nav.home')}</NavLink>
+        <NavLink to="/add" className={active}>{t('nav.add')}</NavLink>
         <NavLink to="/reports" className={active}>{t('nav.reports')}</NavLink>
         <NavLink to="/settings" className={active}>{t('nav.settings')}</NavLink>
       </nav>

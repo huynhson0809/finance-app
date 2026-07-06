@@ -121,6 +121,13 @@ describe('HomeScreen', () => {
     expect(await screen.findByText('No budget set')).toBeInTheDocument();
   });
 
+  it('keeps manual and image add actions visible on the cloud home path', async () => {
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(await screen.findByRole('link', { name: 'Add' })).toHaveAttribute('href', '/add');
+    expect(screen.getByLabelText('Add by image')).toBeInTheDocument();
+  });
+
   it('does not surface local backup reminders in the cloud home path', async () => {
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
