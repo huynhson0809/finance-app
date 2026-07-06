@@ -31,7 +31,7 @@ export function ReportsScreen() {
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
   const month = safeMonth(searchParams.get('month'));
-  const { sums, daily, anomalyHints, bStatus } = useReports(month);
+  const { loading, error, reload, sums, daily, anomalyHints, bStatus } = useReports(month);
 
   const pieData = useMemo(
     () => CATEGORIES.map(c => ({
@@ -50,6 +50,10 @@ export function ReportsScreen() {
     setSearchParams({ month: next });
   }
 
+  function retryReports() {
+    void reload();
+  }
+
   return (
     <div className="pb-20">
       <header className="flex items-center justify-between p-4">
@@ -57,6 +61,25 @@ export function ReportsScreen() {
         <h1 className="text-lg">{month}</h1>
         <button type="button" onClick={() => step(1)} aria-label="next-month">›</button>
       </header>
+
+      {error && (
+        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div>{error}</div>
+          <button
+            type="button"
+            className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
+            onClick={retryReports}
+          >
+            {t('cloud.retry')}
+          </button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="px-4 pb-3 text-sm text-gray-500" role="status">
+          {t('cloud.loading')}
+        </div>
+      )}
 
       <BudgetAlert
         overall={bStatus.overall}

@@ -1,37 +1,103 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeAll, beforeEach, describe, it, expect } from 'vitest';
-import 'fake-indexeddb/auto';
-import { initI18n } from '../../src/i18n';
-import { __resetDBForTests } from '../../src/db';
-import { addTransaction } from '../../src/db/transactions';
-import { upsertBudget } from '../../src/db/budgets';
+import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
+import { initI18n, i18n } from '../../src/i18n';
+import { CATEGORIES, type Category } from '../../src/types';
+import type { UseReportsResult } from '../../src/hooks/useReports';
+
+const reportHooks = vi.hoisted(() => ({
+  reload: vi.fn(),
+  state: null as UseReportsResult | null,
+}));
+
+vi.mock('../../src/hooks/useReports', () => ({
+  useReports: vi.fn(() => reportHooks.state),
+}));
+
 import { ReportsScreen } from '../../src/ui/ReportsScreen';
 
 beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
-  await __resetDBForTests();
-  indexedDB.deleteDatabase('finance-app');
+  await i18n.changeLanguage('en');
+  reportHooks.reload.mockReset();
+  reportHooks.state = makeReportState();
 });
 
+function zeroSums(): Record<Category, number> {
+  return Object.fromEntries(CATEGORIES.map(c => [c, 0])) as Record<Category, number>;
+}
+
+function okStatuses(): Record<Category, 'ok'> {
+  return Object.fromEntries(CATEGORIES.map(c => [c, 'ok'])) as Record<Category, 'ok'>;
+}
+
+function zeroDeltas(): UseReportsResult['deltas'] {
+  return Object.fromEntries(
+    CATEGORIES.map(c => [c, { curr: 0, prev: 0, deltaPct: 0 }]),
+  ) as UseReportsResult['deltas'];
+}
+
+function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsResult {
+  return {
+    loading: false,
+    error: null,
+    reload: reportHooks.reload,
+    sums: zeroSums(),
+    daily: [{ date: '2099-06-01', total: 0 }],
+    deltas: zeroDeltas(),
+    anomalyHints: [],
+    bStatus: {
+      overall: 'ok',
+      perCategory: okStatuses(),
+      overallSpent: 0,
+    },
+    ...overrides,
+  };
+}
+
 describe('ReportsScreen', () => {
-  it('shows empty state when the current month has no transactions', async () => {
+  it('shows empty state when the current month has no transactions', () => {
     render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
-    await waitFor(() => {
-      expect(screen.getByText(/no spending|chưa có chi tiêu/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText('No spending this month')).toBeInTheDocument();
   });
 
-  it('shows over-budget banner when overall exceeded', async () => {
-    await upsertBudget('2099-06', 1000);
-    // back-date to ensure overflow regardless of current month
-    const now = new Date('2099-06-10T00:00:00.000Z').toISOString();
-    await addTransaction({
-      amount: 1500, currency: 'VND', occurredAt: now,
-      category: 'food-drinks', source: 'manual',
+  it('shows over-budget banner when overall exceeded', () => {
+    reportHooks.state = makeReportState({
+      sums: { ...zeroSums(), 'food-drinks': 1500 },
+      bStatus: {
+        overall: 'over',
+        perCategory: okStatuses(),
+        overallSpent: 1500,
+      },
     });
+
     render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
-    await waitFor(() => screen.getByRole('alert'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Total spending exceeds the monthly budget');
+  });
+
+  it('shows cloud loading while preserving the reports layout', () => {
+    reportHooks.state = makeReportState({ loading: true });
+
+    render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
+    expect(screen.getByText('By category')).toBeInTheDocument();
+  });
+
+  it('shows cloud errors with retry while preserving the reports layout', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({ error: 'Cloud report failed' });
+
+    render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Cloud report failed');
+    expect(screen.getByText('By category')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(reportHooks.reload).toHaveBeenCalledTimes(1);
   });
 });

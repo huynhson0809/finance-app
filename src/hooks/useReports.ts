@@ -1,44 +1,91 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listTransactions } from '../db/transactions';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getBudgetForMonth } from '../db/budgets';
 import {
   sumByCategory, dailyTotals, monthOverMonth, hints, status,
   type BudgetStatus,
 } from '../reports';
 import { monthRangeISO, prevMonth } from '../lib/date';
+import { supabase } from '../supabase/client';
+import { listCloudTransactionsForRange } from '../supabase/transactions';
 import type { Budget, Category, Transaction } from '../types';
+
+const SUPABASE_NOT_CONFIGURED = 'Supabase is not configured';
 
 export interface UseReportsResult {
   loading: boolean;
+  error: string | null;
   sums: Record<Category, number>;
   daily: Array<{ date: string; total: number }>;
   deltas: ReturnType<typeof monthOverMonth>;
   anomalyHints: ReturnType<typeof hints>;
   bStatus: { overall: BudgetStatus; perCategory: Record<Category, BudgetStatus>; overallSpent: number };
-  reload: () => void;
+  reload: () => Promise<void>;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function useReports(monthISO: string): UseReportsResult {
+  const requestIdRef = useRef(0);
   const [curr, setCurr] = useState<Transaction[]>([]);
   const [prev, setPrev] = useState<Transaction[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     setLoading(true);
-    const { sinceISO: cSince, untilISO: cUntil } = monthRangeISO(monthISO);
-    const { sinceISO: pSince, untilISO: pUntil } = monthRangeISO(prevMonth(monthISO));
-    Promise.all([
-      listTransactions({ sinceISO: cSince }).then(all => all.filter(t => t.occurredAt < cUntil)),
-      listTransactions({ sinceISO: pSince }).then(all => all.filter(t => t.occurredAt < pUntil)),
-      getBudgetForMonth(monthISO),
-    ])
-      .then(([c, p, b]) => { setCurr(c); setPrev(p); setBudget(b); })
-      .catch(err => console.error('useReports load failed', err))
-      .finally(() => setLoading(false));
+    setError(null);
+
+    const currentRange = monthRangeISO(monthISO);
+    const previousRange = monthRangeISO(prevMonth(monthISO));
+    const budgetPromise = getBudgetForMonth(monthISO);
+    const client = supabase;
+
+    try {
+      if (!client) {
+        const b = await budgetPromise;
+        if (requestId !== requestIdRef.current) return;
+        setCurr([]);
+        setPrev([]);
+        setBudget(b);
+        setError(SUPABASE_NOT_CONFIGURED);
+        setLoading(false);
+        return;
+      }
+
+      const [c, p, b] = await Promise.all([
+        listCloudTransactionsForRange(client, currentRange),
+        listCloudTransactionsForRange(client, previousRange),
+        budgetPromise,
+      ]);
+
+      if (requestId !== requestIdRef.current) return;
+      setCurr(c);
+      setPrev(p);
+      setBudget(b);
+      setError(null);
+      setLoading(false);
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      setCurr([]);
+      setPrev([]);
+      setBudget(undefined);
+      setError(errorMessage(err));
+      setLoading(false);
+    }
   }, [monthISO]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [reload]);
 
   const sums   = useMemo(() => sumByCategory(curr), [curr]);
   const daily  = useMemo(() => dailyTotals(curr, monthISO), [curr, monthISO]);
@@ -46,5 +93,5 @@ export function useReports(monthISO: string): UseReportsResult {
   const anomalyHints = useMemo(() => hints(deltas), [deltas]);
   const bStatus = useMemo(() => status(budget, sums), [budget, sums]);
 
-  return { loading, sums, daily, deltas, anomalyHints, bStatus, reload };
+  return { loading, error, sums, daily, deltas, anomalyHints, bStatus, reload };
 }
