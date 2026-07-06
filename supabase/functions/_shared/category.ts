@@ -85,8 +85,17 @@ const SEED_RULES: CategoryRule[] = ENTRIES.map((entry, index) => ({
   id: `seed-${index}`,
 }));
 
+// Email classification scans full bank email content, so generic transfer and
+// bank-name seeds are too broad here even though they remain useful on client-entered merchants.
+const EMAIL_EXCLUDED_PATTERNS = new Set([
+  'transfer',
+  'chuyen khoan',
+  'vietcombank',
+  'techcombank',
+]);
+
 const EMAIL_RULES = SEED_RULES.filter(rule =>
-  rule.pattern !== 'transfer' && rule.pattern !== 'chuyen khoan',
+  !EMAIL_EXCLUDED_PATTERNS.has(rule.pattern),
 );
 
 export function classifyEmailContent(content: string): Category {
