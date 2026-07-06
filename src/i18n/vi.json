@@ -10,7 +10,8 @@
     "empty": "Chưa có giao dịch nào"
   },
   "transactions": {
-    "categoryLabel": "Danh mục giao dịch"
+    "categoryLabel": "Danh mục giao dịch",
+    "categoryUpdateFailed": "Không thể cập nhật danh mục"
   },
   "add": {
     "title": "Thêm giao dịch",

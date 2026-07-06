@@ -23,6 +23,11 @@ const cloudHooks = vi.hoisted(() => ({
   },
 }));
 
+const categoryMutationMocks = vi.hoisted(() => ({
+  supabase: {},
+  updateCloudTransactionCategory: vi.fn(),
+}));
+
 vi.mock('../../src/hooks/useCloudTransactions', () => ({
   useRecentCloudTransactions: vi.fn(() => ({
     ...cloudHooks.recentState,
@@ -34,6 +39,16 @@ vi.mock('../../src/hooks/useCloudTransactions', () => ({
   })),
 }));
 
+vi.mock('../../src/supabase/client', () => ({
+  get supabase() {
+    return categoryMutationMocks.supabase;
+  },
+}));
+
+vi.mock('../../src/supabase/transactions', () => ({
+  updateCloudTransactionCategory: categoryMutationMocks.updateCloudTransactionCategory,
+}));
+
 import { HomeScreen } from '../../src/ui/HomeScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -41,7 +56,12 @@ beforeAll(async () => { await initI18n(); });
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   cloudHooks.recentReload.mockReset();
+  cloudHooks.recentReload.mockResolvedValue(undefined);
   cloudHooks.monthReload.mockReset();
+  cloudHooks.monthReload.mockResolvedValue(undefined);
+  categoryMutationMocks.supabase = {};
+  categoryMutationMocks.updateCloudTransactionCategory.mockReset();
+  categoryMutationMocks.updateCloudTransactionCategory.mockResolvedValue(undefined);
   cloudHooks.recentState.data = [];
   cloudHooks.recentState.loading = false;
   cloudHooks.recentState.error = null;
@@ -112,8 +132,69 @@ describe('HomeScreen', () => {
 
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByText('Food & Drinks')).toBeInTheDocument();
-    expect(within(rows[2]).getByText('Shopping')).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('combobox', { name: 'Transaction category' })).toHaveValue('food-drinks');
+    expect(within(rows[2]).getByRole('combobox', { name: 'Transaction category' })).toHaveValue('shopping');
+  });
+
+  it('updates a recent transaction category and refreshes cloud data', async () => {
+    const user = userEvent.setup();
+    let resolveUpdate!: (value: Transaction) => void;
+    categoryMutationMocks.updateCloudTransactionCategory.mockReturnValue(
+      new Promise<Transaction>(resolve => {
+        resolveUpdate = resolve;
+      }),
+    );
+    cloudHooks.recentState.data = [
+      tx({ id: 'email-1', category: 'others' }),
+    ];
+    cloudHooks.monthState.data = [
+      tx({ id: 'month-1', category: 'others' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    const categorySelect = screen.getByRole('combobox', { name: 'Transaction category' });
+    await user.selectOptions(categorySelect, 'shopping');
+
+    await waitFor(() => {
+      expect(categoryMutationMocks.updateCloudTransactionCategory).toHaveBeenCalledWith(
+        expect.anything(),
+        'email-1',
+        'shopping',
+      );
+    });
+    expect(categorySelect).toBeDisabled();
+
+    resolveUpdate(tx({ id: 'email-1', category: 'shopping' }));
+
+    await waitFor(() => {
+      expect(cloudHooks.recentReload).toHaveBeenCalledTimes(1);
+      expect(cloudHooks.monthReload).toHaveBeenCalledTimes(1);
+      expect(categorySelect).not.toBeDisabled();
+    });
+  });
+
+  it('shows a visible error when category update fails', async () => {
+    const user = userEvent.setup();
+    categoryMutationMocks.updateCloudTransactionCategory.mockRejectedValue(
+      new Error('Supabase category update failed'),
+    );
+    cloudHooks.recentState.data = [
+      tx({ id: 'email-1', category: 'others' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Transaction category' }),
+      'shopping',
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Could not update category');
+    expect(alert).toHaveTextContent('Supabase category update failed');
+    expect(cloudHooks.recentReload).not.toHaveBeenCalled();
+    expect(cloudHooks.monthReload).not.toHaveBeenCalled();
   });
 
   it('shows noBudget message when no budget is set', async () => {

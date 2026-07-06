@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   useMonthCloudTransactions,
   useRecentCloudTransactions,
 } from '../hooks/useCloudTransactions';
+import { errorMessage } from '../lib/error';
 import { AddImageButton } from './AddImageButton';
 import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
@@ -13,10 +14,14 @@ import { TransactionRow } from './components/TransactionRow';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
+import { supabase } from '../supabase/client';
+import { updateCloudTransactionCategory } from '../supabase/transactions';
 import { CATEGORIES, type Category } from '../types';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
+  const [categoryEditError, setCategoryEditError] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const today = todayVietnamDate();
   const month = monthOfVietnamDate(today);
@@ -56,6 +61,23 @@ export function HomeScreen() {
     void reloadRecent();
     void reloadMonth();
   };
+  const handleCategoryChange = async (id: string, category: Category) => {
+    if (!supabase) {
+      setCategoryEditError('Supabase is not configured');
+      return;
+    }
+
+    setCategoryEditError(null);
+    setEditingCategoryId(id);
+    try {
+      await updateCloudTransactionCategory(supabase, id, category);
+      await Promise.all([reloadRecent(), reloadMonth()]);
+    } catch (error) {
+      setCategoryEditError(errorMessage(error));
+    } finally {
+      setEditingCategoryId(null);
+    }
+  };
 
   return (
     <div>
@@ -76,6 +98,13 @@ export function HomeScreen() {
           >
             {t('cloud.retry')}
           </button>
+        </div>
+      )}
+
+      {categoryEditError && (
+        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="font-medium">{t('transactions.categoryUpdateFailed')}</div>
+          <div>{categoryEditError}</div>
         </div>
       )}
 
@@ -104,7 +133,17 @@ export function HomeScreen() {
         ? null
         : recent.length === 0
         ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
-        : <ul>{recent.map(tx => <TransactionRow key={tx.id} t={tx} locale={locale} />)}</ul>}
+        : <ul>
+            {recent.map(tx => (
+              <TransactionRow
+                key={tx.id}
+                t={tx}
+                locale={locale}
+                onCategoryChange={handleCategoryChange}
+                categorySaving={editingCategoryId === tx.id}
+              />
+            ))}
+          </ul>}
 
       <AddImageButton />
       <Link

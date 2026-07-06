@@ -10,7 +10,8 @@
     "empty": "No transactions yet"
   },
   "transactions": {
-    "categoryLabel": "Transaction category"
+    "categoryLabel": "Transaction category",
+    "categoryUpdateFailed": "Could not update category"
   },
   "add": {
     "title": "Add transaction",
