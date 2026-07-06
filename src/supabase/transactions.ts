@@ -1,4 +1,5 @@
 import { mapTransactionRow, type CloudTransactionRow } from './mapper';
+import type { AppSupabaseClient } from './client';
 import type { Transaction } from '../types';
 
 const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,raw_source,created_at';
@@ -24,8 +25,13 @@ export interface QuerySelectBuilder {
 }
 
 export interface QueryClient {
-  from(table: string): QuerySelectBuilder;
+  from(table: 'transactions'): QuerySelectBuilder;
 }
+
+type Assert<T extends true> = T;
+export type SupabaseClientQueryCompatibility = Assert<
+  AppSupabaseClient extends QueryClient ? true : false
+>;
 
 function mapResult({ data, error }: QueryResult): Transaction[] {
   if (error) {

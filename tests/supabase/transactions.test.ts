@@ -4,13 +4,9 @@ import {
   listCloudTransactions,
   listCloudTransactionsForRange,
 } from '../../src/supabase/transactions';
-import type { AppSupabaseClient } from '../../src/supabase/client';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
 const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,raw_source,created_at';
-
-const acceptsQueryClient = (_client: QueryClient) => undefined;
-acceptsQueryClient({} as AppSupabaseClient);
 
 interface QueryCall {
   method: string;
@@ -55,7 +51,7 @@ function createClient(result: MockResult) {
     },
   };
   const client: QueryClient = {
-    from(table: string) {
+    from(table: 'transactions') {
       calls.push({ method: 'from', args: [table] });
       return fromStage;
     },
