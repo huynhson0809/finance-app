@@ -52,7 +52,7 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
     return { ok: false, error: 'invalid_content' };
   }
 
-  if (input.raw_source !== undefined && input.raw_source !== 'email') {
+  if (input.raw_source !== undefined && input.raw_source !== null && input.raw_source !== 'email') {
     return { ok: false, error: 'invalid_raw_source' };
   }
 
@@ -165,7 +165,7 @@ function isValidLocalDatetime(
 function normalizeAmount(input: unknown): number | null {
   if (typeof input === 'number') {
     if (!Number.isFinite(input)) return null;
-    return positiveAmount(input);
+    return positiveIntegerAmount(input);
   }
 
   if (typeof input !== 'string') return null;
@@ -179,7 +179,7 @@ function normalizeAmount(input: unknown): number | null {
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed)) return null;
 
-  return positiveAmount(parsed);
+  return positiveIntegerAmount(parsed);
 }
 
 function normalizeAmountString(input: string): string | null {
@@ -212,8 +212,9 @@ function normalizeWithDecimalSeparator(
   const [whole, decimal, ...extra] = unsigned.split(decimalSeparator);
   if (extra.length > 0 || decimal === undefined || decimal.length !== 2) return null;
   if (!isValidThousands(whole, thousandsSeparator)) return null;
+  if (!isZeroDecimal(decimal)) return null;
 
-  return `${sign}${whole.replaceAll(thousandsSeparator, '')}.${decimal}`;
+  return `${sign}${whole.replaceAll(thousandsSeparator, '')}`;
 }
 
 function normalizeSingleSeparator(unsigned: string, sign: string, separator: ',' | '.'): string | null {
@@ -229,10 +230,15 @@ function normalizeSingleSeparator(unsigned: string, sign: string, separator: ','
   }
 
   if (parts.length === 2 && lastPart.length === 2) {
-    return `${sign}${parts[0]}.${lastPart}`;
+    if (!isZeroDecimal(lastPart)) return null;
+    return `${sign}${parts[0]}`;
   }
 
   return null;
+}
+
+function isZeroDecimal(value: string): boolean {
+  return /^0+$/.test(value);
 }
 
 function isValidThousands(value: string, separator: ',' | '.'): boolean {
@@ -244,9 +250,9 @@ function isValidThousands(value: string, separator: ',' | '.'): boolean {
   return parts.slice(1).every((part) => /^\d{3}$/.test(part));
 }
 
-function positiveAmount(input: number): number | null {
+function positiveIntegerAmount(input: number): number | null {
   const amount = Math.abs(input);
-  if (amount <= 0) return null;
+  if (amount <= 0 || !Number.isInteger(amount)) return null;
 
   return amount;
 }

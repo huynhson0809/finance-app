@@ -46,6 +46,7 @@ describe('normalizeIngestPayload', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
+    expect(Number.isInteger(result.value.amount)).toBe(true);
     expect(result.value).toMatchObject({
       bank: 'MB',
       type: 'transfer',
@@ -126,6 +127,21 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.raw_source).toBe('email');
   });
 
+  it('defaults null raw_source to email', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+      raw_source: null,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.raw_source).toBe('email');
+  });
+
   it('trims content in normalized value', () => {
     const result = normalizeIngestPayload({
       bank: 'MB',
@@ -173,6 +189,42 @@ describe('normalizeIngestPayload', () => {
       bank: 'MB',
       type: 'transfer',
       amount: 'free',
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
+  it('rejects non-zero decimal comma amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '10.000,50',
+      datetime: '060726-14:47:32',
+      content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
+  it('rejects non-zero decimal dot amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: '10,000.50',
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
+  it('rejects numeric fractional amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000.5,
       datetime: '2026-07-06 11:19:20',
       content: 'demo',
     });
