@@ -17,6 +17,10 @@ describe('parseVietnamDatetime', () => {
   it('parses ACB embedded timestamp as Vietnam local time', () => {
     expect(parseVietnamDatetime('060726-14:47:32')).toBe('2026-07-06T07:47:32.000Z');
   });
+
+  it('parses slash-separated day-first datetime as Vietnam local time', () => {
+    expect(parseVietnamDatetime('06/07/2026 14:47:32')).toBe('2026-07-06T07:47:32.000Z');
+  });
 });
 
 describe('normalizeIngestPayload', () => {
@@ -70,6 +74,38 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.amount).toBe(10000);
   });
 
+  it('defaults raw_source to email when absent', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.raw_source).toBe('email');
+  });
+
+  it('trims content in normalized value', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      datetime: '2026-07-06 11:19:20',
+      content: '  demo content  ',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.content).toBe('demo content');
+  });
+
+  it('rejects non-object payload', () => {
+    expect(normalizeIngestPayload(null)).toEqual({ ok: false, error: 'invalid_json' });
+  });
+
   it('rejects invalid bank', () => {
     const result = normalizeIngestPayload({
       bank: 'VCB',
@@ -82,6 +118,42 @@ describe('normalizeIngestPayload', () => {
     expect(result).toEqual({ ok: false, error: 'invalid_bank' });
   });
 
+  it('rejects invalid type', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'deposit',
+      amount: 10000,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_type' });
+  });
+
+  it('rejects invalid amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 'free',
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_amount' });
+  });
+
+  it('rejects invalid datetime', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      datetime: '2026-13-06 11:19:20',
+      content: 'demo',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_datetime' });
+  });
+
   it('rejects blank content', () => {
     const result = normalizeIngestPayload({
       bank: 'MB',
@@ -92,6 +164,19 @@ describe('normalizeIngestPayload', () => {
     });
 
     expect(result).toEqual({ ok: false, error: 'invalid_content' });
+  });
+
+  it('rejects invalid raw_source', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      datetime: '2026-07-06 11:19:20',
+      content: 'demo',
+      raw_source: 'sms',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_raw_source' });
   });
 });
 
