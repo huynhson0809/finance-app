@@ -7,16 +7,17 @@ interface TransactionRowProps {
   locale: 'vi' | 'en';
   onCategoryChange?: (id: string, category: Category) => void;
   categorySaving?: boolean;
+  categoryLabel?: string;
 }
 
-export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving }: TransactionRowProps) {
+export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving, categoryLabel }: TransactionRowProps) {
   const { t } = useTranslation();
   return (
     <li className="flex justify-between gap-3 px-4 py-2 border-b">
       <span className="min-w-0">
         {onCategoryChange ? (
           <select
-            aria-label={t('transactions.categoryLabel')}
+            aria-label={categoryLabel ?? t('transactions.categoryLabel')}
             className="block max-w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
             disabled={categorySaving}
             value={tx.category}

@@ -132,8 +132,8 @@ describe('HomeScreen', () => {
 
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('combobox', { name: 'Transaction category' })).toHaveValue('food-drinks');
-    expect(within(rows[2]).getByRole('combobox', { name: 'Transaction category' })).toHaveValue('shopping');
+    expect(within(rows[0]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('food-drinks');
+    expect(within(rows[2]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('shopping');
   });
 
   it('updates a recent transaction category and refreshes cloud data', async () => {
@@ -153,7 +153,7 @@ describe('HomeScreen', () => {
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
-    const categorySelect = screen.getByRole('combobox', { name: 'Transaction category' });
+    const categorySelect = screen.getByRole('combobox', { name: /Transaction category/ });
     await user.selectOptions(categorySelect, 'shopping');
 
     await waitFor(() => {
@@ -174,6 +174,48 @@ describe('HomeScreen', () => {
     });
   });
 
+  it('disables every recent category control while a category update is pending', async () => {
+    const user = userEvent.setup();
+    categoryMutationMocks.updateCloudTransactionCategory.mockReturnValue(new Promise(() => {}));
+    cloudHooks.recentState.data = [
+      tx({ id: 'email-1', amount: 10_000, category: 'others' }),
+      tx({ id: 'email-2', amount: 20_000, category: 'food-drinks' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    await user.selectOptions(
+      screen.getAllByRole('combobox', { name: /Transaction category/ })[0],
+      'shopping',
+    );
+
+    await waitFor(() => {
+      expect(categoryMutationMocks.updateCloudTransactionCategory).toHaveBeenCalledTimes(1);
+    });
+
+    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
+    expect(categorySelects).toHaveLength(2);
+    expect(categorySelects[0]).toBeDisabled();
+    expect(categorySelects[1]).toBeDisabled();
+  });
+
+  it('gives recent category controls distinct accessible names', () => {
+    cloudHooks.recentState.data = [
+      tx({ id: 'email-1', amount: 10_000, category: 'others' }),
+      tx({ id: 'email-2', amount: 20_000, category: 'food-drinks' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
+    const accessibleNames = categorySelects.map(select => select.getAttribute('aria-label'));
+    expect(new Set(accessibleNames).size).toBe(categorySelects.length);
+    expect(accessibleNames).toEqual([
+      expect.stringContaining('email-1'),
+      expect.stringContaining('email-2'),
+    ]);
+  });
+
   it('shows a visible error when category update fails', async () => {
     const user = userEvent.setup();
     categoryMutationMocks.updateCloudTransactionCategory.mockRejectedValue(
@@ -186,7 +228,7 @@ describe('HomeScreen', () => {
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Transaction category' }),
+      screen.getByRole('combobox', { name: /Transaction category/ }),
       'shopping',
     );
 

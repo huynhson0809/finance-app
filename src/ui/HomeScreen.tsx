@@ -16,7 +16,7 @@ import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { supabase } from '../supabase/client';
 import { updateCloudTransactionCategory } from '../supabase/transactions';
-import { CATEGORIES, type Category } from '../types';
+import { CATEGORIES, type Category, type Transaction } from '../types';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -61,7 +61,12 @@ export function HomeScreen() {
     void reloadRecent();
     void reloadMonth();
   };
+  const transactionCategoryLabel = (tx: Transaction) =>
+    `${t('transactions.categoryLabel')} ${tx.merchant ?? tx.id} ${formatVND(tx.amount, locale)}`;
   const handleCategoryChange = async (id: string, category: Category) => {
+    if (editingCategoryId !== null) {
+      return;
+    }
     if (!supabase) {
       setCategoryEditError('Supabase is not configured');
       return;
@@ -140,7 +145,8 @@ export function HomeScreen() {
                 t={tx}
                 locale={locale}
                 onCategoryChange={handleCategoryChange}
-                categorySaving={editingCategoryId === tx.id}
+                categorySaving={editingCategoryId !== null}
+                categoryLabel={transactionCategoryLabel(tx)}
               />
             ))}
           </ul>}

@@ -46,6 +46,19 @@ describe('TransactionRow', () => {
     expect(onCategoryChange).toHaveBeenCalledWith('tx-42', 'shopping');
   });
 
+  it('uses a custom accessible category label when provided', () => {
+    render(
+      <TransactionRow
+        t={tx({ id: 'tx-42', category: 'others' })}
+        locale="vi"
+        onCategoryChange={vi.fn()}
+        categoryLabel="Danh mục giao dịch tx-42 ₫297.000"
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Danh mục giao dịch tx-42 ₫297.000' })).toHaveValue('others');
+  });
+
   it('disables category editing while the row is saving', () => {
     render(
       <TransactionRow
