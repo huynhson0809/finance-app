@@ -83,7 +83,7 @@ Push pending migrations:
 supabase db push
 ```
 
-After pulling updates, run `npx supabase db push` so Supabase has the latest transaction columns and the category update RLS policy. Without the latest migrations, manual/image saves or category edits may fail with a schema or row-level security error.
+After pulling updates, run `npx supabase db push` so Supabase has the latest transaction columns, including `transactions.direction`, the expanded category constraints, and the category update RLS policy. Without the latest migrations, manual income, manual/image saves, or category edits may fail with a schema or row-level security error.
 
 ### 5. Get `DEFAULT_USER_ID`
 
@@ -116,7 +116,7 @@ Deploy `supabase/functions/ingest-transaction`:
 supabase functions deploy ingest-transaction --no-verify-jwt
 ```
 
-The function uses `x-ingest-secret` instead of Supabase JWT auth because iOS Shortcuts is the ingestion bridge.
+The function uses `x-ingest-secret` instead of Supabase JWT auth because iOS Shortcuts is the ingestion bridge. Redeploy it after pulling updates so bank-email rows include `direction: "expense"`.
 
 Warning: every redeploy must preserve `--no-verify-jwt`, or the equivalent Supabase function config, because Shortcuts do not send Supabase JWTs. If JWT verification is enabled later, the same Shortcut requests will fail before the function can check `x-ingest-secret`.
 
