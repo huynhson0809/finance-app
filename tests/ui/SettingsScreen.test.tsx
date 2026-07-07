@@ -33,6 +33,15 @@ beforeEach(async () => {
 });
 
 describe('SettingsScreen caps editor', () => {
+  it('renders settings in grouped dark sections', async () => {
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    expect(await screen.findByRole('heading', { name: /settings|cài đặt/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /language|ngôn ngữ/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /monthly budget|ngân sách/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /account|tài khoản/i })).toBeInTheDocument();
+  });
+
   it('saves a per-category cap after debounce', async () => {
     await upsertBudget(currentVietnamMonth(), 5000000);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
