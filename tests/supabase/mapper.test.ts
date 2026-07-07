@@ -38,6 +38,24 @@ describe('mapTransactionRow', () => {
     });
   });
 
+  it('uses a stored email category instead of reclassifying the content', () => {
+    const tx = mapTransactionRow(row({
+      category: 'shopping',
+      content: 'Grab* BWCFLJMBDWRJ-G-1',
+    }));
+
+    expect(tx.category).toBe('shopping');
+  });
+
+  it('keeps old email rows with generic transfer wording in others', () => {
+    const tx = mapTransactionRow(row({
+      category: null,
+      content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+    }));
+
+    expect(tx.category).toBe('others');
+  });
+
   it('falls back to others when content has no category match', () => {
     const tx = mapTransactionRow(row({
       id: 'tx-2',

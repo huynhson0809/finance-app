@@ -20,7 +20,16 @@ export interface CloudTransactionRow {
   created_at: string;
 }
 
-const CLOUD_CLASSIFICATION_RULES = SEED_RULES.filter(rule => rule.pattern !== 'transfer');
+const CLOUD_EXCLUDED_CLASSIFICATION_PATTERNS = new Set([
+  'transfer',
+  'chuyen khoan',
+  'vietcombank',
+  'techcombank',
+]);
+
+const CLOUD_CLASSIFICATION_RULES = SEED_RULES.filter(rule =>
+  !CLOUD_EXCLUDED_CLASSIFICATION_PATTERNS.has(rule.pattern),
+);
 
 function bankHint(bank: CloudBank): BankHint {
   return bank === 'MB' ? 'mb' : 'acb';
@@ -43,14 +52,14 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
     };
   }
 
-  const suggestion = classify(row.content, CLOUD_CLASSIFICATION_RULES);
+  const category = row.category ?? classify(row.content, CLOUD_CLASSIFICATION_RULES)?.category ?? 'others';
   return {
     id: row.id,
     amount: row.amount,
     currency: 'VND',
     occurredAt: row.transaction_time,
     merchant: row.content,
-    category: suggestion?.category ?? 'others',
+    category,
     note: `${row.bank} ${row.type}`,
     source: 'bank-email',
     bankHint: row.bank ? bankHint(row.bank) : undefined,
