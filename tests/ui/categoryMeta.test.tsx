@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../src/types';
-import { CATEGORY_META, categoryToneClass } from '../../src/ui/theme/categoryMeta';
+import {
+  CATEGORY_META,
+  categoryToneClass,
+  isExpenseVisualCategory,
+  isIncomeVisualCategory,
+} from '../../src/ui/theme/categoryMeta';
 
 describe('categoryMeta', () => {
   it('defines visual metadata for every category', () => {
@@ -15,7 +20,24 @@ describe('categoryMeta', () => {
   });
 
   it('maps category direction to readable money tones', () => {
-    expect(categoryToneClass(EXPENSE_CATEGORIES[0])).toContain('rose');
-    expect(categoryToneClass(INCOME_CATEGORIES[0])).toContain('emerald');
+    for (const category of EXPENSE_CATEGORIES) {
+      expect(categoryToneClass(category)).toContain('rose');
+    }
+
+    for (const category of INCOME_CATEGORIES) {
+      expect(categoryToneClass(category)).toContain('emerald');
+    }
+  });
+
+  it('identifies visual category direction', () => {
+    for (const category of EXPENSE_CATEGORIES) {
+      expect(isExpenseVisualCategory(category)).toBe(true);
+      expect(isIncomeVisualCategory(category)).toBe(false);
+    }
+
+    for (const category of INCOME_CATEGORIES) {
+      expect(isExpenseVisualCategory(category)).toBe(false);
+      expect(isIncomeVisualCategory(category)).toBe(true);
+    }
   });
 });
