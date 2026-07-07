@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,6 +65,23 @@ function renderCalendar(path = '/calendar?month=2026-07') {
   );
 }
 
+function CommitProbe({ snapshots }: { snapshots: string[] }) {
+  useLayoutEffect(() => {
+    snapshots.push(document.body.textContent ?? '');
+  });
+
+  return null;
+}
+
+function renderCalendarWithProbe(path: string, snapshots: string[]) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <CalendarScreen />
+      <CommitProbe snapshots={snapshots} />
+    </MemoryRouter>,
+  );
+}
+
 describe('CalendarScreen', () => {
   it('loads the selected month and renders month totals plus expense day cells', () => {
     cloudHooks.state.data = [
@@ -82,8 +100,43 @@ describe('CalendarScreen', () => {
     expect(screen.getByText(/32[.,]000/)).toBeInTheDocument();
     expect(screen.getAllByText(/100[.,]000/).length).toBeGreaterThan(0);
     expect(screen.getByText(/68[.,]000/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Select 2026-07-07/ })).toHaveTextContent(/20[.,]000/);
+    const selectedDay = screen.getByRole('button', { name: /Select 2026-07-07/ });
+    expect(selectedDay).toHaveTextContent(/20[.,]000/);
+    expect(selectedDay).toHaveAttribute('aria-pressed', 'true');
+    expect(selectedDay).toHaveAttribute('aria-current', 'date');
+    expect(screen.getByRole('button', { name: /Select 2026-07-08/ })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByText(/100[.,]000/, { selector: 'button *' })).not.toBeInTheDocument();
+  });
+
+  it('selects the first transaction day when transactions arrive without committing stale empty day content', () => {
+    const snapshots: string[] = [];
+    cloudHooks.state.loading = true;
+    const { rerender } = renderCalendarWithProbe('/calendar?month=2026-06', snapshots);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading transactions...');
+
+    cloudHooks.state = {
+      data: [
+        tx({ amount: 42_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-06-15T05:00:00.000Z' }),
+      ],
+      loading: false,
+      error: null,
+    };
+    snapshots.length = 0;
+    rerender(
+      <MemoryRouter initialEntries={['/calendar?month=2026-06']}>
+        <CalendarScreen />
+        <CommitProbe snapshots={snapshots} />
+      </MemoryRouter>,
+    );
+
+    const staleEmptyCommit = snapshots.find(snapshot => (
+      snapshot.includes('Selected date: 2026-06-01') &&
+      snapshot.includes('No transactions on this day')
+    ));
+    expect(staleEmptyCommit).toBeUndefined();
+    expect(screen.getByText('Selected date: 2026-06-15')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: /Selected date/ })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
   it('groups the selected day by category', async () => {
@@ -119,6 +172,30 @@ describe('CalendarScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Next month' }));
 
     expect(cloudHooks.useMonthCloudTransactions).toHaveBeenLastCalledWith('2026-08');
+  });
+
+  it('uses the target month automatic date after month navigation without committing the previous manual date', async () => {
+    const user = userEvent.setup();
+    const snapshots: string[] = [];
+    cloudHooks.state.data = [
+      tx({ amount: 25_000, direction: 'expense', category: 'transportation', occurredAt: '2026-07-10T05:00:00.000Z' }),
+      tx({ amount: 75_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-08-12T05:00:00.000Z' }),
+    ];
+
+    renderCalendarWithProbe('/calendar?month=2026-07', snapshots);
+    await user.click(screen.getByRole('button', { name: /Select 2026-07-20/ }));
+    expect(screen.getByText('Selected date: 2026-07-20')).toBeInTheDocument();
+
+    snapshots.length = 0;
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+
+    const staleManualCommit = snapshots.find(snapshot => (
+      snapshot.includes('08/2026') &&
+      snapshot.includes('Selected date: 2026-07-20')
+    ));
+    expect(staleManualCommit).toBeUndefined();
+    expect(screen.getByText('Selected date: 2026-08-12')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: /Selected date/ })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
   it('shows loading, empty, and error states', async () => {

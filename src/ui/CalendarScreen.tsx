@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useMonthCloudTransactions } from '../hooks/useCloudTransactions';
@@ -72,6 +72,8 @@ function CalendarGrid({
             <button
               key={day.date}
               type="button"
+              aria-current={isToday ? 'date' : undefined}
+              aria-pressed={isSelected}
               className={[
                 'min-h-16 border-b border-r p-1 text-left text-xs',
                 isSelected ? 'bg-blue-50 ring-2 ring-inset ring-blue-500' : 'bg-white',
@@ -103,8 +105,7 @@ export function CalendarScreen() {
   const month = safeMonth(searchParams.get('month'));
   const today = todayVietnamDate();
   const { data: transactions, loading, error, reload } = useMonthCloudTransactions(month);
-  const [selectedDate, setSelectedDate] = useState(() => initialSelectedDate(month, [], today));
-  const [userTouchedDate, setUserTouchedDate] = useState(false);
+  const [manualSelection, setManualSelection] = useState<{ month: string; date: string } | null>(null);
 
   const daySummaries = useMemo(
     () => calendarDaySummaries(transactions, month),
@@ -121,31 +122,25 @@ export function CalendarScreen() {
     ),
     [daySummaries],
   );
+  const automaticSelectedDate = useMemo(
+    () => initialSelectedDate(month, transactions, today),
+    [month, transactions, today],
+  );
+  const selectedDate = manualSelection?.month === month ? manualSelection.date : automaticSelectedDate;
   const selectedRows = useMemo(
     () => categoryTotalsForDate(transactions, selectedDate),
     [transactions, selectedDate],
   );
   const hasMonthTransactions = daySummaries.some(day => day.hasTransactions);
 
-  useEffect(() => {
-    setUserTouchedDate(false);
-  }, [month]);
-
-  useEffect(() => {
-    if (!userTouchedDate) {
-      setSelectedDate(initialSelectedDate(month, transactions, today));
-    }
-  }, [month, transactions, today, userTouchedDate]);
-
   function step(direction: -1 | 1) {
     const next = direction === -1 ? prevMonth(month) : nextMonth(month);
     setSearchParams({ month: next });
-    setUserTouchedDate(false);
+    setManualSelection(null);
   }
 
   function selectDate(date: string) {
-    setSelectedDate(date);
-    setUserTouchedDate(true);
+    setManualSelection({ month, date });
   }
 
   function retry() {
