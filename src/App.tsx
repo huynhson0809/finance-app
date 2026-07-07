@@ -7,9 +7,17 @@ import { SettingsScreen } from './ui/SettingsScreen';
 import { ConfirmScreen } from './ui/ConfirmScreen';
 import { AuthGate } from './ui/AuthGate';
 
+const CalendarScreen = lazy(() =>
+  import('./ui/CalendarScreen').then(m => ({ default: m.CalendarScreen })),
+);
+
 const ReportsScreen = lazy(() =>
   import('./ui/ReportsScreen').then(m => ({ default: m.ReportsScreen })),
 );
+
+function RouteFallback() {
+  return <div className="p-4 text-sm text-gray-500">Loading...</div>;
+}
 
 export default function App() {
   return (
@@ -20,9 +28,17 @@ export default function App() {
           <Route path="add" element={<AddScreen />} />
           <Route path="confirm" element={<ConfirmScreen />} />
           <Route
+            path="calendar"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <CalendarScreen />
+              </Suspense>
+            }
+          />
+          <Route
             path="reports"
             element={
-              <Suspense fallback={<div className="p-4 text-sm text-gray-500">Loading…</div>}>
+              <Suspense fallback={<RouteFallback />}>
                 <ReportsScreen />
               </Suspense>
             }

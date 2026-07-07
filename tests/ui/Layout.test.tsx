@@ -28,4 +28,26 @@ describe('Layout', () => {
 
     expect(screen.getByRole('link', { name: /add|thêm/i })).toHaveAttribute('href', '/add');
   });
+
+  it('adds the calendar tab between add and reports', () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>Home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const links = screen.getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/',
+      '/add',
+      '/calendar',
+      '/reports',
+      '/settings',
+    ]);
+    expect(screen.getByRole('link', { name: /calendar|lịch/i })).toHaveAttribute('href', '/calendar');
+  });
 });

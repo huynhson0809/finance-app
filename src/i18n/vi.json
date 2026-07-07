@@ -1,6 +1,6 @@
 {
   "app": { "title": "Quản lý chi tiêu" },
-  "nav": { "home": "Trang chủ", "add": "Thêm", "reports": "Báo cáo", "settings": "Cài đặt" },
+  "nav": { "home": "Trang chủ", "add": "Thêm", "calendar": "Lịch", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
     "todaySpend": "Chi hôm nay",
     "todayIncome": "Thu hôm nay",
@@ -60,6 +60,19 @@
     "incomeTotal": "Tổng thu",
     "netTotal": "Còn lại",
     "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
+  },
+  "calendar": {
+    "title": "Lịch",
+    "weekdays": ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
+    "income": "Thu nhập",
+    "expense": "Chi tiêu",
+    "net": "Còn lại",
+    "selectedDate": "Ngày đang chọn",
+    "emptyDay": "Ngày này chưa có giao dịch",
+    "emptyMonth": "Tháng này chưa có giao dịch",
+    "selectDate": "Chọn {{date}}",
+    "transactionCount": "{{count}} giao dịch",
+    "transactionCount_plural": "{{count}} giao dịch"
   },
   "direction": {
     "expense": "Chi",

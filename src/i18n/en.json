@@ -1,6 +1,6 @@
 {
   "app": { "title": "Finance" },
-  "nav": { "home": "Home", "add": "Add", "reports": "Reports", "settings": "Settings" },
+  "nav": { "home": "Home", "add": "Add", "calendar": "Calendar", "reports": "Reports", "settings": "Settings" },
   "home": {
     "todaySpend": "Today's spend",
     "todayIncome": "Today's income",
@@ -60,6 +60,19 @@
     "incomeTotal": "Income total",
     "netTotal": "Net total",
     "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "income": "Income",
+    "expense": "Expense",
+    "net": "Net",
+    "selectedDate": "Selected date",
+    "emptyDay": "No transactions on this day",
+    "emptyMonth": "No transactions this month",
+    "selectDate": "Select {{date}}",
+    "transactionCount": "{{count}} transaction",
+    "transactionCount_plural": "{{count}} transactions"
   },
   "direction": {
     "expense": "Expense",
