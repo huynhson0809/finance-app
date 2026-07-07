@@ -7,6 +7,7 @@ import { HomeScreen } from '../../src/ui/HomeScreen';
 import { initI18n } from '../../src/i18n';
 import { __resetDBForTests } from '../../src/db';
 import { getAllRules } from '../../src/db/category-rules';
+import { vietnamDateInputToNoonISO } from '../../src/lib/date';
 
 const saveMocks = vi.hoisted(() => ({
   saveUserTransaction: vi.fn(),
@@ -44,16 +45,69 @@ describe('AddScreen manual entry', () => {
     const user = userEvent.setup();
     renderAt('/add');
     // Three taps: digit 4, digit 5, then three zeros via the "000" key, pick chip, save
+    await user.clear(screen.getByLabelText(/date|ngày/i));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
     await user.click(screen.getByRole('button', { name: '4' }));
     await user.click(screen.getByRole('button', { name: '5' }));
     await user.click(screen.getByRole('button', { name: '000' }));
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
-    await user.click(screen.getByRole('button', { name: /Lưu|Save/ }));
+    await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
     expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
       amount: 45000,
+      direction: 'expense',
       category: 'coffee-bubble-tea',
       source: 'manual',
+      occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
     }));
+  });
+
+  it('does not save when the date is cleared', async () => {
+    const user = userEvent.setup();
+    renderAt('/add');
+
+    await user.clear(screen.getByLabelText(/date|ngày/i));
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
+
+    const saveButton = screen.getByRole('button', { name: /add expense|thêm tiền chi/i });
+    expect(saveButton).toBeDisabled();
+    await user.click(saveButton);
+    expect(saveMocks.saveUserTransaction).not.toHaveBeenCalled();
+  });
+
+  it('saves a manual income transaction with an income category', async () => {
+    const user = userEvent.setup();
+    renderAt('/add');
+
+    await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
+    await user.clear(screen.getByLabelText(/date|ngày/i));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
+    await user.click(screen.getByRole('button', { name: '5' }));
+    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.click(screen.getByRole('button', { name: /salary|lương/i }));
+    await user.click(screen.getByRole('button', { name: /add income|thêm tiền thu/i }));
+
+    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 5000,
+      direction: 'income',
+      category: 'salary',
+      source: 'manual',
+      occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
+    }));
+  });
+
+  it('filters category chips when switching transaction direction', async () => {
+    const user = userEvent.setup();
+    renderAt('/add');
+
+    expect(screen.getByRole('button', { name: /food|ăn uống/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /salary|lương/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
+
+    expect(screen.queryByRole('button', { name: /food|ăn uống/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /salary|lương/i })).toBeInTheDocument();
   });
 });
 
@@ -67,7 +121,7 @@ it('shows a visible error when saving a manual transaction fails', async () => {
   await user.click(screen.getByRole('button', { name: '5' }));
   await user.click(screen.getByRole('button', { name: '000' }));
   await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
-  await user.click(screen.getByRole('button', { name: /Lưu|Save/ }));
+  await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
 
   expect(await screen.findByRole('alert')).toHaveTextContent(/could not save|không thể lưu/i);
   expect(screen.getByRole('alert')).toHaveTextContent('new row violates row-level security policy');
@@ -100,7 +154,7 @@ it('learns when user overrides the suggested chip on save', async () => {
   // override → tap food-drinks
   fireEvent.click(screen.getByRole('button', { name: /food|ăn uống/i }));
   // save
-  fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
+  fireEvent.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
   await waitFor(async () => {
     const rules = await getAllRules();
     expect(rules).toHaveLength(1);
