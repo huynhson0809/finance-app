@@ -16,6 +16,7 @@ const SUPABASE_NOT_CONFIGURED = 'Supabase is not configured';
 export interface UseReportsResult {
   loading: boolean;
   error: string | null;
+  transactions: Transaction[];
   sums: Record<Category, number>;
   daily: Array<{ date: string; total: number }>;
   deltas: ReturnType<typeof monthOverMonth>;
@@ -97,5 +98,16 @@ export function useReports(monthISO: string): UseReportsResult {
   const anomalyHints = useMemo(() => hints(deltas), [deltas]);
   const bStatus = useMemo(() => status(budget, sums), [budget, sums]);
 
-  return { loading, error, sums, daily, deltas, directionTotals, anomalyHints, bStatus, reload };
+  return {
+    loading,
+    error,
+    transactions: curr,
+    sums,
+    daily,
+    deltas,
+    directionTotals,
+    anomalyHints,
+    bStatus,
+    reload,
+  };
 }

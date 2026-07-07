@@ -44,6 +44,7 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
     loading: false,
     error: null,
     reload: reportHooks.reload,
+    transactions: [],
     sums: zeroSums(),
     daily: [{ date: '2099-06-01', total: 0 }],
     deltas: zeroDeltas(),

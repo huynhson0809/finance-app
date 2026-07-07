@@ -80,6 +80,7 @@ describe('useReports', () => {
       monthRangeVietnamISO(prevMonth('2026-06')),
     );
     expect(result.current.sums['food-drinks']).toBe(0);
+    expect(result.current.transactions).toEqual([]);
     expect(result.current.bStatus.overall).toBe('ok');
     expect(result.current.error).toBeNull();
   });
@@ -109,6 +110,7 @@ describe('useReports', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.sums['food-drinks']).toBe(1500);
+    expect(result.current.transactions.map(t => t.id)).toEqual(['curr-food']);
     expect(result.current.daily.find(d => d.date === '2026-06-10')?.total).toBe(1500);
     expect(result.current.deltas['food-drinks']).toEqual({
       curr: 1500,
@@ -148,6 +150,7 @@ describe('useReports', () => {
       income: 100_000,
       net: 85_000,
     });
+    expect(result.current.transactions.map(t => t.id)).toEqual(['expense', 'income']);
   });
 
   it('returns a setup error and empty cloud data when Supabase is not configured', async () => {
@@ -159,6 +162,7 @@ describe('useReports', () => {
 
     expect(mocks.listCloudTransactionsForRange).not.toHaveBeenCalled();
     expect(result.current.error).toBe('Supabase is not configured');
+    expect(result.current.transactions).toEqual([]);
     expect(result.current.sums['food-drinks']).toBe(0);
     expect(result.current.bStatus.overall).toBe('ok');
   });
@@ -173,6 +177,7 @@ describe('useReports', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.error).toBe('cloud failed');
+    expect(result.current.transactions).toEqual([]);
     expect(result.current.sums['food-drinks']).toBe(0);
   });
 
