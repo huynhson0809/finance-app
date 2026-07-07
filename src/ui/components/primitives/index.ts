@@ -1,3 +1,4 @@
+export { BottomNav } from './BottomNav';
 export { CategoryIconTile } from './CategoryIconTile';
 export { DarkField } from './DarkField';
 export { GlassPanel } from './GlassPanel';

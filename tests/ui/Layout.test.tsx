@@ -15,7 +15,7 @@ vi.mock('../../src/ui/components/InstallPrompt', () => ({
 beforeAll(async () => { await initI18n(); });
 
 describe('Layout', () => {
-  it('keeps manual add in the primary navigation', () => {
+  it('uses a mobile app shell with the add link centered in navigation', () => {
     render(
       <MemoryRouter>
         <Routes>
@@ -26,10 +26,11 @@ describe('Layout', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByTestId('app-shell')).toHaveClass('min-h-screen');
     expect(screen.getByRole('link', { name: /add|thêm/i })).toHaveAttribute('href', '/add');
   });
 
-  it('adds the calendar tab between add and reports', () => {
+  it('orders bottom navigation like a mobile finance app', () => {
     render(
       <MemoryRouter>
         <Routes>
@@ -43,12 +44,11 @@ describe('Layout', () => {
     const links = screen.getAllByRole('link');
     expect(links.map(link => link.getAttribute('href'))).toEqual([
       '/',
-      '/add',
       '/calendar',
+      '/add',
       '/reports',
       '/settings',
     ]);
-    expect(screen.getByRole('link', { name: /calendar|lịch/i })).toHaveAttribute('href', '/calendar');
   });
 
   it('uses current i18next plural keys for calendar transaction counts', async () => {
