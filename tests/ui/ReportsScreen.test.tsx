@@ -182,7 +182,9 @@ describe('ReportsScreen', () => {
 
     expect(screen.getByRole('button', { name: /income/i })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Salary')).toBeInTheDocument();
+    expect(screen.getByText('80%')).toBeInTheDocument();
     expect(screen.getByText('Bonus')).toBeInTheDocument();
+    expect(screen.getByText('20%')).toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
   });
 
