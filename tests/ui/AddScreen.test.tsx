@@ -41,6 +41,15 @@ function renderAt(path: string) {
 }
 
 describe('AddScreen manual entry', () => {
+  it('renders the fast-entry amount panel and add methods', () => {
+    render(<MemoryRouter><AddScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('heading', { name: /add transaction|thêm giao dịch/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/amount|số tiền/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /direction|loại giao dịch/i })).toBeInTheDocument();
+  });
+
   it('saves a transaction with the entered amount and selected category', async () => {
     const user = userEvent.setup();
     renderAt('/add');
