@@ -1,30 +1,46 @@
 {
   "app": { "title": "Quản lý chi tiêu" },
-  "nav": { "home": "Trang chủ", "add": "Thêm", "reports": "Báo cáo", "settings": "Cài đặt" },
+  "nav": { "home": "Trang chủ", "add": "Thêm", "calendar": "Lịch", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
     "todaySpend": "Chi hôm nay",
+    "todayIncome": "Thu hôm nay",
     "remaining": "Còn lại trong tháng",
     "budgetUsed": "Đã chi tháng này",
     "lastTransactions": "Giao dịch gần đây",
     "noBudget": "Chưa đặt ngân sách",
     "empty": "Chưa có giao dịch nào"
   },
+  "transactions": {
+    "categoryLabel": "Danh mục giao dịch",
+    "categoryUpdateFailed": "Không thể cập nhật danh mục"
+  },
   "add": {
     "title": "Thêm giao dịch",
     "amount": "Số tiền",
     "category": "Danh mục",
+    "date": "Ngày",
+    "expense": "Tiền chi",
+    "income": "Tiền thu",
     "note": "Ghi chú (tuỳ chọn)",
     "merchant": "Cửa hàng (tuỳ chọn)",
     "save": "Lưu",
+    "submitExpense": "Thêm tiền chi",
+    "submitIncome": "Thêm tiền thu",
     "cancel": "Huỷ",
     "delete": "Xoá",
-    "byImage": "Thêm bằng ảnh"
+    "byImage": "Thêm bằng ảnh",
+    "saving": "Đang lưu...",
+    "saveFailed": "Không thể lưu giao dịch"
   },
   "settings": {
     "title": "Cài đặt",
     "language": "Ngôn ngữ",
     "monthlyBudget": "Ngân sách hàng tháng",
     "save": "Lưu",
+    "account": "Tài khoản",
+    "signOut": "Đăng xuất",
+    "signingOut": "Đang đăng xuất...",
+    "signOutFailed": "Đăng xuất thất bại",
     "caps": {
       "expand": "Đặt giới hạn theo hạng mục (tuỳ chọn)",
       "collapse": "Ẩn giới hạn theo hạng mục"
@@ -40,7 +56,34 @@
     "noSpending": "Chưa có chi tiêu",
     "byCategory": "Theo danh mục",
     "anomalies": "Bất thường",
-    "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
+    "expenseTotal": "Tổng chi",
+    "incomeTotal": "Tổng thu",
+    "netTotal": "Còn lại",
+    "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước",
+    "expenseTab": "Chi tiêu",
+    "incomeTab": "Thu nhập",
+    "categoryShare": "{{pct}}%",
+    "noDirectionData": "Chưa có giao dịch {{direction}} trong tháng này",
+    "categoryDetailTitle": "{{category}} trong {{month}}",
+    "noCategoryTransactions": "Chưa có giao dịch trong danh mục này",
+    "backToReports": "Quay lại báo cáo"
+  },
+  "calendar": {
+    "title": "Lịch",
+    "weekdays": ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
+    "income": "Thu nhập",
+    "expense": "Chi tiêu",
+    "net": "Còn lại",
+    "selectedDate": "Ngày đang chọn",
+    "emptyDay": "Ngày này chưa có giao dịch",
+    "emptyMonth": "Tháng này chưa có giao dịch",
+    "selectDate": "Chọn {{date}}",
+    "transactionCount_one": "{{count}} giao dịch",
+    "transactionCount_other": "{{count}} giao dịch"
+  },
+  "direction": {
+    "expense": "Chi",
+    "income": "Thu"
   },
   "confirm": {
     "title": "Xác nhận giao dịch",
@@ -58,7 +101,13 @@
     "healthcare": "Sức khoẻ",
     "entertainment": "Giải trí",
     "transfers-debt": "Chuyển khoản & Trả nợ",
-    "others": "Khác"
+    "others": "Khác",
+    "salary": "Lương",
+    "allowance": "Trợ cấp",
+    "bonus": "Thưởng",
+    "side-income": "Thu nhập phụ",
+    "investment": "Đầu tư",
+    "temporary-income": "Thu tạm thời"
   },
   "pwa": {
     "updateAvailable": "Có bản cập nhật mới",
@@ -72,6 +121,18 @@
     "message": "Cài đặt vào màn hình chính để dùng nhanh hơn",
     "cta": "Cài đặt",
     "dismiss": "Đóng"
+  },
+  "auth": {
+    "title": "Quản lý chi tiêu",
+    "subtitle": "Đăng nhập để xem chi tiêu từ email ngân hàng trên Supabase.",
+    "loading": "Đang kiểm tra đăng nhập...",
+    "signInWithGoogle": "Tiếp tục với Google",
+    "signInFailed": "Đăng nhập thất bại",
+    "setupError": "Thiếu biến môi trường Supabase."
+  },
+  "cloud": {
+    "loading": "Đang tải giao dịch...",
+    "retry": "Thử lại"
   },
   "backup": {
     "title": "Sao lưu & khôi phục",

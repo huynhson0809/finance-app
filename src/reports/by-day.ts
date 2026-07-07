@@ -1,17 +1,21 @@
 import type { Transaction } from '../types';
+import { todayVietnamDate } from '../lib/date';
+import { isExpenseLike } from './compat';
 
 export function dailyTotals(
   tx: Transaction[],
   monthISO: string,
 ): Array<{ date: string; total: number }> {
   const [y, m] = monthISO.split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const totals = new Array(daysInMonth).fill(0);
 
   for (const t of tx) {
-    const d = new Date(t.occurredAt);
-    if (d.getFullYear() !== y || d.getMonth() !== m - 1) continue;
-    totals[d.getDate() - 1] += t.amount;
+    if (!isExpenseLike(t)) continue;
+    const date = todayVietnamDate(new Date(t.occurredAt));
+    if (date.slice(0, 7) !== monthISO) continue;
+    const day = Number(date.slice(8, 10));
+    totals[day - 1] += t.amount;
   }
 
   return totals.map((total, i) => ({

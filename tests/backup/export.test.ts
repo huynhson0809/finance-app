@@ -28,6 +28,7 @@ describe('exportBackup', () => {
     await addTransaction({
       amount: 5000, currency: 'VND',
       occurredAt: '2026-06-15T08:00:00.000Z',
+      direction: 'expense',
       category: 'food-drinks', source: 'manual',
     });
     await upsertBudget('2026-06', 1000000);
@@ -40,6 +41,7 @@ describe('exportBackup', () => {
     const out = await exportBackup();
     expect(out.transactions).toHaveLength(1);
     expect(out.transactions[0].amount).toBe(5000);
+    expect(out.transactions[0].direction).toBe('expense');
     expect(out.budgets).toHaveLength(1);
     expect(out.budgets[0].total).toBe(1000000);
     expect(out.categoryRules).toHaveLength(1);

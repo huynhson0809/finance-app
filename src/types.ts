@@ -1,4 +1,4 @@
-export type Category =
+export type ExpenseCategory =
   | 'food-drinks'
   | 'coffee-bubble-tea'
   | 'transportation'
@@ -9,7 +9,19 @@ export type Category =
   | 'transfers-debt'
   | 'others';
 
-export const CATEGORIES: readonly Category[] = [
+export type IncomeCategory =
+  | 'salary'
+  | 'allowance'
+  | 'bonus'
+  | 'side-income'
+  | 'investment'
+  | 'temporary-income';
+
+export type Category = ExpenseCategory | IncomeCategory;
+
+export type TransactionDirection = 'expense' | 'income';
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'food-drinks',
   'coffee-bubble-tea',
   'transportation',
@@ -21,16 +33,40 @@ export const CATEGORIES: readonly Category[] = [
   'others',
 ];
 
-export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot';
-export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay';
+export const INCOME_CATEGORIES: readonly IncomeCategory[] = [
+  'salary',
+  'allowance',
+  'bonus',
+  'side-income',
+  'investment',
+  'temporary-income',
+];
 
-export interface Transaction {
+export const CATEGORIES: readonly Category[] = [
+  ...EXPENSE_CATEGORIES,
+  ...INCOME_CATEGORIES,
+];
+
+export function categoriesForDirection(direction: TransactionDirection): readonly Category[] {
+  return direction === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+}
+
+export function categoryBelongsToDirection(
+  category: Category,
+  direction: TransactionDirection,
+): boolean {
+  return categoriesForDirection(direction).includes(category);
+}
+
+export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot' | 'bank-email';
+export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay' | 'mb' | 'acb';
+
+interface TransactionBase {
   id: string;
   amount: number;         // integer VND
   currency: 'VND';
   occurredAt: string;     // ISO 8601
   merchant?: string;
-  category: Category;
   note?: string;
   source: TransactionSource;
   bankHint?: BankHint;
@@ -38,11 +74,16 @@ export interface Transaction {
   updatedAt: string;
 }
 
+export type Transaction = TransactionBase & (
+  | { direction: 'expense'; category: ExpenseCategory }
+  | { direction: 'income'; category: IncomeCategory }
+);
+
 export interface Budget {
   id: string;
   month: string;          // 'YYYY-MM'
   total: number;          // integer VND
-  caps: Partial<Record<Category, number>>;
+  caps: Partial<Record<ExpenseCategory, number>>;
 }
 
 export interface CategoryRule {

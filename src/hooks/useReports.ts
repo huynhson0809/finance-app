@@ -1,50 +1,123 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listTransactions } from '../db/transactions';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getBudgetForMonth } from '../db/budgets';
 import {
   sumByCategory, dailyTotals, monthOverMonth, hints, status,
+  totalsByDirection,
   type BudgetStatus,
+  type DirectionTotals,
 } from '../reports';
-import { monthRangeISO, prevMonth } from '../lib/date';
+import { monthRangeVietnamISO, prevMonth } from '../lib/date';
+import { supabase } from '../supabase/client';
+import { listCloudTransactionsForRange } from '../supabase/transactions';
 import type { Budget, Category, Transaction } from '../types';
+
+const SUPABASE_NOT_CONFIGURED = 'Supabase is not configured';
+const EMPTY_TRANSACTIONS: Transaction[] = [];
 
 export interface UseReportsResult {
   loading: boolean;
+  error: string | null;
+  transactions: Transaction[];
   sums: Record<Category, number>;
   daily: Array<{ date: string; total: number }>;
   deltas: ReturnType<typeof monthOverMonth>;
+  directionTotals: DirectionTotals;
   anomalyHints: ReturnType<typeof hints>;
   bStatus: { overall: BudgetStatus; perCategory: Record<Category, BudgetStatus>; overallSpent: number };
-  reload: () => void;
+  reload: () => Promise<void>;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function useReports(monthISO: string): UseReportsResult {
+  const requestIdRef = useRef(0);
   const [curr, setCurr] = useState<Transaction[]>([]);
   const [prev, setPrev] = useState<Transaction[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loadedMonth, setLoadedMonth] = useState<string | null>(null);
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
     setLoading(true);
-    const { sinceISO: cSince, untilISO: cUntil } = monthRangeISO(monthISO);
-    const { sinceISO: pSince, untilISO: pUntil } = monthRangeISO(prevMonth(monthISO));
-    Promise.all([
-      listTransactions({ sinceISO: cSince }).then(all => all.filter(t => t.occurredAt < cUntil)),
-      listTransactions({ sinceISO: pSince }).then(all => all.filter(t => t.occurredAt < pUntil)),
-      getBudgetForMonth(monthISO),
-    ])
-      .then(([c, p, b]) => { setCurr(c); setPrev(p); setBudget(b); })
-      .catch(err => console.error('useReports load failed', err))
-      .finally(() => setLoading(false));
+    setError(null);
+
+    const currentRange = monthRangeVietnamISO(monthISO);
+    const previousRange = monthRangeVietnamISO(prevMonth(monthISO));
+    const budgetPromise = getBudgetForMonth(monthISO);
+    const client = supabase;
+
+    try {
+      if (!client) {
+        const b = await budgetPromise;
+        if (requestId !== requestIdRef.current) return;
+        setCurr([]);
+        setPrev([]);
+        setBudget(b);
+        setLoadedMonth(monthISO);
+        setError(SUPABASE_NOT_CONFIGURED);
+        setLoading(false);
+        return;
+      }
+
+      const [c, p, b] = await Promise.all([
+        listCloudTransactionsForRange(client, currentRange),
+        listCloudTransactionsForRange(client, previousRange),
+        budgetPromise,
+      ]);
+
+      if (requestId !== requestIdRef.current) return;
+      setCurr(c);
+      setPrev(p);
+      setBudget(b);
+      setLoadedMonth(monthISO);
+      setError(null);
+      setLoading(false);
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      setCurr([]);
+      setPrev([]);
+      setBudget(undefined);
+      setLoadedMonth(monthISO);
+      setError(errorMessage(err));
+      setLoading(false);
+    }
   }, [monthISO]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [reload]);
 
-  const sums   = useMemo(() => sumByCategory(curr), [curr]);
-  const daily  = useMemo(() => dailyTotals(curr, monthISO), [curr, monthISO]);
-  const deltas = useMemo(() => monthOverMonth(curr, prev), [curr, prev]);
+  const staleMonth = loadedMonth !== monthISO;
+  const reportTransactions = staleMonth ? EMPTY_TRANSACTIONS : curr;
+  const previousTransactions = staleMonth ? EMPTY_TRANSACTIONS : prev;
+  const reportBudget = staleMonth ? undefined : budget;
+
+  const sums   = useMemo(() => sumByCategory(reportTransactions), [reportTransactions]);
+  const daily  = useMemo(() => dailyTotals(reportTransactions, monthISO), [reportTransactions, monthISO]);
+  const deltas = useMemo(() => monthOverMonth(reportTransactions, previousTransactions), [reportTransactions, previousTransactions]);
+  const directionTotals = useMemo(() => totalsByDirection(reportTransactions), [reportTransactions]);
   const anomalyHints = useMemo(() => hints(deltas), [deltas]);
-  const bStatus = useMemo(() => status(budget, sums), [budget, sums]);
+  const bStatus = useMemo(() => status(reportBudget, sums), [reportBudget, sums]);
 
-  return { loading, sums, daily, deltas, anomalyHints, bStatus, reload };
+  return {
+    loading: loading || staleMonth,
+    error: staleMonth ? null : error,
+    transactions: reportTransactions,
+    sums,
+    daily,
+    deltas,
+    directionTotals,
+    anomalyHints,
+    bStatus,
+    reload,
+  };
 }

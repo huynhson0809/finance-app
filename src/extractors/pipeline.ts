@@ -1,4 +1,4 @@
-import type { BankHint, Extracted } from './types';
+import type { BankHint, Extracted, OcrBankHint } from './types';
 import { detectBank } from './detect';
 import { extractVietcombank } from './vietcombank';
 import { extractTechcombank } from './techcombank';
@@ -6,7 +6,7 @@ import { extractMomo } from './momo';
 import { extractZaloPay } from './zalopay';
 import { extractReceipt } from './receipt';
 
-const BANK_EXTRACTORS: Record<BankHint, (text: string) => Partial<Extracted>> = {
+const BANK_EXTRACTORS: Record<OcrBankHint, (text: string) => Partial<Extracted>> = {
   vietcombank: extractVietcombank,
   techcombank: extractTechcombank,
   momo: extractMomo,

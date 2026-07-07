@@ -12,6 +12,15 @@ it('shows empty state when all totals are 0', () => {
   expect(screen.getByText(/no spending|chưa có chi tiêu/i)).toBeInTheDocument();
 });
 
+it('uses a custom empty label when provided', () => {
+  render(<CategoryPie
+    data={[{ category: 'salary', total: 0, label: 'Salary', color: '#22c55e' }]}
+    emptyLabel="No income this month"
+  />);
+
+  expect(screen.getByText('No income this month')).toBeInTheDocument();
+});
+
 it('renders an svg when there is data', () => {
   const { container } = render(<CategoryPie data={[
     { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },

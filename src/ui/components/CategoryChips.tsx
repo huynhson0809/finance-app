@@ -2,12 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { CATEGORIES, type Category } from '../../types';
 
 export function CategoryChips({
-  value, onSelect,
-}: { value: Category | null; onSelect: (c: Category) => void }) {
+  value, onSelect, categories = CATEGORIES,
+}: {
+  value: Category | null;
+  onSelect: (c: Category) => void;
+  categories?: readonly Category[];
+}) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-2 p-2">
-      {CATEGORIES.map(c => (
+      {categories.map(c => (
         <button key={c}
           type="button"
           aria-pressed={value === c}

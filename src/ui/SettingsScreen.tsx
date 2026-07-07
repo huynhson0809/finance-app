@@ -1,20 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
-import { monthOf, todayISO } from '../lib/date';
+import { monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
-import { exportBackup, importBackup } from '../backup';
-import { setSetting } from '../db/settings';
+import { useAuth } from '../hooks/useAuth';
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
-  const month = monthOf(todayISO());
+  const { signOut } = useAuth();
+  const month = monthOfVietnamDate(todayVietnamDate());
   const [raw, setRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
@@ -31,43 +33,15 @@ export function SettingsScreen() {
     setTotal(parsed);
   }
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  async function handleExport() {
+  async function handleSignOut() {
+    setSigningOut(true);
+    setSignOutError(null);
     try {
-      const data = await exportBackup();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `finance-backup-${data.exportedAt.slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      await setSetting('lastBackupAt', data.exportedAt);
+      await signOut();
     } catch (err) {
-      console.error('exportBackup failed', err);
-      alert(t('backup.exportFailed'));
-    }
-  }
-
-  function handleImportClick() {
-    if (!confirm(t('backup.confirmReplace'))) return;
-    fileInputRef.current?.click();
-  }
-
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    try {
-      await importBackup(file);
-      alert(t('backup.imported'));
-      window.location.reload();
-    } catch (err) {
-      console.error('importBackup failed', err);
-      alert(t('backup.importFailed'));
+      setSignOutError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSigningOut(false);
     }
   }
 
@@ -119,27 +93,18 @@ export function SettingsScreen() {
       </section>
 
       <section>
-        <h2 className="font-semibold">{t('backup.title')}</h2>
-        <div className="flex gap-3 mt-2">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="py-2 px-4 bg-blue-600 text-white rounded"
-          >{t('backup.export')}</button>
-          <button
-            type="button"
-            onClick={handleImportClick}
-            className="py-2 px-4 bg-gray-600 text-white rounded"
-          >{t('backup.import')}</button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            data-testid="backup-import-input"
-            onChange={handleImportFile}
-          />
-        </div>
+        <h2 className="font-semibold">{t('settings.account')}</h2>
+        {signOutError && (
+          <div role="alert" className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+            {t('settings.signOutFailed')}: {signOutError}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          disabled={signingOut}
+          className="mt-2 py-2 px-4 bg-gray-600 text-white rounded disabled:opacity-60"
+        >{signingOut ? t('settings.signingOut') : t('settings.signOut')}</button>
       </section>
     </div>
   );

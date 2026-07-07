@@ -35,6 +35,7 @@ describe('importBackup', () => {
     await addTransaction({
       amount: 999, currency: 'VND',
       occurredAt: '2026-01-01T00:00:00.000Z',
+      direction: 'expense',
       category: 'others', source: 'manual',
     });
 

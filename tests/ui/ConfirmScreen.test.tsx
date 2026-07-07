@@ -4,12 +4,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { initI18n } from '../../src/i18n';
 import { imageHolder } from '../../src/lib/image';
 import { __resetDBForTests } from '../../src/db';
-import { listTransactions } from '../../src/db/transactions';
 import { ConfirmScreen } from '../../src/ui/ConfirmScreen';
 
 // Mock useOcr so tests don't load Tesseract
 const recognize = vi.fn();
 let ocrError: Error | null = null;
+const saveMocks = vi.hoisted(() => ({
+  saveUserTransaction: vi.fn(),
+}));
 
 vi.mock('../../src/hooks/useOcr', () => ({
   useOcr: () => ({
@@ -20,11 +22,17 @@ vi.mock('../../src/hooks/useOcr', () => ({
   }),
 }));
 
+vi.mock('../../src/transactions/save', () => ({
+  saveUserTransaction: saveMocks.saveUserTransaction,
+}));
+
 beforeEach(async () => {
   await initI18n();
   await __resetDBForTests();
   indexedDB.deleteDatabase('finance-app');
   recognize.mockReset();
+  saveMocks.saveUserTransaction.mockReset();
+  saveMocks.saveUserTransaction.mockResolvedValue({});
   ocrError = null;
   imageHolder._clear();
 });
@@ -77,13 +85,30 @@ describe('ConfirmScreen', () => {
     // pick category
     fireEvent.click(screen.getByRole('button', { name: /coffee|cà phê/i }));
     fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
-    await waitFor(async () => {
-      const all = await listTransactions();
-      expect(all).toHaveLength(1);
-      expect(all[0].source).toBe('bank-screenshot');
-      expect(all[0].bankHint).toBe('vietcombank');
-      expect(all[0].amount).toBe(50000);
+    await waitFor(() => {
+      expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'expense',
+        source: 'bank-screenshot',
+        bankHint: 'vietcombank',
+        amount: 50000,
+      }));
     });
+  });
+
+  it('shows a visible error when saving an image transaction fails', async () => {
+    saveMocks.saveUserTransaction.mockRejectedValue(new Error('column category does not exist'));
+    mountWithImage([
+      'Vietcombank',
+      'So tien: -50.000 VND',
+      'Noi dung: Test',
+    ].join('\n'));
+
+    await waitFor(() => screen.getByText(/50.*000/));
+    fireEvent.click(screen.getByRole('button', { name: /coffee|cà phê/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not save|không thể lưu/i);
+    expect(screen.getByRole('alert')).toHaveTextContent('column category does not exist');
   });
 
   it('suggests category based on OCR note keyword (shopee in transfer memo)', async () => {

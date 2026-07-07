@@ -1,30 +1,46 @@
 {
   "app": { "title": "Finance" },
-  "nav": { "home": "Home", "add": "Add", "reports": "Reports", "settings": "Settings" },
+  "nav": { "home": "Home", "add": "Add", "calendar": "Calendar", "reports": "Reports", "settings": "Settings" },
   "home": {
     "todaySpend": "Today's spend",
+    "todayIncome": "Today's income",
     "remaining": "Remaining this month",
     "budgetUsed": "Monthly budget used",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
     "empty": "No transactions yet"
   },
+  "transactions": {
+    "categoryLabel": "Transaction category",
+    "categoryUpdateFailed": "Could not update category"
+  },
   "add": {
     "title": "Add transaction",
     "amount": "Amount",
     "category": "Category",
+    "date": "Date",
+    "expense": "Expense",
+    "income": "Income",
     "note": "Note (optional)",
     "merchant": "Merchant (optional)",
     "save": "Save",
+    "submitExpense": "Add expense",
+    "submitIncome": "Add income",
     "cancel": "Cancel",
     "delete": "Delete",
-    "byImage": "Add by image"
+    "byImage": "Add by image",
+    "saving": "Saving...",
+    "saveFailed": "Could not save transaction"
   },
   "settings": {
     "title": "Settings",
     "language": "Language",
     "monthlyBudget": "Monthly budget",
     "save": "Save",
+    "account": "Account",
+    "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "signOutFailed": "Sign out failed",
     "caps": {
       "expand": "Set per-category caps (optional)",
       "collapse": "Hide per-category caps"
@@ -40,7 +56,34 @@
     "noSpending": "No spending this month",
     "byCategory": "By category",
     "anomalies": "Anomalies",
-    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
+    "expenseTotal": "Expense total",
+    "incomeTotal": "Income total",
+    "netTotal": "Net total",
+    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month",
+    "expenseTab": "Expense",
+    "incomeTab": "Income",
+    "categoryShare": "{{pct}}%",
+    "noDirectionData": "No {{direction}} transactions this month",
+    "categoryDetailTitle": "{{category}} in {{month}}",
+    "noCategoryTransactions": "No transactions in this category",
+    "backToReports": "Back to reports"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "income": "Income",
+    "expense": "Expense",
+    "net": "Net",
+    "selectedDate": "Selected date",
+    "emptyDay": "No transactions on this day",
+    "emptyMonth": "No transactions this month",
+    "selectDate": "Select {{date}}",
+    "transactionCount_one": "{{count}} transaction",
+    "transactionCount_other": "{{count}} transactions"
+  },
+  "direction": {
+    "expense": "Expense",
+    "income": "Income"
   },
   "confirm": {
     "title": "Confirm transaction",
@@ -58,7 +101,13 @@
     "healthcare": "Healthcare",
     "entertainment": "Entertainment",
     "transfers-debt": "Transfers & Debt Repayment",
-    "others": "Others"
+    "others": "Others",
+    "salary": "Salary",
+    "allowance": "Allowance",
+    "bonus": "Bonus",
+    "side-income": "Side income",
+    "investment": "Investment",
+    "temporary-income": "Temporary income"
   },
   "pwa": {
     "updateAvailable": "A new version is available",
@@ -72,6 +121,18 @@
     "message": "Install to your home screen for quicker access",
     "cta": "Install",
     "dismiss": "Dismiss"
+  },
+  "auth": {
+    "title": "Finance",
+    "subtitle": "Sign in to view bank-email spending from Supabase.",
+    "loading": "Checking sign-in...",
+    "signInWithGoogle": "Continue with Google",
+    "signInFailed": "Sign in failed",
+    "setupError": "Supabase environment variables are missing."
+  },
+  "cloud": {
+    "loading": "Loading transactions...",
+    "retry": "Retry"
   },
   "backup": {
     "title": "Backup & restore",
