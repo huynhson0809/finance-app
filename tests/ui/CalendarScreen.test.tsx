@@ -40,22 +40,16 @@ vi.mock('../../src/lib/date', async () => {
 vi.mock('../../src/hooks/useCloudTransactions', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
 
-  function useStatefulMonthCloudTransactions(month: string) {
-    cloudHooks.useMonthCloudTransactions(month);
-    const [state] = React.useState<MockCloudState>(() => (
-      cloudHooks.monthStates[month] ?? { data: [], loading: true, error: null }
-    ));
-
-    return {
-      ...state,
-      reload: cloudHooks.reload,
-    };
-  }
-
   return {
     useMonthCloudTransactions: (month: string) => {
-      if (cloudHooks.mode === 'stateful') return useStatefulMonthCloudTransactions(month);
-      return cloudHooks.useMonthCloudTransactions(month);
+      const [statefulState] = React.useState<MockCloudState>(() => (
+        cloudHooks.monthStates[month] ?? { data: [], loading: true, error: null }
+      ));
+      const staticState = cloudHooks.useMonthCloudTransactions(month);
+
+      return cloudHooks.mode === 'stateful'
+        ? { ...statefulState, reload: cloudHooks.reload }
+        : staticState;
     },
   };
 });
