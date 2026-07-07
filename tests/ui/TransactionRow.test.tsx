@@ -14,6 +14,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     currency: 'VND',
     occurredAt: '2026-07-04T14:48:49.000Z',
     category: 'others',
+    direction: 'expense',
     source: 'bank-email',
     createdAt: '2026-07-04T14:48:50.000Z',
     updatedAt: '2026-07-04T14:48:50.000Z',
@@ -70,5 +71,32 @@ describe('TransactionRow', () => {
     );
 
     expect(screen.getByRole('combobox', { name: 'Danh mục giao dịch' })).toBeDisabled();
+  });
+
+  it('shows income amounts with a plus sign', () => {
+    render(
+      <TransactionRow
+        t={tx({ amount: 1_250_000, direction: 'income', category: 'salary' })}
+        locale="en"
+      />,
+    );
+
+    expect(screen.getByText(/\+\D*1[.,]250[.,]000/)).toBeInTheDocument();
+  });
+
+  it('only offers categories for the transaction direction when editing', () => {
+    render(
+      <TransactionRow
+        t={tx({ direction: 'income', category: 'salary' })}
+        locale="en"
+        onCategoryChange={vi.fn()}
+      />,
+    );
+
+    const options = screen.getAllByRole('option').map(option => option.getAttribute('value'));
+    expect(options).toContain('salary');
+    expect(options).toContain('bonus');
+    expect(options).not.toContain('food-drinks');
+    expect(options).not.toContain('shopping');
   });
 });

@@ -16,7 +16,7 @@ import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { supabase } from '../supabase/client';
 import { updateCloudTransactionCategory } from '../supabase/transactions';
-import { CATEGORIES, type Category, type Transaction } from '../types';
+import { EXPENSE_CATEGORIES, type Category, type Transaction } from '../types';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -39,9 +39,15 @@ export function HomeScreen() {
     reload: reloadMonth,
   } = useMonthCloudTransactions(month);
 
-  const todayTotal = useMemo(
+  const todayExpense = useMemo(
     () => monthTx
-      .filter(tx => isSameVietnamDay(tx.occurredAt, today))
+      .filter(tx => tx.direction !== 'income' && isSameVietnamDay(tx.occurredAt, today))
+      .reduce((sum, tx) => sum + tx.amount, 0),
+    [monthTx, today],
+  );
+  const todayIncome = useMemo(
+    () => monthTx
+      .filter(tx => tx.direction === 'income' && isSameVietnamDay(tx.occurredAt, today))
       .reduce((sum, tx) => sum + tx.amount, 0),
     [monthTx, today],
   );
@@ -49,7 +55,7 @@ export function HomeScreen() {
   const bStatus = useMemo(() => budgetStatus(budget, sums), [budget, sums]);
   const monthSpent = bStatus.overallSpent;
   const perCategoryOver = useMemo(
-    () => CATEGORIES.filter(c => bStatus.perCategory[c] === 'over'),
+    () => EXPENSE_CATEGORIES.filter(c => bStatus.perCategory[c] === 'over'),
     [bStatus],
   );
   const categoryLabel = (c: Category) => t(`category.${c}`);
@@ -89,9 +95,17 @@ export function HomeScreen() {
   return (
     <div>
       <header className="p-4">
-        <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
-        <div className="text-3xl font-semibold">
-          {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayTotal, locale)}
+        <div>
+          <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
+          <div className="text-3xl font-semibold">
+            {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayExpense, locale)}
+          </div>
+        </div>
+        <div className="mt-3">
+          <div className="text-sm text-gray-500">{t('home.todayIncome')}</div>
+          <div className="text-xl font-semibold text-emerald-700">
+            {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayIncome, locale)}
+          </div>
         </div>
       </header>
 

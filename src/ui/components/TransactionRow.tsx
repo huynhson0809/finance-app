@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatVND } from '../../lib/money';
-import { CATEGORIES, type Category, type Transaction } from '../../types';
+import { categoriesForDirection, type Category, type Transaction } from '../../types';
 
 interface TransactionRowProps {
   t: Transaction;
@@ -12,6 +12,10 @@ interface TransactionRowProps {
 
 export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving, categoryLabel }: TransactionRowProps) {
   const { t } = useTranslation();
+  const categoryOptions = categoriesForDirection(tx.direction);
+  const amount = tx.direction === 'income'
+    ? `+${formatVND(tx.amount, locale)}`
+    : formatVND(tx.amount, locale);
   return (
     <li className="flex justify-between gap-3 px-4 py-2 border-b">
       <span className="min-w-0">
@@ -23,7 +27,7 @@ export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving
             value={tx.category}
             onChange={event => onCategoryChange(tx.id, event.target.value as Category)}
           >
-            {CATEGORIES.map(category => (
+            {categoryOptions.map(category => (
               <option key={category} value={category}>
                 {t(`category.${category}`)}
               </option>
@@ -34,7 +38,7 @@ export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving
         )}
         <span className="block text-xs text-gray-500">{formatTransactionDate(tx.occurredAt, locale)}</span>
       </span>
-      <span className="shrink-0">{formatVND(tx.amount, locale)}</span>
+      <span className="shrink-0">{amount}</span>
     </li>
   );
 }

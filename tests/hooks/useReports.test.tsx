@@ -41,6 +41,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     source: 'bank-email',
     createdAt: '2026-06-15T08:00:00.000Z',
     updatedAt: '2026-06-15T08:00:00.000Z',
+    direction: 'expense',
     ...overrides,
   };
 }
@@ -116,6 +117,37 @@ describe('useReports', () => {
     });
     expect(result.current.bStatus.overall).toBe('ok');
     expect(result.current.error).toBeNull();
+  });
+
+  it('returns current month totals split by direction', async () => {
+    mocks.listCloudTransactionsForRange
+      .mockResolvedValueOnce([
+        tx({
+          id: 'expense',
+          amount: 15_000,
+          occurredAt: '2026-06-10T08:00:00.000Z',
+          direction: 'expense',
+          category: 'food-drinks',
+        }),
+        tx({
+          id: 'income',
+          amount: 100_000,
+          occurredAt: '2026-06-11T08:00:00.000Z',
+          direction: 'income',
+          category: 'salary',
+        }),
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { result } = renderHook(() => useReports('2026-06'));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.directionTotals).toEqual({
+      expense: 15_000,
+      income: 100_000,
+      net: 85_000,
+    });
   });
 
   it('returns a setup error and empty cloud data when Supabase is not configured', async () => {

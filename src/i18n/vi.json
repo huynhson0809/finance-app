@@ -3,6 +3,7 @@
   "nav": { "home": "Trang chủ", "add": "Thêm", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
     "todaySpend": "Chi hôm nay",
+    "todayIncome": "Thu hôm nay",
     "remaining": "Còn lại trong tháng",
     "budgetUsed": "Đã chi tháng này",
     "lastTransactions": "Giao dịch gần đây",
@@ -50,7 +51,14 @@
     "noSpending": "Chưa có chi tiêu",
     "byCategory": "Theo danh mục",
     "anomalies": "Bất thường",
+    "expenseTotal": "Tổng chi",
+    "incomeTotal": "Tổng thu",
+    "netTotal": "Còn lại",
     "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
+  },
+  "direction": {
+    "expense": "Chi",
+    "income": "Thu"
   },
   "confirm": {
     "title": "Xác nhận giao dịch",
@@ -68,7 +76,13 @@
     "healthcare": "Sức khoẻ",
     "entertainment": "Giải trí",
     "transfers-debt": "Chuyển khoản & Trả nợ",
-    "others": "Khác"
+    "others": "Khác",
+    "salary": "Lương",
+    "allowance": "Trợ cấp",
+    "bonus": "Thưởng",
+    "side-income": "Thu nhập phụ",
+    "investment": "Đầu tư",
+    "temporary-income": "Thu tạm thời"
   },
   "pwa": {
     "updateAvailable": "Có bản cập nhật mới",

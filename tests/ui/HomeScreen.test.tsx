@@ -82,6 +82,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     currency: 'VND',
     occurredAt: vietnamNoonISO(todayVietnamDate()),
     category: 'others',
+    direction: 'expense',
     source: 'bank-email',
     ...overrides,
   };
@@ -134,6 +135,27 @@ describe('HomeScreen', () => {
     expect(rows).toHaveLength(3);
     expect(within(rows[0]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('food-drinks');
     expect(within(rows[2]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('shopping');
+  });
+
+  it('shows today expense and today income separately', () => {
+    cloudHooks.monthState.data = [
+      tx({ id: 'expense-today', amount: 25_000, direction: 'expense', category: 'food-drinks' }),
+      tx({ id: 'income-today', amount: 100_000, direction: 'income', category: 'salary' }),
+      tx({
+        id: 'expense-other-day',
+        amount: 50_000,
+        direction: 'expense',
+        category: 'shopping',
+        occurredAt: anotherDayThisMonth(),
+      }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getByText("Today's spend")).toBeInTheDocument();
+    expect(screen.getByText("Today's income")).toBeInTheDocument();
+    expect(screen.getByText(/25[.,]000/)).toBeInTheDocument();
+    expect(screen.getByText(/100[.,]000/)).toBeInTheDocument();
   });
 
   it('updates a recent transaction category and refreshes cloud data', async () => {

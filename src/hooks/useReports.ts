@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getBudgetForMonth } from '../db/budgets';
 import {
   sumByCategory, dailyTotals, monthOverMonth, hints, status,
+  totalsByDirection,
   type BudgetStatus,
+  type DirectionTotals,
 } from '../reports';
 import { monthRangeVietnamISO, prevMonth } from '../lib/date';
 import { supabase } from '../supabase/client';
@@ -17,6 +19,7 @@ export interface UseReportsResult {
   sums: Record<Category, number>;
   daily: Array<{ date: string; total: number }>;
   deltas: ReturnType<typeof monthOverMonth>;
+  directionTotals: DirectionTotals;
   anomalyHints: ReturnType<typeof hints>;
   bStatus: { overall: BudgetStatus; perCategory: Record<Category, BudgetStatus>; overallSpent: number };
   reload: () => Promise<void>;
@@ -90,8 +93,9 @@ export function useReports(monthISO: string): UseReportsResult {
   const sums   = useMemo(() => sumByCategory(curr), [curr]);
   const daily  = useMemo(() => dailyTotals(curr, monthISO), [curr, monthISO]);
   const deltas = useMemo(() => monthOverMonth(curr, prev), [curr, prev]);
+  const directionTotals = useMemo(() => totalsByDirection(curr), [curr]);
   const anomalyHints = useMemo(() => hints(deltas), [deltas]);
   const bStatus = useMemo(() => status(budget, sums), [budget, sums]);
 
-  return { loading, error, sums, daily, deltas, anomalyHints, bStatus, reload };
+  return { loading, error, sums, daily, deltas, directionTotals, anomalyHints, bStatus, reload };
 }

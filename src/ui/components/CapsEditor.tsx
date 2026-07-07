@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CATEGORIES, type Category } from '../../types';
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../../types';
 import { parseVNDInput } from '../../lib/money';
 import { upsertBudget } from '../../db/budgets';
 
-type Caps = Partial<Record<Category, number>>;
+type Caps = Partial<Record<ExpenseCategory, number>>;
 
 export function CapsEditor({ month, total, initialCaps, onSaved }: {
   month: string;
@@ -14,20 +14,20 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [caps, setCaps] = useState<Record<Category, string>>(() => {
-    const out = {} as Record<Category, string>;
-    for (const c of CATEGORIES) out[c] = initialCaps[c] != null ? String(initialCaps[c]) : '';
+  const [caps, setCaps] = useState<Record<ExpenseCategory, string>>(() => {
+    const out = {} as Record<ExpenseCategory, string>;
+    for (const c of EXPENSE_CATEGORIES) out[c] = initialCaps[c] != null ? String(initialCaps[c]) : '';
     return out;
   });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  function commit(next: Record<Category, string>) {
+  function commit(next: Record<ExpenseCategory, string>) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       const finalCaps: Caps = {};
-      for (const c of CATEGORIES) {
+      for (const c of EXPENSE_CATEGORIES) {
         if (next[c].trim() === '') continue;
         const v = parseVNDInput(next[c]);
         if (!Number.isNaN(v) && v > 0) finalCaps[c] = v;
@@ -37,7 +37,7 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
     }, 500);
   }
 
-  function handleChange(cat: Category, value: string) {
+  function handleChange(cat: ExpenseCategory, value: string) {
     const next = { ...caps, [cat]: value };
     setCaps(next);
     commit(next);
@@ -55,7 +55,7 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
       </button>
       {open && (
         <ul className="mt-2 space-y-2">
-          {CATEGORIES.map(c => (
+          {EXPENSE_CATEGORIES.map(c => (
             <li key={c}>
               <label className="flex justify-between items-center text-sm">
                 <span>{t(`category.${c}`)}</span>

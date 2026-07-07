@@ -53,6 +53,11 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
       perCategory: okStatuses(),
       overallSpent: 0,
     },
+    directionTotals: {
+      expense: 0,
+      income: 0,
+      net: 0,
+    },
     ...overrides,
   };
 }
@@ -76,6 +81,25 @@ describe('ReportsScreen', () => {
     render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Total spending exceeds the monthly budget');
+  });
+
+  it('renders expense, income, and net summary totals', () => {
+    reportHooks.state = makeReportState({
+      directionTotals: {
+        expense: 125_000,
+        income: 500_000,
+        net: 375_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Expense total')).toBeInTheDocument();
+    expect(screen.getByText('Income total')).toBeInTheDocument();
+    expect(screen.getByText('Net total')).toBeInTheDocument();
+    expect(screen.getByText(/125[.,]000/)).toBeInTheDocument();
+    expect(screen.getByText(/500[.,]000/)).toBeInTheDocument();
+    expect(screen.getByText(/375[.,]000/)).toBeInTheDocument();
   });
 
   it('shows cloud loading without stale report content', () => {

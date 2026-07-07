@@ -6,10 +6,10 @@ import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
-import { CATEGORIES, type Category } from '../types';
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types';
 import { formatVND } from '../lib/money';
 
-const CHART_COLORS: Record<Category, string> = {
+const CHART_COLORS: Record<ExpenseCategory, string> = {
   'food-drinks': '#ef4444',
   'coffee-bubble-tea': '#f59e0b',
   'transportation': '#3b82f6',
@@ -31,18 +31,18 @@ export function ReportsScreen() {
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
   const month = safeMonth(searchParams.get('month'));
-  const { loading, error, reload, sums, daily, anomalyHints, bStatus } = useReports(month);
+  const { loading, error, reload, sums, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const reportAvailable = !loading && !error;
 
   const pieData = useMemo(
-    () => CATEGORIES.map(c => ({
+    () => EXPENSE_CATEGORIES.map(c => ({
       category: c, total: sums[c], label: t(`category.${c}`), color: CHART_COLORS[c],
     })),
     [sums, t],
   );
 
   const perCategoryOver = useMemo(
-    () => CATEGORIES.filter(c => bStatus.perCategory[c] === 'over'),
+    () => EXPENSE_CATEGORIES.filter(c => bStatus.perCategory[c] === 'over'),
     [bStatus],
   );
 
@@ -90,6 +90,21 @@ export function ReportsScreen() {
             categoryLabel={c => t(`category.${c}`)}
           />
 
+          <section className="grid grid-cols-3 gap-2 px-4 pb-4">
+            <div>
+              <div className="text-xs uppercase text-gray-500">{t('reports.expenseTotal')}</div>
+              <div className="text-sm font-semibold">{formatVND(directionTotals.expense, locale)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-gray-500">{t('reports.incomeTotal')}</div>
+              <div className="text-sm font-semibold">{formatVND(directionTotals.income, locale)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-gray-500">{t('reports.netTotal')}</div>
+              <div className="text-sm font-semibold">{formatVND(directionTotals.net, locale)}</div>
+            </div>
+          </section>
+
           <section className="px-2">
             <CategoryPie data={pieData} />
           </section>
@@ -117,7 +132,7 @@ export function ReportsScreen() {
           <section className="px-4 mt-6">
             <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
             <ul className="mt-2 space-y-2">
-              {CATEGORIES.map(c => {
+              {EXPENSE_CATEGORIES.map(c => {
                 const s = bStatus.perCategory[c];
                 const barColor = s === 'over' ? 'bg-red-500'
                                : s === 'warn' ? 'bg-amber-500'

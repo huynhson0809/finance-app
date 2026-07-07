@@ -57,6 +57,17 @@ describe('SettingsScreen caps editor', () => {
       expect(b?.caps?.['coffee-bubble-tea']).toBeUndefined();
     }, { timeout: 1500 });
   });
+
+  it('does not render income categories in per-category caps', async () => {
+    await upsertBudget(currentVietnamMonth(), 5000000);
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
+
+    expect(await screen.findByLabelText(/coffee|cà phê/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/salary|lương/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/bonus|thưởng/i)).not.toBeInTheDocument();
+  });
 });
 
 function currentVietnamMonth(): string {
