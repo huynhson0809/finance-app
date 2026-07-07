@@ -31,6 +31,16 @@ export function todayVietnamDate(now = new Date()): string {
   return vietnamDateString(now);
 }
 
+export function dateInputValueForVietnam(now = new Date()): string {
+  return vietnamDateString(now);
+}
+
+export function vietnamDateInputToNoonISO(dateInput: string): string {
+  const [year, month, day] = dateInput.split('-').map(Number);
+  const utc = Date.UTC(year, month - 1, day, 12, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  return new Date(utc).toISOString();
+}
+
 export function monthOfVietnamDate(input: string | Date): string {
   return vietnamDateString(input).slice(0, 7);
 }

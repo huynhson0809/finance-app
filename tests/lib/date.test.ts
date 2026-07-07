@@ -10,6 +10,8 @@ import {
   monthOfVietnamDate,
   monthRangeVietnamISO,
   isSameVietnamDay,
+  dateInputValueForVietnam,
+  vietnamDateInputToNoonISO,
 } from '../../src/lib/date';
 
 describe('date helpers', () => {
@@ -86,5 +88,15 @@ describe('Vietnam calendar helpers', () => {
       '2026-06-30T17:00:00.000Z',
       '2026-07-01T17:00:00.000Z',
     )).toBe(false);
+  });
+});
+
+describe('Vietnam date input helpers', () => {
+  it('formats an instant as a Vietnam date input value', () => {
+    expect(dateInputValueForVietnam(new Date('2026-07-06T18:00:00.000Z'))).toBe('2026-07-07');
+  });
+
+  it('stores a date input as Vietnam local noon', () => {
+    expect(vietnamDateInputToNoonISO('2026-07-07')).toBe('2026-07-07T05:00:00.000Z');
   });
 });
