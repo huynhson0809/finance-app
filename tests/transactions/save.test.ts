@@ -28,6 +28,7 @@ const input = {
   currency: 'VND' as const,
   occurredAt: '2026-07-06T05:00:00.000Z',
   merchant: 'Highlands Coffee',
+  direction: 'expense' as const,
   category: 'coffee-bubble-tea' as const,
   source: 'manual' as const,
 };

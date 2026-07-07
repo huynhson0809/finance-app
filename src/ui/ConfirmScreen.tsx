@@ -12,7 +12,7 @@ import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
 import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
-import type { Category } from '../types';
+import { EXPENSE_CATEGORIES, type Category, type ExpenseCategory } from '../types';
 import type { BankHint, Extracted } from '../extractors';
 
 export function ConfirmScreen() {
@@ -54,7 +54,7 @@ export function ConfirmScreen() {
   const [raw, setRaw] = useState('');
   const [merchant, setMerchant] = useState('');
   const [occurredAt, setOccurredAt] = useState('');
-  const [chosen, setChosen] = useState<Category | null>(null);
+  const [chosen, setChosen] = useState<ExpenseCategory | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -78,7 +78,13 @@ export function ConfirmScreen() {
 
   // chosen tracks suggestion until user explicitly taps a chip
   useEffect(() => {
-    if (!userPickedChip) setChosen(suggestion);
+    if (!userPickedChip) {
+      setChosen(
+        suggestion != null && EXPENSE_CATEGORIES.includes(suggestion as ExpenseCategory)
+          ? suggestion as ExpenseCategory
+          : null,
+      );
+    }
   }, [suggestion, userPickedChip]);
 
   function handleKey(k: string) {
@@ -89,8 +95,9 @@ export function ConfirmScreen() {
   }
 
   function handleChip(c: Category) {
+    if (!EXPENSE_CATEGORIES.includes(c as ExpenseCategory)) return;
     setUserPickedChip(true);
-    setChosen(c);
+    setChosen(c as ExpenseCategory);
   }
 
   const amount = Number.parseInt(raw || '0', 10);
@@ -108,6 +115,7 @@ export function ConfirmScreen() {
         currency: 'VND',
         occurredAt: occurred,
         merchant: merchant.trim() || undefined,
+        direction: 'expense',
         category: chosen!,
         source,
         bankHint: extracted.bankHint ?? undefined,
@@ -184,7 +192,7 @@ export function ConfirmScreen() {
       </label>
 
       <Keypad onChange={handleKey} />
-      <CategoryChips value={chosen} onSelect={handleChip} />
+      <CategoryChips value={chosen} onSelect={handleChip} categories={EXPENSE_CATEGORIES} />
       {saveError && (
         <div role="alert" className="mx-4 mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <div>{t('add.saveFailed')}</div>

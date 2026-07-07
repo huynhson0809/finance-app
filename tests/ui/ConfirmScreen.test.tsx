@@ -87,6 +87,7 @@ describe('ConfirmScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
     await waitFor(() => {
       expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'expense',
         source: 'bank-screenshot',
         bankHint: 'vietcombank',
         amount: 50000,
