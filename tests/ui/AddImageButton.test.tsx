@@ -30,6 +30,16 @@ function mount() {
 }
 
 describe('AddImageButton', () => {
+  it('can render as a dark action tile', () => {
+    render(
+      <MemoryRouter>
+        <AddImageButton variant="tile" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toHaveClass('rounded-2xl');
+  });
+
   it('puts blob in imageHolder and navigates to /confirm with imageId in router state', async () => {
     const user = userEvent.setup();
     mount();
