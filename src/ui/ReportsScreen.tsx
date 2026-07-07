@@ -223,7 +223,7 @@ export function ReportsScreen() {
                             {title === transaction.category ? t(`category.${transaction.category}`) : title}
                           </span>
                           <span className="block text-xs text-gray-500">
-                            {monthOfVietnamDate(transaction.occurredAt)}
+                            {todayVietnamDate(new Date(transaction.occurredAt))}
                             {transaction.bankHint ? ` · ${transaction.bankHint.toUpperCase()}` : ''}
                           </span>
                         </span>

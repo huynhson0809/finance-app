@@ -167,6 +167,13 @@ describe('ReportsScreen', () => {
           merchant: 'Pharmacy',
           occurredAt: '2099-06-05T14:48:00.000Z',
         }),
+        tx({
+          id: 'food-outside-month',
+          amount: 20_000,
+          category: 'food-drinks',
+          merchant: 'July dinner',
+          occurredAt: '2099-07-05T14:48:00.000Z',
+        }),
       ],
       directionTotals: {
         expense: 52_000,
@@ -182,7 +189,14 @@ describe('ReportsScreen', () => {
     expect(screen.getByRole('button', { name: /back to reports/i })).toBeInTheDocument();
     expect(screen.getByText('Grab')).toBeInTheDocument();
     expect(screen.getByText('Lunch')).toBeInTheDocument();
+    expect(screen.getByText('2099-06-05')).toBeInTheDocument();
     expect(screen.queryByText('Pharmacy')).not.toBeInTheDocument();
+    expect(screen.queryByText('July dinner')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /back to reports/i }));
+
+    expect(screen.getByRole('button', { name: /food & drinks/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to reports/i })).not.toBeInTheDocument();
   });
 
   it('resets category detail when switching to an incompatible direction', async () => {
