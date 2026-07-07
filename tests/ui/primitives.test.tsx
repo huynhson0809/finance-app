@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Utensils } from 'lucide-react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { initI18n } from '../../src/i18n';
 import {
@@ -27,17 +28,27 @@ describe('dark UI primitives', () => {
     expect(screen.getByText('297,000đ')).toBeInTheDocument();
   });
 
-  it('renders selectable category tiles with pressed state', () => {
+  it('renders selectable category tiles with pressed state', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
     render(
       <CategoryIconTile
-        category="food-drinks"
+        value="food-drinks"
         label="Food"
         selected
-        onSelect={() => undefined}
+        onSelect={onSelect}
+        Icon={Utensils}
+        accentClass="text-emerald-300"
+        surfaceClass="bg-emerald-400/20"
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Food' })).toHaveAttribute('aria-pressed', 'true');
+    const button = screen.getByRole('button', { name: 'Food' });
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(button);
+
+    expect(onSelect).toHaveBeenCalledWith('food-drinks');
   });
 
   it('notifies segmented control changes', async () => {
@@ -54,6 +65,8 @@ describe('dark UI primitives', () => {
         ]}
       />,
     );
+
+    expect(screen.getByRole('button', { name: 'Expense' })).toHaveAttribute('aria-pressed', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Income' }));
 
@@ -74,8 +87,12 @@ describe('dark UI primitives', () => {
 
     await user.click(screen.getByRole('button', { name: '4' }));
 
-    expect(screen.getByText('Merchant')).toBeInTheDocument();
-    expect(screen.getByLabelText('Merchant')).toBeInstanceOf(HTMLInputElement);
+    const input = screen.getByLabelText('Merchant');
+    const label = screen.getByText('Merchant');
+    expect(label.tagName).toBe('LABEL');
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input).toHaveAttribute('id');
+    expect(label).toHaveAttribute('for', input.id);
     expect(onKey).toHaveBeenCalledWith('4');
   });
 
@@ -92,5 +109,6 @@ describe('dark UI primitives', () => {
 
     expect(screen.getByText('Lunch')).toBeInTheDocument();
     expect(screen.getByText('-35,000đ')).toBeInTheDocument();
+    expect(screen.getByText('Lunch').closest('li')).toBeNull();
   });
 });

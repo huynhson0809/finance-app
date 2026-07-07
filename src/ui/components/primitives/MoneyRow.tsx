@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 type MoneyTone = 'income' | 'expense' | 'neutral';
+type MoneyRowRoot = 'div' | 'li' | 'article';
 
 const amountTone: Record<MoneyTone, string> = {
   income: 'text-emerald-300',
@@ -9,6 +10,7 @@ const amountTone: Record<MoneyTone, string> = {
 };
 
 export function MoneyRow({
+  as: Component = 'div',
   icon,
   title,
   subtitle,
@@ -16,6 +18,7 @@ export function MoneyRow({
   tone = 'neutral',
   children,
 }: {
+  as?: MoneyRowRoot;
   icon: ReactNode;
   title: string;
   subtitle?: string;
@@ -24,7 +27,7 @@ export function MoneyRow({
   children?: ReactNode;
 }) {
   return (
-    <li className="flex min-h-[4.5rem] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3">
+    <Component className="flex min-h-[4.5rem] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">{icon}</div>
         <div className="min-w-0">
@@ -34,6 +37,6 @@ export function MoneyRow({
         </div>
       </div>
       <div className={`shrink-0 text-right text-base font-bold ${amountTone[tone]}`}>{amount}</div>
-    </li>
+    </Component>
   );
 }
