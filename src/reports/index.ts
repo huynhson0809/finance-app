@@ -4,3 +4,11 @@ export { monthOverMonth } from './deltas';
 export { hints } from './anomalies';
 export { status, type BudgetStatus } from './over-budget';
 export { totalsByDirection, type DirectionTotals } from './totals';
+export {
+  calendarDaySummaries,
+  categoryTotalsForDate,
+  initialSelectedDate,
+  mondayWeekdayIndex,
+  type CalendarDaySummary,
+  type CategoryDayTotal,
+} from './calendar';
