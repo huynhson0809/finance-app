@@ -11,6 +11,7 @@ import { useBudget } from '../hooks/useBudget';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
+import { GlassPanel, MetricCard } from './components/primitives';
 import { sumByCategory, status as budgetStatus } from '../reports';
 import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
@@ -93,49 +94,50 @@ export function HomeScreen() {
   };
 
   return (
-    <div>
-      <header className="p-4">
-        <div>
-          <div className="text-sm text-gray-500">{t('home.todaySpend')}</div>
-          <div className="text-3xl font-semibold">
-            {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayExpense, locale)}
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="text-sm text-gray-500">{t('home.todayIncome')}</div>
-          <div className="text-xl font-semibold text-emerald-700">
-            {monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayIncome, locale)}
-          </div>
-        </div>
+    <div className="space-y-4 px-4 py-5">
+      <header>
+        <div className="text-sm font-medium text-slate-400">{month}</div>
+        <h1 className="mt-1 text-3xl font-bold text-white">{t('nav.home')}</h1>
       </header>
 
+      <GlassPanel aria-label="Monthly overview" className="border-sky-300/40 p-4 shadow-[0_0_26px_rgba(56,189,248,0.14)]">
+        <div className="grid grid-cols-2 gap-3">
+          <MetricCard label={t('home.todaySpend')} value={monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayExpense, locale)} tone="expense" />
+          <MetricCard label={t('home.todayIncome')} value={monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayIncome, locale)} tone="income" />
+        </div>
+        <div className="mt-3">
+          {monthLoading
+            ? <div className="text-sm text-slate-400">{t('cloud.loading')}</div>
+            : monthError
+            ? null
+            : budget
+            ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
+            : <div className="text-sm text-slate-400">{t('home.noBudget')}</div>}
+        </div>
+      </GlassPanel>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/add" className="flex min-h-20 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-sm font-semibold text-sky-300">
+          {t('nav.add')}
+        </Link>
+        <AddImageButton variant="tile" />
+      </div>
+
       {cloudErrors.length > 0 && (
-        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div>{cloudErrors.join(' ')}</div>
-          <button
-            type="button"
-            className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
-            onClick={retryCloudTransactions}
-          >
+          <button type="button" className="mt-2 rounded-xl bg-rose-400 px-3 py-2 font-semibold text-slate-950" onClick={retryCloudTransactions}>
             {t('cloud.retry')}
           </button>
         </div>
       )}
 
       {categoryEditError && (
-        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div className="font-medium">{t('transactions.categoryUpdateFailed')}</div>
           <div>{categoryEditError}</div>
         </div>
       )}
-
-      {monthLoading
-        ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
-        : monthError
-        ? null
-        : budget
-        ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
-        : <div className="px-4 text-sm text-gray-500">{t('home.noBudget')}</div>}
 
       {!monthUnavailable && (
         <BudgetAlert
@@ -145,34 +147,27 @@ export function HomeScreen() {
         />
       )}
 
-      <h2 className="px-4 pt-4 pb-2 text-sm uppercase text-gray-500">
-        {t('home.lastTransactions')}
-      </h2>
-      {recentLoading
-        ? <div className="px-4 text-sm text-gray-500">{t('cloud.loading')}</div>
-        : recentError
-        ? null
-        : recent.length === 0
-        ? <div className="px-4 text-sm text-gray-500">{t('home.empty')}</div>
-        : <ul>
-            {recent.map(tx => (
-              <TransactionRow
-                key={tx.id}
-                t={tx}
-                locale={locale}
-                onCategoryChange={handleCategoryChange}
-                categorySaving={editingCategoryId !== null}
-                categoryLabel={transactionCategoryLabel(tx)}
-              />
-            ))}
-          </ul>}
-
-      <AddImageButton />
-      <Link
-        to="/add"
-        className="fixed right-4 bottom-20 w-14 h-14 rounded-full bg-blue-600 text-white text-3xl flex items-center justify-center shadow-lg"
-        aria-label={t('nav.add')}
-      >+</Link>
+      <section>
+        <h2 className="pb-3 text-xl font-bold text-white">{t('home.lastTransactions')}</h2>
+        {recentLoading
+          ? <div className="text-sm text-slate-400">{t('cloud.loading')}</div>
+          : recentError
+          ? null
+          : recent.length === 0
+          ? <div className="text-sm text-slate-400">{t('home.empty')}</div>
+          : <ul className="space-y-2">
+              {recent.map(tx => (
+                <TransactionRow
+                  key={tx.id}
+                  t={tx}
+                  locale={locale}
+                  onCategoryChange={handleCategoryChange}
+                  categorySaving={editingCategoryId !== null}
+                  categoryLabel={transactionCategoryLabel(tx)}
+                />
+              ))}
+            </ul>}
+      </section>
     </div>
   );
 }

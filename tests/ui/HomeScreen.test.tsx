@@ -127,8 +127,10 @@ describe('HomeScreen', () => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    const headerDiv = document.querySelector('header .text-3xl');
-    expect(/1[.,]500[.,]000/.test(headerDiv?.textContent ?? '')).toBe(true);
+    expect(screen.getByRole('region', { name: /monthly overview/i })).toBeInTheDocument();
+    expect(screen.getByText(/today's spend/i)).toBeInTheDocument();
+    expect(screen.getByText(/today's income/i)).toBeInTheDocument();
+    expect(screen.getByText(/1[.,]500[.,]000/)).toBeInTheDocument();
     expect(screen.getByText(/3[.,]000[.,]000/)).toBeInTheDocument();
 
     const rows = screen.getAllByRole('listitem');
@@ -288,6 +290,12 @@ describe('HomeScreen', () => {
 
     expect(await screen.findByRole('link', { name: 'Add' })).toHaveAttribute('href', '/add');
     expect(screen.getByLabelText('Add by image')).toBeInTheDocument();
+  });
+
+  it('keeps the image add action available from the dashboard', () => {
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
   });
 
   it('does not surface local backup reminders in the cloud home path', async () => {

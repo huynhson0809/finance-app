@@ -7,18 +7,18 @@ export function BudgetBar({ spent, total, locale, status = 'ok' }: {
 }) {
   const { t } = useTranslation();
   const ratio = total > 0 ? Math.min(spent / total, 1.2) : 0;
-  const color = status === 'over' ? 'bg-red-500'
-              : status === 'warn' ? 'bg-amber-500'
-              : 'bg-blue-500';
+  const color = status === 'over' ? 'bg-rose-400'
+              : status === 'warn' ? 'bg-amber-300'
+              : 'bg-sky-400';
   return (
-    <div className="px-4 py-2">
-      <div className="flex justify-between text-sm">
-        <span>{formatVND(spent, locale)} / {formatVND(total, locale)}</span>
-        <span>{t('home.remaining')}: {formatVND(Math.max(0, total - spent), locale)}</span>
+    <div className="px-4 py-3">
+      <div className="flex justify-between gap-3 text-xs text-slate-300">
+        <span className="truncate">{formatVND(spent, locale)} / {formatVND(total, locale)}</span>
+        <span className="shrink-0">{t('home.remaining')}: {formatVND(Math.max(0, total - spent), locale)}</span>
       </div>
-      <div className="h-2 bg-gray-200 rounded mt-1 overflow-hidden">
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
         <div
-          className={`h-full ${color}`}
+          className={`h-full rounded-full ${color}`}
           style={{ width: `${Math.min(ratio * 100, 100)}%` }}
           role="progressbar"
           aria-label={t('home.budgetUsed')}
