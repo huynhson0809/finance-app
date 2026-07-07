@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PWA_PROMPT_OFFSET_CLASS, PWA_PROMPT_WIDTH_CLASS } from './primitives';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -30,8 +31,11 @@ export function InstallPrompt() {
   }
 
   return (
-    <div role="dialog" aria-label={t('install.message')}
-         className="fixed bottom-20 inset-x-4 z-40 bg-emerald-600 text-white text-sm px-4 py-2 rounded shadow flex items-center justify-between">
+    <div
+      role="dialog"
+      aria-label={t('install.message')}
+      className={`fixed ${PWA_PROMPT_OFFSET_CLASS} ${PWA_PROMPT_WIDTH_CLASS} z-40 bg-emerald-600 text-white text-sm px-4 py-2 rounded shadow flex items-center justify-between`}
+    >
       <span>{t('install.message')}</span>
       <div className="flex items-center gap-3">
         <button type="button" onClick={install} className="font-semibold">

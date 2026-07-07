@@ -1,6 +1,7 @@
 import { BarChart3, CalendarDays, Home, MoreHorizontal, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
+import { APP_SHELL_MAX_WIDTH_CLASS } from './navSpacing';
 
 const baseLink = 'flex min-w-0 flex-1 flex-col items-center justify-end gap-1 px-1 pb-2 pt-3 text-[0.68rem] font-medium';
 const inactive = 'text-slate-400';
@@ -14,7 +15,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[430px] rounded-t-[2rem] border border-white/10 bg-slate-900/[0.88] px-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] shadow-[0_-16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+      className={`fixed inset-x-0 bottom-0 z-30 mx-auto ${APP_SHELL_MAX_WIDTH_CLASS} rounded-t-[2rem] border border-white/10 bg-slate-900/[0.88] px-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] shadow-[0_-16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl`}
     >
       <div className="grid min-h-[5.25rem] grid-cols-[1fr_1fr_4.8rem_1fr_1fr] items-end">
         <NavLink to="/" end className={linkClass}>
