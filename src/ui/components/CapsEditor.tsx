@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../../types';
 import { parseVNDInput } from '../../lib/money';
-import { upsertBudget } from '../../db/budgets';
+import { getBudgetForMonth, upsertBudget } from '../../db/budgets';
 
 type Caps = Partial<Record<ExpenseCategory, number>>;
 
@@ -32,7 +32,8 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
         const v = parseVNDInput(next[c]);
         if (!Number.isNaN(v) && v > 0) finalCaps[c] = v;
       }
-      await upsertBudget(month, total, finalCaps);
+      const latestBudget = await getBudgetForMonth(month);
+      await upsertBudget(month, latestBudget?.total ?? total, finalCaps);
       onSaved?.();
     }, 500);
   }
