@@ -47,6 +47,7 @@ describe('normalizeIngestPayload', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
     expect(Number.isInteger(result.value.amount)).toBe(true);
+    expect(result.value.direction).toBe('expense');
     expect(result.value).toMatchObject({
       bank: 'MB',
       type: 'transfer',

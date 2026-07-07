@@ -255,6 +255,7 @@ describe('cloud transaction queries', () => {
       merchant: 'Highlands Coffee',
       category: 'coffee-bubble-tea',
       source: 'manual',
+      direction: 'expense',
     });
 
     expect(context.calls.map(call => call.method)).toEqual(['from', 'insert', 'select', 'single']);
@@ -268,12 +269,58 @@ describe('cloud transaction queries', () => {
       raw_source: 'manual',
       merchant: 'Highlands Coffee',
       category: 'coffee-bubble-tea',
+      direction: 'expense',
       bank_hint: null,
     });
     expect((context.insertedRow as { external_hash: string }).external_hash).toMatch(/^manual:/);
     expect(tx.source).toBe('manual');
     expect(tx.direction).toBe('expense');
     expect(tx.category).toBe('coffee-bubble-tea');
+  });
+
+  it('inserts income cloud transactions and maps the returned row', async () => {
+    const returned = row({
+      id: 'income-1',
+      bank: null,
+      type: 'manual',
+      amount: 15000000,
+      transaction_time: '2026-07-07T05:00:00.000Z',
+      content: 'Salary',
+      direction: 'income',
+      raw_source: 'manual',
+      merchant: null,
+      category: 'salary',
+      note: 'Salary',
+      created_at: '2026-07-07T05:00:10.000Z',
+    });
+    const context = createClient({ data: [returned], error: null });
+
+    const tx = await addCloudTransaction(context.client, {
+      amount: 15000000,
+      currency: 'VND',
+      occurredAt: '2026-07-07T05:00:00.000Z',
+      category: 'salary',
+      note: 'Salary',
+      source: 'manual',
+      direction: 'income',
+    });
+
+    expect(context.insertedRow).toMatchObject({
+      type: 'manual',
+      amount: 15000000,
+      category: 'salary',
+      direction: 'income',
+      raw_source: 'manual',
+    });
+    expect(tx).toMatchObject({
+      id: 'income-1',
+      bankHint: undefined,
+      source: 'manual',
+      amount: 15000000,
+      category: 'salary',
+      note: 'Salary',
+      direction: 'income',
+    });
   });
 
   it('updates only the category for a cloud transaction and maps the returned row', async () => {

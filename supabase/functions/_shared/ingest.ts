@@ -10,6 +10,7 @@ export interface NormalizedIngestPayload {
   transaction_time: string;
   content: string;
   category: Category;
+  direction: 'expense';
   raw_source: 'email';
 }
 
@@ -80,6 +81,7 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
       transaction_time: transactionTime,
       content,
       category: classifyEmailContent(content),
+      direction: 'expense',
       raw_source: 'email',
     },
   };

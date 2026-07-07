@@ -1,6 +1,14 @@
 import { mapTransactionRow, type CloudTransactionRow } from './mapper';
 import type { AppSupabaseClient } from './client';
-import type { BankHint, Category, Transaction, TransactionSource } from '../types';
+import type {
+  BankHint,
+  Category,
+  ExpenseCategory,
+  IncomeCategory,
+  Transaction,
+  TransactionDirection,
+  TransactionSource,
+} from '../types';
 
 const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,created_at';
 
@@ -56,16 +64,20 @@ export type SupabaseClientQueryCompatibility = Assert<
   AppSupabaseClient extends QueryClient ? true : false
 >;
 
-export interface UserTransactionInput {
+interface UserTransactionInputBase {
   amount: number;
   currency: 'VND';
   occurredAt: string;
   merchant?: string;
-  category: Category;
   note?: string;
   source: Exclude<TransactionSource, 'bank-email'>;
   bankHint?: BankHint;
 }
+
+export type UserTransactionInput = UserTransactionInputBase & (
+  | { direction: 'expense'; category: ExpenseCategory }
+  | { direction: 'income'; category: IncomeCategory }
+);
 
 interface CloudTransactionInsert {
   bank: 'MB' | 'ACB' | null;
@@ -74,6 +86,7 @@ interface CloudTransactionInsert {
   currency: 'VND';
   transaction_time: string;
   content: string;
+  direction: TransactionDirection;
   raw_source: 'manual' | 'receipt' | 'bank-screenshot';
   merchant: string | null;
   category: Category;
@@ -176,6 +189,7 @@ function toInsertRow(input: UserTransactionInput): CloudTransactionInsert {
     currency: 'VND',
     transaction_time: input.occurredAt,
     content: merchant ?? note ?? input.category,
+    direction: input.direction,
     raw_source: input.source,
     merchant,
     category: input.category,
