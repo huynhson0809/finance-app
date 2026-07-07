@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { initI18n } from '../../src/i18n';
+import { initI18n, i18n } from '../../src/i18n';
 import { Layout } from '../../src/ui/Layout';
 
 vi.mock('../../src/ui/components/UpdatePrompt', () => ({
@@ -49,5 +49,11 @@ describe('Layout', () => {
       '/settings',
     ]);
     expect(screen.getByRole('link', { name: /calendar|lịch/i })).toHaveAttribute('href', '/calendar');
+  });
+
+  it('uses current i18next plural keys for calendar transaction counts', async () => {
+    await i18n.changeLanguage('en');
+
+    expect(i18n.t('calendar.transactionCount', { count: 2 })).toBe('2 transactions');
   });
 });

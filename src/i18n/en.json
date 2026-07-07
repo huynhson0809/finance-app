@@ -71,8 +71,8 @@
     "emptyDay": "No transactions on this day",
     "emptyMonth": "No transactions this month",
     "selectDate": "Select {{date}}",
-    "transactionCount": "{{count}} transaction",
-    "transactionCount_plural": "{{count}} transactions"
+    "transactionCount_one": "{{count}} transaction",
+    "transactionCount_other": "{{count}} transactions"
   },
   "direction": {
     "expense": "Expense",

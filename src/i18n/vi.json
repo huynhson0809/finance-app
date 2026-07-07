@@ -71,8 +71,8 @@
     "emptyDay": "Ngày này chưa có giao dịch",
     "emptyMonth": "Tháng này chưa có giao dịch",
     "selectDate": "Chọn {{date}}",
-    "transactionCount": "{{count}} giao dịch",
-    "transactionCount_plural": "{{count}} giao dịch"
+    "transactionCount_one": "{{count}} giao dịch",
+    "transactionCount_other": "{{count}} giao dịch"
   },
   "direction": {
     "expense": "Chi",
