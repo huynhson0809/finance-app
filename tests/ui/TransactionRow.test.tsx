@@ -84,6 +84,17 @@ describe('TransactionRow', () => {
     expect(screen.getByText(/\+\D*1[.,]250[.,]000/)).toBeInTheDocument();
   });
 
+  it('shows expense amounts with a minus sign', () => {
+    render(
+      <TransactionRow
+        t={tx({ amount: 297_000, direction: 'expense', category: 'others' })}
+        locale="en"
+      />,
+    );
+
+    expect(screen.getByText(/-\D*297[.,]000/)).toBeInTheDocument();
+  });
+
   it('only offers categories for the transaction direction when editing', () => {
     render(
       <TransactionRow

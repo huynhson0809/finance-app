@@ -345,9 +345,10 @@ describe('HomeScreen', () => {
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Month fetch failed');
+    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    expect(within(monthlyOverview).getAllByText('-')).toHaveLength(2);
+    expect(within(monthlyOverview).queryByText(/0/)).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    const headerTotal = document.querySelector('header .text-3xl')?.textContent ?? '';
-    expect(headerTotal).not.toMatch(/0/);
   });
 
   it('shows cloud fetch errors and retries both cloud hooks', async () => {
