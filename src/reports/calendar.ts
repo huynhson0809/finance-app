@@ -68,26 +68,29 @@ export function categoryTotalsForDate(
   transactions: Transaction[],
   date: string,
 ): CategoryDayTotal[] {
-  const byCategory = new Map<Category, CategoryDayTotal>();
+  const byCategory = new Map<string, CategoryDayTotal>();
 
   for (const transaction of transactions) {
     if (todayVietnamDate(new Date(transaction.occurredAt)) !== date) continue;
 
-    const existing = byCategory.get(transaction.category) ?? {
+    const direction = transactionDirection(transaction);
+    const key = `${direction}:${transaction.category}`;
+    const existing = byCategory.get(key) ?? {
       category: transaction.category,
-      direction: transactionDirection(transaction),
+      direction,
       total: 0,
       count: 0,
     };
 
     existing.total += transaction.amount;
     existing.count += 1;
-    byCategory.set(transaction.category, existing);
+    byCategory.set(key, existing);
   }
 
   return Array.from(byCategory.values()).sort((a, b) => {
     if (a.direction !== b.direction) return a.direction === 'income' ? -1 : 1;
-    return b.total - a.total;
+    if (a.total !== b.total) return b.total - a.total;
+    return a.category.localeCompare(b.category);
   });
 }
 

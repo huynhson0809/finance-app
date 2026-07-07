@@ -66,6 +66,35 @@ describe('calendar report helpers', () => {
     ]);
   });
 
+  it('keeps same-category runtime rows separate by normalized direction', () => {
+    const missingDirectionSalaryRow = {
+      ...tx({ amount: 25_000, direction: 'income', category: 'salary', occurredAt: '2026-07-07T06:00:00.000Z' }),
+      direction: undefined,
+    } as unknown as Transaction;
+
+    const rows = categoryTotalsForDate([
+      tx({ amount: 1_000_000, direction: 'income', category: 'salary', occurredAt: '2026-07-07T05:00:00.000Z' }),
+      missingDirectionSalaryRow,
+    ], '2026-07-07');
+
+    expect(rows).toEqual([
+      { category: 'salary', direction: 'income', total: 1_000_000, count: 1 },
+      { category: 'salary', direction: 'expense', total: 25_000, count: 1 },
+    ]);
+  });
+
+  it('sorts equal category totals by category id within each direction', () => {
+    const rows = categoryTotalsForDate([
+      tx({ amount: 10_000, direction: 'expense', category: 'transportation', occurredAt: '2026-07-07T05:00:00.000Z' }),
+      tx({ amount: 10_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T06:00:00.000Z' }),
+    ], '2026-07-07');
+
+    expect(rows).toEqual([
+      { category: 'food-drinks', direction: 'expense', total: 10_000, count: 1 },
+      { category: 'transportation', direction: 'expense', total: 10_000, count: 1 },
+    ]);
+  });
+
   it('uses Vietnam-local dates across UTC day boundaries', () => {
     const rows = calendarDaySummaries([
       tx({ amount: 10_000, occurredAt: '2026-06-30T17:30:00.000Z' }),
