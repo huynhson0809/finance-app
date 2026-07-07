@@ -21,7 +21,7 @@ export function MetricCard({
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-3">
       <div className="truncate text-[0.72rem] font-medium uppercase tracking-normal text-slate-400">{label}</div>
-      <div className={`mt-1 truncate text-lg font-bold ${toneClass[tone]}`}>{value}</div>
+      <div className={`mt-1 break-words text-lg font-bold leading-snug ${toneClass[tone]}`}>{value}</div>
       {subtitle && <div className="mt-1 truncate text-xs text-slate-400">{subtitle}</div>}
     </div>
   );

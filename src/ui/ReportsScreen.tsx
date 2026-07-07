@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useReports } from '../hooks/useReports';
 import { categoryDayTotals, categorySummaries, transactionDirection } from '../reports';
 import { CategoryPie } from './components/Charts/CategoryPie';
-import { MonthBar } from './components/Charts/MonthBar';
+import { MonthBar, type DailyDatum } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
 import {
@@ -49,6 +49,31 @@ function signedAmount(transaction: Transaction): number {
   return transactionDirection(transaction) === 'income' ? transaction.amount : -transaction.amount;
 }
 
+function directionDailyTotals(
+  transactions: Transaction[],
+  monthISO: string,
+  direction: TransactionDirection,
+): DailyDatum[] {
+  const [year, month] = monthISO.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const totals = new Array<number>(daysInMonth).fill(0);
+
+  for (const transaction of transactions) {
+    if (transactionDirection(transaction) !== direction) continue;
+
+    const date = todayVietnamDate(new Date(transaction.occurredAt));
+    if (date.slice(0, 7) !== monthISO) continue;
+
+    const day = Number(date.slice(8, 10));
+    totals[day - 1] += transaction.amount;
+  }
+
+  return totals.map((total, index) => ({
+    date: `${year}-${String(month).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`,
+    total,
+  }));
+}
+
 export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
@@ -64,6 +89,13 @@ export function ReportsScreen() {
   const categoryRows = useMemo(
     () => categorySummaries(transactions, direction),
     [transactions, direction],
+  );
+
+  const overviewDaily = useMemo(
+    () => direction === 'expense'
+      ? daily
+      : directionDailyTotals(transactions, month, direction),
+    [daily, direction, transactions, month],
   );
 
   useEffect(() => {
@@ -266,7 +298,7 @@ export function ReportsScreen() {
               </GlassPanel>
 
               <GlassPanel className="mx-4 p-3">
-                <MonthBar data={daily} />
+                <MonthBar data={overviewDaily} />
               </GlassPanel>
 
               {anomalyHints.length > 0 && (

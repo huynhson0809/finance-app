@@ -28,6 +28,14 @@ describe('dark UI primitives', () => {
     expect(screen.getByText('297,000đ')).toBeInTheDocument();
   });
 
+  it('lets metric values wrap instead of truncating exact amounts', () => {
+    render(<MetricCard label="Net total" value="₫123,456,789,012" />);
+
+    const value = screen.getByText('₫123,456,789,012');
+    expect(value).not.toHaveClass('truncate');
+    expect(value).toHaveClass('break-words');
+  });
+
   it('renders selectable category tiles with pressed state', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
