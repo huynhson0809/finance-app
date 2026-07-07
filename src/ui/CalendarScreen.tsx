@@ -10,7 +10,9 @@ import {
   initialSelectedDate,
   mondayWeekdayIndex,
 } from '../reports';
-import type { CalendarCategoryDayTotal, CalendarDaySummary } from '../reports';
+import type { CalendarDaySummary } from '../reports';
+import { GlassPanel, MetricCard, MoneyRow } from './components/primitives';
+import { CATEGORY_META } from './theme/categoryMeta';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const SEVEN_COLUMN_GRID = { gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' };
@@ -22,10 +24,6 @@ function safeMonth(value: string | null, today: string): string {
 function displayMonth(monthISO: string): string {
   const [year, month] = monthISO.split('-');
   return `${month}/${year}`;
-}
-
-function directionColor(direction: CalendarCategoryDayTotal['direction']): string {
-  return direction === 'income' ? 'text-emerald-700' : 'text-red-600';
 }
 
 interface CalendarGridProps {
@@ -54,9 +52,9 @@ function CalendarGrid({
   ];
 
   return (
-    <section className="px-4">
+    <GlassPanel aria-label="Calendar month" className="mx-4 p-3">
       <div
-        className="grid rounded-t-lg border border-b-0 bg-gray-50 text-center text-[11px] font-medium uppercase text-gray-500"
+        className="grid text-center text-[11px] font-medium uppercase text-slate-400"
         style={SEVEN_COLUMN_GRID}
       >
         {weekdays.map(day => (
@@ -64,12 +62,12 @@ function CalendarGrid({
         ))}
       </div>
       <div
-        className="grid overflow-hidden rounded-b-lg border-l border-t"
+        className="mt-2 grid gap-1"
         style={SEVEN_COLUMN_GRID}
       >
         {cells.map(cell => {
           if (cell.kind === 'blank') {
-            return <div key={cell.id} className="h-16 border-b border-r bg-gray-50" />;
+            return <div key={cell.id} className="h-16 rounded-xl bg-white/[0.03]" />;
           }
 
           const { day } = cell;
@@ -82,18 +80,20 @@ function CalendarGrid({
               aria-current={isToday ? 'date' : undefined}
               aria-pressed={isSelected}
               className={[
-                'h-16 min-w-0 border-b border-r p-1.5 text-left text-xs',
-                isSelected ? 'bg-blue-50 ring-2 ring-inset ring-blue-500' : 'bg-white',
+                'h-16 min-w-0 rounded-xl border p-1.5 text-left text-xs transition',
+                isSelected
+                  ? 'border-sky-300/70 bg-sky-400/15 ring-1 ring-inset ring-sky-300/60'
+                  : 'border-white/10 bg-white/[0.055]',
                 isToday ? 'font-semibold' : '',
               ].join(' ')}
               aria-label={selectDateLabel(day.date)}
               onClick={() => onSelect(day.date)}
             >
-              <span className={isToday ? 'text-blue-700' : 'text-gray-700'}>
+              <span className={isToday ? 'text-sky-200' : 'text-slate-200'}>
                 {Number(day.date.slice(8, 10))}
               </span>
               {day.expenseTotal > 0 && (
-                <span className="mt-1 block max-w-full truncate text-[10px] font-semibold leading-tight text-red-600">
+                <span className="mt-1 block max-w-full truncate text-[10px] font-semibold leading-tight text-rose-300">
                   {formatVND(day.expenseTotal, locale)}
                 </span>
               )}
@@ -101,7 +101,7 @@ function CalendarGrid({
           );
         })}
       </div>
-    </section>
+    </GlassPanel>
   );
 }
 
@@ -153,11 +153,11 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
   return (
     <>
       {error && (
-        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div>{error}</div>
           <button
             type="button"
-            className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
+            className="mt-2 rounded-xl bg-rose-400 px-3 py-1 font-semibold text-slate-950"
             onClick={retry}
           >
             {t('cloud.retry')}
@@ -166,7 +166,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
       )}
 
       {loading && (
-        <div className="px-4 pb-3 text-sm text-gray-500" role="status">
+        <div className="px-4 text-sm text-slate-400" role="status">
           {t('cloud.loading')}
         </div>
       )}
@@ -184,45 +184,51 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
           />
 
           <section className="grid grid-cols-3 gap-2 px-4 py-4">
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('calendar.expense')}</div>
-              <div className="text-sm font-semibold text-red-600">{formatVND(monthTotals.expense, locale)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('calendar.income')}</div>
-              <div className="text-sm font-semibold text-emerald-700">{formatVND(monthTotals.income, locale)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('calendar.net')}</div>
-              <div className="text-sm font-semibold">{formatVND(monthTotals.net, locale)}</div>
-            </div>
+            <MetricCard
+              label={t('calendar.expense')}
+              value={formatVND(monthTotals.expense, locale)}
+              tone="expense"
+            />
+            <MetricCard
+              label={t('calendar.income')}
+              value={formatVND(monthTotals.income, locale)}
+              tone="income"
+            />
+            <MetricCard
+              label={t('calendar.net')}
+              value={formatVND(monthTotals.net, locale)}
+              tone="neutral"
+            />
           </section>
 
           {!hasMonthTransactions && (
-            <div className="px-4 pb-3 text-sm text-gray-500">{t('calendar.emptyMonth')}</div>
+            <div className="px-4 text-sm text-slate-400">{t('calendar.emptyMonth')}</div>
           )}
 
           <section className="px-4">
-            <h2 className="pb-2 text-sm uppercase text-gray-500">
+            <h2 className="pb-2 text-sm uppercase text-slate-400">
               {t('calendar.selectedDate')}: {selectedDate}
             </h2>
             {selectedRows.length === 0 ? (
-              <div className="text-sm text-gray-500">{t('calendar.emptyDay')}</div>
+              <div className="text-sm text-slate-400">{t('calendar.emptyDay')}</div>
             ) : (
-              <ul aria-label={t('calendar.selectedDate')} className="divide-y rounded border bg-white">
-                {selectedRows.map(row => (
-                  <li key={`${row.direction}-${row.category}`} className="flex items-center justify-between p-3">
-                    <div>
-                      <div className="font-medium">{t(`category.${row.category}`)}</div>
-                      <div className="text-xs text-gray-500">
-                        {t('calendar.transactionCount', { count: row.count })}
-                      </div>
-                    </div>
-                    <div className={`font-semibold ${directionColor(row.direction)}`}>
-                      {formatVND(row.total, locale)}
-                    </div>
-                  </li>
-                ))}
+              <ul aria-label={t('calendar.selectedDate')} className="space-y-2">
+                {selectedRows.map(row => {
+                  const meta = CATEGORY_META[row.category];
+                  const Icon = meta.Icon;
+
+                  return (
+                    <MoneyRow
+                      key={`${row.direction}-${row.category}`}
+                      as="li"
+                      icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+                      title={t(`category.${row.category}`)}
+                      subtitle={t('calendar.transactionCount', { count: row.count })}
+                      amount={formatVND(row.direction === 'income' ? row.total : -row.total, locale)}
+                      tone={row.direction}
+                    />
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -245,22 +251,22 @@ export function CalendarScreen() {
   }
 
   return (
-    <div className="pb-20">
-      <header className="flex items-center justify-between px-4 py-3">
+    <div className="space-y-4 pb-24 pt-4 text-slate-100">
+      <header className="flex items-center justify-between px-4">
         <button
           type="button"
           onClick={() => step(-1)}
           aria-label="Previous month"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-2xl leading-none text-gray-700 shadow-sm"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
         >
           ‹
         </button>
-        <h1 className="text-lg font-semibold">{displayMonth(month)}</h1>
+        <h1 className="text-xl font-bold text-white">{displayMonth(month)}</h1>
         <button
           type="button"
           onClick={() => step(1)}
           aria-label="Next month"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-2xl leading-none text-gray-700 shadow-sm"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
         >
           ›
         </button>

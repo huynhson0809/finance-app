@@ -15,6 +15,8 @@ import {
   type TransactionDirection,
 } from '../types';
 import { formatVND } from '../lib/money';
+import { GlassPanel, MetricCard, MoneyRow, SegmentedControl } from './components/primitives';
+import { CATEGORY_META } from './theme/categoryMeta';
 
 const CATEGORY_COLORS: Record<Category, string> = {
   'food-drinks': '#ef4444',
@@ -119,19 +121,33 @@ export function ReportsScreen() {
   }
 
   return (
-    <div className="pb-20">
-      <header className="flex items-center justify-between p-4">
-        <button type="button" onClick={() => step(-1)} aria-label="prev-month">‹</button>
-        <h1 className="text-lg">{month}</h1>
-        <button type="button" onClick={() => step(1)} aria-label="next-month">›</button>
+    <div className="space-y-4 pb-24 pt-4 text-slate-100">
+      <header className="flex items-center justify-between px-4">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label="prev-month"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
+        >
+          ‹
+        </button>
+        <h1 className="text-xl font-bold text-white">{month}</h1>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          aria-label="next-month"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
+        >
+          ›
+        </button>
       </header>
 
       {error && (
-        <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div>{error}</div>
           <button
             type="button"
-            className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
+            className="mt-2 rounded-xl bg-rose-400 px-3 py-1 font-semibold text-slate-950"
             onClick={retryReports}
           >
             {t('cloud.retry')}
@@ -140,7 +156,7 @@ export function ReportsScreen() {
       )}
 
       {loading && (
-        <div className="px-4 pb-3 text-sm text-gray-500" role="status">
+        <div className="px-4 text-sm text-slate-400" role="status">
           {t('cloud.loading')}
         </div>
       )}
@@ -153,84 +169,88 @@ export function ReportsScreen() {
             categoryLabel={c => t(`category.${c}`)}
           />
 
-          <section className="grid grid-cols-3 gap-2 px-4 pb-4">
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('reports.expenseTotal')}</div>
-              <div className="text-sm font-semibold">{formatVND(directionTotals.expense, locale)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('reports.incomeTotal')}</div>
-              <div className="text-sm font-semibold">{formatVND(directionTotals.income, locale)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase text-gray-500">{t('reports.netTotal')}</div>
-              <div className="text-sm font-semibold">{formatVND(directionTotals.net, locale)}</div>
-            </div>
+          <section aria-label="Report totals" className="grid grid-cols-3 gap-2 px-4">
+            <MetricCard
+              label={t('reports.expenseTotal')}
+              value={formatVND(directionTotals.expense, locale)}
+              tone="expense"
+            />
+            <MetricCard
+              label={t('reports.incomeTotal')}
+              value={formatVND(directionTotals.income, locale)}
+              tone="income"
+            />
+            <MetricCard
+              label={t('reports.netTotal')}
+              value={formatVND(directionTotals.net, locale)}
+              tone="neutral"
+            />
           </section>
 
-          <section className="mx-4 mb-4 grid grid-cols-2 rounded-lg bg-gray-100 p-1">
-            {(['expense', 'income'] as const).map(value => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={direction === value}
-                className={`rounded-md px-3 py-2 text-sm font-semibold ${
-                  direction === value ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
-                }`}
-                onClick={() => setDirection(value)}
-              >
-                {value === 'expense' ? t('reports.expenseTab') : t('reports.incomeTab')}
-              </button>
-            ))}
+          <section className="px-4">
+            <SegmentedControl<TransactionDirection>
+              ariaLabel="Report direction"
+              value={direction}
+              onChange={setDirection}
+              options={[
+                { value: 'expense', label: t('reports.expenseTab') },
+                { value: 'income', label: t('reports.incomeTab') },
+              ]}
+            />
           </section>
 
           {selectedCategory ? (
-            <section className="px-4">
+            <section className="space-y-4 px-4">
               <button
                 type="button"
-                className="mb-4 text-sm font-semibold text-blue-600"
+                className="text-sm font-semibold text-sky-300"
                 onClick={() => setSelectedCategory(null)}
               >
                 {t('reports.backToReports')}
               </button>
 
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">
+              <GlassPanel className="p-4">
+                <h2 className="text-lg font-semibold text-white">
                   {t('reports.categoryDetailTitle', {
                     category: t(`category.${selectedCategory}`),
                     month,
                   })}
                 </h2>
-                <div className="mt-1 text-2xl font-bold">
+                <div className="mt-1 text-2xl font-bold text-sky-300">
                   {formatVND(selectedSummary?.total ?? 0, locale)}
                 </div>
-              </div>
+              </GlassPanel>
 
-              <MonthBar data={detailDaily} />
+              <GlassPanel className="p-3">
+                <MonthBar data={detailDaily} />
+              </GlassPanel>
 
               {detailTransactions.length === 0 ? (
-                <div className="mt-4 rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+                <GlassPanel className="border-dashed border-white/15 p-4 text-sm text-slate-400">
                   {t('reports.noCategoryTransactions')}
-                </div>
+                </GlassPanel>
               ) : (
-                <ul className="mt-4 divide-y divide-gray-200">
+                <ul className="space-y-2">
                   {detailTransactions.map(transaction => {
                     const title = transactionTitle(transaction);
+                    const meta = CATEGORY_META[transaction.category];
+                    const Icon = meta.Icon;
+                    const direction = transactionDirection(transaction);
+                    const subtitle = [
+                      todayVietnamDate(new Date(transaction.occurredAt)),
+                      transaction.bankHint?.toUpperCase(),
+                    ].filter(Boolean).join(' · ');
+
                     return (
-                      <li key={transaction.id} className="flex items-center justify-between gap-3 py-3">
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">
-                            {title === transaction.category ? t(`category.${transaction.category}`) : title}
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            {todayVietnamDate(new Date(transaction.occurredAt))}
-                            {transaction.bankHint ? ` · ${transaction.bankHint.toUpperCase()}` : ''}
-                          </span>
-                        </span>
-                        <span className="text-sm font-semibold">
-                          {formatVND(signedAmount(transaction), locale)}
-                        </span>
-                      </li>
+                      <MoneyRow
+                        key={transaction.id}
+                        as="li"
+                        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+                        title={title === transaction.category ? t(`category.${transaction.category}`) : title}
+                        subtitle={subtitle}
+                        amount={formatVND(signedAmount(transaction), locale)}
+                        tone={direction}
+                      />
                     );
                   })}
                 </ul>
@@ -238,70 +258,69 @@ export function ReportsScreen() {
             </section>
           ) : (
             <>
-              <section className="px-2">
+              <GlassPanel className="mx-4 p-3">
                 <CategoryPie
                   data={pieData}
                   emptyLabel={noDirectionDataLabel}
                 />
-              </section>
+              </GlassPanel>
 
-              <section className="px-2 mt-4">
+              <GlassPanel className="mx-4 p-3">
                 <MonthBar data={daily} />
-              </section>
+              </GlassPanel>
 
               {anomalyHints.length > 0 && (
-                <section className="px-4 mt-4">
-                  <h2 className="text-sm uppercase text-gray-500">{t('reports.anomalies')}</h2>
-                  <ul className="mt-2 space-y-1">
-                    {anomalyHints.map(h => (
-                      <li key={h.category} className="text-sm">
-                        {t('reports.anomalyLine', {
-                          category: t(`category.${h.category}`),
-                          pct: Math.min(Math.round(h.deltaPct * 100), 999),
-                        })}
-                      </li>
-                    ))}
-                  </ul>
+                <section className="px-4">
+                  <GlassPanel className="p-4">
+                    <h2 className="text-sm uppercase text-slate-400">{t('reports.anomalies')}</h2>
+                    <ul className="mt-2 space-y-1">
+                      {anomalyHints.map(h => (
+                        <li key={h.category} className="text-sm text-slate-200">
+                          {t('reports.anomalyLine', {
+                            category: t(`category.${h.category}`),
+                            pct: Math.min(Math.round(h.deltaPct * 100), 999),
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  </GlassPanel>
                 </section>
               )}
 
-              <section className="px-4 mt-6">
-                <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
-                {categoryRows.length === 0 ? (
-                  <p className="mt-2 rounded-lg border border-gray-100 bg-white px-3 py-4 text-sm text-gray-500">
-                    {noDirectionDataLabel}
-                  </p>
-                ) : (
-                  <ul className="mt-2 space-y-2">
-                    {categoryRows.map(row => {
-                      const categoryLabel = t(`category.${row.category}`);
-                      return (
-                        <li key={row.category}>
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm"
-                            onClick={() => setSelectedCategory(row.category)}
-                          >
-                            <span
-                              className="h-3 w-3 shrink-0 rounded-full"
-                              style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium text-gray-900">{categoryLabel}</span>
-                              <span className="block text-xs text-gray-500">
-                                {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
-                              </span>
-                            </span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {formatVND(row.total, locale)}
-                            </span>
-                            <span className="text-gray-400" aria-hidden="true">›</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+              <section className="px-4">
+                <GlassPanel className="p-4">
+                  <h2 className="text-sm uppercase text-slate-400">{t('reports.byCategory')}</h2>
+                  {categoryRows.length === 0 ? (
+                    <p className="mt-2 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-sm text-slate-400">
+                      {noDirectionDataLabel}
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-2">
+                      {categoryRows.map(row => {
+                        const meta = CATEGORY_META[row.category];
+                        const Icon = meta.Icon;
+
+                        return (
+                          <li key={row.category}>
+                            <button
+                              type="button"
+                              className="w-full text-left"
+                              onClick={() => setSelectedCategory(row.category)}
+                            >
+                              <MoneyRow
+                                icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+                                title={t(`category.${row.category}`)}
+                                subtitle={`${Math.round(row.percentage * 100)}%`}
+                                amount={formatVND(row.total, locale)}
+                                tone={direction}
+                              />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </GlassPanel>
               </section>
             </>
           )}

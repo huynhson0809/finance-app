@@ -118,6 +118,16 @@ describe('ReportsScreen', () => {
     expect(screen.getByText(/375[.,]000/)).toBeInTheDocument();
   });
 
+  it('renders report totals in the dark metric section', () => {
+    reportHooks.state = makeReportState({
+      directionTotals: { expense: 125_000, income: 500_000, net: 375_000 },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('region', { name: /report totals/i })).toBeInTheDocument();
+  });
+
   it('renders expense category rows with percentages by default', () => {
     reportHooks.state = makeReportState({
       transactions: [
