@@ -41,9 +41,8 @@ export function ReportsScreen() {
   const month = safeMonth(searchParams.get('month'));
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const reportAvailable = !loading && !error;
-  const selectedDirectionLabel = direction === 'expense'
-    ? t('reports.expenseTab')
-    : t('reports.incomeTab');
+  const selectedDirectionLabel = t(`direction.${direction}`).toLowerCase();
+  const noDirectionDataLabel = t('reports.noDirectionData', { direction: selectedDirectionLabel });
 
   const categoryRows = useMemo(
     () => categorySummaries(transactions, direction),
@@ -143,7 +142,7 @@ export function ReportsScreen() {
           <section className="px-2">
             <CategoryPie
               data={pieData}
-              emptyLabel={t('reports.noDirectionData', { direction: selectedDirectionLabel })}
+              emptyLabel={noDirectionDataLabel}
             />
           </section>
 
@@ -169,34 +168,36 @@ export function ReportsScreen() {
 
           <section className="px-4 mt-6">
             <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
-            <ul className="mt-2 space-y-2">
-              {categoryRows.map(row => {
-                const categoryLabel = t(`category.${row.category}`);
-                return (
-                  <li key={row.category}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm"
-                    >
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-gray-900">{categoryLabel}</div>
-                        <div className="text-xs text-gray-500">
-                          {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
+            {categoryRows.length === 0 ? (
+              <p className="mt-2 rounded-lg border border-gray-100 bg-white px-3 py-4 text-sm text-gray-500">
+                {noDirectionDataLabel}
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {categoryRows.map(row => {
+                  const categoryLabel = t(`category.${row.category}`);
+                  return (
+                    <li key={row.category}>
+                      <div className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm">
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-gray-900">{categoryLabel}</div>
+                          <div className="text-xs text-gray-500">
+                            {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
+                          </div>
                         </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatVND(row.total, locale)}
+                        </span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {formatVND(row.total, locale)}
-                      </span>
-                      <span className="text-lg leading-none text-gray-400" aria-hidden="true">›</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
         </>
       )}

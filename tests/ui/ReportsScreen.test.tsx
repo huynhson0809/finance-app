@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
@@ -81,7 +81,7 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
 describe('ReportsScreen', () => {
   it('shows empty state when the current month has no transactions', () => {
     render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
-    expect(screen.getByText('No Expense transactions this month')).toBeInTheDocument();
+    expect(screen.getAllByText('No expense transactions this month')).toHaveLength(2);
   });
 
   it('shows over-budget banner when overall exceeded', () => {
@@ -136,9 +136,29 @@ describe('ReportsScreen', () => {
 
     expect(screen.getByRole('button', { name: /expense/i })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Food & Drinks')).toBeInTheDocument();
-    expect(screen.getByText(/75/)).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByText('Healthcare')).toBeInTheDocument();
     expect(screen.queryByText('Salary')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /food & drinks/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a by-category empty state when the selected direction has no rows', () => {
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({ id: 'salary', amount: 100_000, direction: 'income', category: 'salary' }),
+      ],
+      directionTotals: {
+        expense: 0,
+        income: 100_000,
+        net: 100_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    const byCategory = screen.getByRole('heading', { name: 'By category' }).closest('section');
+    expect(byCategory).not.toBeNull();
+    expect(within(byCategory as HTMLElement).getByText('No expense transactions this month')).toBeInTheDocument();
   });
 
   it('switches to income category rows with percentages', async () => {
@@ -174,7 +194,7 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('No Expense transactions this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('No expense transactions this month')).not.toBeInTheDocument();
     expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
     expect(screen.queryByText('By category')).not.toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
@@ -190,7 +210,7 @@ describe('ReportsScreen', () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent('Cloud report failed');
     expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('No Expense transactions this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('No expense transactions this month')).not.toBeInTheDocument();
     expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
     expect(screen.queryByText('By category')).not.toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
