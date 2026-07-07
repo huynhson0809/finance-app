@@ -233,6 +233,56 @@ describe('useReports', () => {
     expect(result.current.sums['food-drinks']).toBe(0);
   });
 
+  it('hides previous month data while the next month is loading', async () => {
+    const nextCurrent = deferred<Transaction[]>();
+    const nextPrevious = deferred<Transaction[]>();
+    mocks.listCloudTransactionsForRange
+      .mockResolvedValueOnce([
+        tx({
+          id: 'june-food',
+          amount: 900,
+          occurredAt: '2026-06-05T08:00:00.000Z',
+          category: 'food-drinks',
+        }),
+      ])
+      .mockResolvedValueOnce([])
+      .mockReturnValueOnce(nextCurrent.promise)
+      .mockReturnValueOnce(nextPrevious.promise);
+
+    const { result, rerender } = renderHook(
+      ({ month }) => useReports(month),
+      { initialProps: { month: '2026-06' } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.transactions.map(t => t.id)).toEqual(['june-food']);
+    expect(result.current.sums['food-drinks']).toBe(900);
+
+    rerender({ month: '2026-07' });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.transactions).toEqual([]);
+    expect(result.current.sums['food-drinks']).toBe(0);
+    expect(result.current.directionTotals).toEqual({ expense: 0, income: 0, net: 0 });
+
+    await act(async () => {
+      nextCurrent.resolve([
+        tx({
+          id: 'july-shopping',
+          amount: 700,
+          occurredAt: '2026-07-05T08:00:00.000Z',
+          category: 'shopping',
+        }),
+      ]);
+      nextPrevious.resolve([]);
+      await Promise.all([nextCurrent.promise, nextPrevious.promise]);
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.transactions.map(t => t.id)).toEqual(['july-shopping']);
+    expect(result.current.sums.shopping).toBe(700);
+  });
+
   it('ignores deferred cloud loads that resolve after unmount', async () => {
     const current = deferred<Transaction[]>();
     const previous = deferred<Transaction[]>();

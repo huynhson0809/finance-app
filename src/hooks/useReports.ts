@@ -12,6 +12,7 @@ import { listCloudTransactionsForRange } from '../supabase/transactions';
 import type { Budget, Category, Transaction } from '../types';
 
 const SUPABASE_NOT_CONFIGURED = 'Supabase is not configured';
+const EMPTY_TRANSACTIONS: Transaction[] = [];
 
 export interface UseReportsResult {
   loading: boolean;
@@ -37,6 +38,7 @@ export function useReports(monthISO: string): UseReportsResult {
   const [budget, setBudget] = useState<Budget | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadedMonth, setLoadedMonth] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
@@ -57,6 +59,7 @@ export function useReports(monthISO: string): UseReportsResult {
         setCurr([]);
         setPrev([]);
         setBudget(b);
+        setLoadedMonth(monthISO);
         setError(SUPABASE_NOT_CONFIGURED);
         setLoading(false);
         return;
@@ -72,6 +75,7 @@ export function useReports(monthISO: string): UseReportsResult {
       setCurr(c);
       setPrev(p);
       setBudget(b);
+      setLoadedMonth(monthISO);
       setError(null);
       setLoading(false);
     } catch (err) {
@@ -79,6 +83,7 @@ export function useReports(monthISO: string): UseReportsResult {
       setCurr([]);
       setPrev([]);
       setBudget(undefined);
+      setLoadedMonth(monthISO);
       setError(errorMessage(err));
       setLoading(false);
     }
@@ -91,17 +96,22 @@ export function useReports(monthISO: string): UseReportsResult {
     };
   }, [reload]);
 
-  const sums   = useMemo(() => sumByCategory(curr), [curr]);
-  const daily  = useMemo(() => dailyTotals(curr, monthISO), [curr, monthISO]);
-  const deltas = useMemo(() => monthOverMonth(curr, prev), [curr, prev]);
-  const directionTotals = useMemo(() => totalsByDirection(curr), [curr]);
+  const staleMonth = loadedMonth !== monthISO;
+  const reportTransactions = staleMonth ? EMPTY_TRANSACTIONS : curr;
+  const previousTransactions = staleMonth ? EMPTY_TRANSACTIONS : prev;
+  const reportBudget = staleMonth ? undefined : budget;
+
+  const sums   = useMemo(() => sumByCategory(reportTransactions), [reportTransactions]);
+  const daily  = useMemo(() => dailyTotals(reportTransactions, monthISO), [reportTransactions, monthISO]);
+  const deltas = useMemo(() => monthOverMonth(reportTransactions, previousTransactions), [reportTransactions, previousTransactions]);
+  const directionTotals = useMemo(() => totalsByDirection(reportTransactions), [reportTransactions]);
   const anomalyHints = useMemo(() => hints(deltas), [deltas]);
-  const bStatus = useMemo(() => status(budget, sums), [budget, sums]);
+  const bStatus = useMemo(() => status(reportBudget, sums), [reportBudget, sums]);
 
   return {
-    loading,
-    error,
-    transactions: curr,
+    loading: loading || staleMonth,
+    error: staleMonth ? null : error,
+    transactions: reportTransactions,
     sums,
     daily,
     deltas,
