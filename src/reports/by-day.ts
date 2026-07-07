@@ -1,5 +1,6 @@
 import type { Transaction } from '../types';
 import { todayVietnamDate } from '../lib/date';
+import { isExpenseLike } from './compat';
 
 export function dailyTotals(
   tx: Transaction[],
@@ -10,6 +11,7 @@ export function dailyTotals(
   const totals = new Array(daysInMonth).fill(0);
 
   for (const t of tx) {
+    if (!isExpenseLike(t)) continue;
     const date = todayVietnamDate(new Date(t.occurredAt));
     if (date.slice(0, 7) !== monthISO) continue;
     const day = Number(date.slice(8, 10));

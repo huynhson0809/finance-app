@@ -1,5 +1,5 @@
 import type { Budget, Category } from '../types';
-import { CATEGORIES } from '../types';
+import { CATEGORIES, EXPENSE_CATEGORIES } from '../types';
 
 export type BudgetStatus = 'ok' | 'warn' | 'over';
 
@@ -15,9 +15,10 @@ export function status(
   budget: Budget | undefined,
   sums: Record<Category, number>,
 ): { overall: BudgetStatus; perCategory: Record<Category, BudgetStatus>; overallSpent: number } {
-  const overallSpent = (Object.values(sums) as number[]).reduce((s, n) => s + n, 0);
+  const overallSpent = EXPENSE_CATEGORIES.reduce((sum, category) => sum + sums[category], 0);
   const perCategory = {} as Record<Category, BudgetStatus>;
-  for (const c of CATEGORIES) {
+  for (const c of CATEGORIES) perCategory[c] = 'ok';
+  for (const c of EXPENSE_CATEGORIES) {
     const cap = budget?.caps?.[c] ?? 0;
     perCategory[c] = cap > 0 ? statusFor(sums[c], cap) : 'ok';
   }

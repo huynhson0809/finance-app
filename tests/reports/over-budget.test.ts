@@ -43,4 +43,13 @@ describe('over-budget status', () => {
     const sums = { ...emptySums(), 'shopping': 999999 };
     expect(status(budget, sums).perCategory['shopping']).toBe('ok');
   });
+  it('ignores income category sums for budget status', () => {
+    const budget: Budget = { id: 'b', month: '2026-06', total: 1000, caps: {} };
+    const sums = { ...emptySums(), salary: 999999 };
+    const out = status(budget, sums);
+
+    expect(out.overallSpent).toBe(0);
+    expect(out.overall).toBe('ok');
+    expect(out.perCategory.salary).toBe('ok');
+  });
 });

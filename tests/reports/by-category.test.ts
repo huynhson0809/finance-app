@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { sumByCategory } from '../../src/reports/by-category';
-import type { Transaction } from '../../src/types';
+import type { Category, Transaction, TransactionDirection } from '../../src/types';
 
-function tx(amount: number, category: any, occurredAt = '2026-06-15T10:00:00.000Z'): Transaction {
+function tx(
+  amount: number,
+  category: Category,
+  direction: TransactionDirection = 'expense',
+  occurredAt = '2026-06-15T10:00:00.000Z',
+): Transaction {
   return {
     id: crypto.randomUUID(), amount, currency: 'VND', occurredAt,
-    category, source: 'manual',
+    direction, category, source: 'manual',
     createdAt: occurredAt, updatedAt: occurredAt,
-  };
+  } as Transaction;
 }
 
 describe('sumByCategory', () => {
@@ -25,5 +30,22 @@ describe('sumByCategory', () => {
     expect(out['food-drinks']).toBe(1500);
     expect(out['coffee-bubble-tea']).toBe(750);
     expect(out['shopping']).toBe(0);
+  });
+  it('ignores income rows', () => {
+    const out = sumByCategory([
+      tx(10000, 'food-drinks'),
+      tx(50000, 'salary', 'income'),
+    ]);
+
+    expect(out['food-drinks']).toBe(10000);
+    expect(out.salary).toBe(0);
+  });
+  it('counts legacy rows without direction as expense', () => {
+    const legacy = {
+      ...tx(10000, 'food-drinks'),
+      direction: undefined,
+    } as unknown as Transaction;
+
+    expect(sumByCategory([legacy])['food-drinks']).toBe(10000);
   });
 });

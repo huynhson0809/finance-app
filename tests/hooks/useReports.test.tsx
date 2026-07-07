@@ -83,7 +83,7 @@ describe('useReports', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('aggregates current month cloud transactions with local budget data', async () => {
+  it('aggregates legacy current month cloud transactions with local budget data', async () => {
     mocks.listCloudTransactionsForRange
       .mockResolvedValueOnce([
         tx({
@@ -108,6 +108,7 @@ describe('useReports', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.sums['food-drinks']).toBe(1500);
+    expect(result.current.daily.find(d => d.date === '2026-06-10')?.total).toBe(1500);
     expect(result.current.deltas['food-drinks']).toEqual({
       curr: 1500,
       prev: 500,
