@@ -270,34 +270,39 @@ describe('ReportsScreen', () => {
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
   });
 
-  it('shows cloud loading without stale report content', () => {
-    reportHooks.state = makeUnavailableReportState({ loading: true });
+  it('keeps stale report content hidden during loading', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportStateWithStaleContent();
 
-    render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
+    const view = render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /food & drinks/i }));
+    expect(screen.getByRole('button', { name: /back to reports/i })).toBeInTheDocument();
+
+    reportHooks.state = makeUnavailableReportState({ loading: true });
+    view.rerender(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
 
     expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('No expense transactions this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
-    expect(screen.queryByText('By category')).not.toBeInTheDocument();
-    expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
+    expectStaleReportContentHidden();
   });
 
-  it('shows cloud errors with retry without stale report content', async () => {
+  it('keeps stale report content hidden during errors', async () => {
     const user = userEvent.setup();
-    reportHooks.state = makeUnavailableReportState({ error: 'Cloud report failed' });
+    reportHooks.state = makeReportStateWithStaleContent();
 
-    render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
+    const view = render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /food & drinks/i }));
+    expect(screen.getByRole('button', { name: /back to reports/i })).toBeInTheDocument();
+
+    reportHooks.state = makeUnavailableReportState({ error: 'Cloud report failed' });
+    view.rerender(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
 
     const alerts = screen.getAllByRole('alert');
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent('Cloud report failed');
-    expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('No expense transactions this month')).not.toBeInTheDocument();
-    expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
-    expect(screen.queryByText('By category')).not.toBeInTheDocument();
-    expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
+    expectStaleReportContentHidden();
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
@@ -305,15 +310,55 @@ describe('ReportsScreen', () => {
   });
 });
 
-function makeUnavailableReportState(overrides: Partial<UseReportsResult>): UseReportsResult {
+function expectStaleReportContentHidden() {
+  expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
+  expect(screen.queryByText('No expense transactions this month')).not.toBeInTheDocument();
+  expect(screen.queryByText('Expense total')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /expense/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /income/i })).not.toBeInTheDocument();
+  expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
+  expect(screen.queryByText('By category')).not.toBeInTheDocument();
+  expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /food & drinks/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /back to reports/i })).not.toBeInTheDocument();
+  expect(screen.queryByText('Food & Drinks in 2099-06')).not.toBeInTheDocument();
+  expect(screen.queryByText('Grab')).not.toBeInTheDocument();
+}
+
+function makeReportStateWithStaleContent(overrides: Partial<UseReportsResult> = {}): UseReportsResult {
   return makeReportState({
-    sums: { ...zeroSums(), 'food-drinks': 1500 },
+    transactions: [
+      tx({
+        id: 'stale-food',
+        amount: 30_000,
+        category: 'food-drinks',
+        merchant: 'Grab',
+      }),
+      tx({
+        id: 'stale-salary',
+        amount: 100_000,
+        direction: 'income',
+        category: 'salary',
+        merchant: 'Company',
+      }),
+    ],
+    sums: { ...zeroSums(), 'food-drinks': 30_000 },
+    daily: [{ date: '2099-06-04', total: 30_000 }],
+    directionTotals: {
+      expense: 30_000,
+      income: 100_000,
+      net: 70_000,
+    },
     anomalyHints: [{ category: 'food-drinks', deltaPct: 2 }],
     bStatus: {
       overall: 'over',
       perCategory: { ...okStatuses(), 'food-drinks': 'over' },
-      overallSpent: 1500,
+      overallSpent: 30_000,
     },
     ...overrides,
   });
+}
+
+function makeUnavailableReportState(overrides: Partial<UseReportsResult>): UseReportsResult {
+  return makeReportStateWithStaleContent(overrides);
 }
