@@ -103,8 +103,13 @@ function vietnamNoonISO(date: string): string {
   return new Date(`${date}T12:00:00+07:00`).toISOString();
 }
 
+function expectPanelMetric(panel: HTMLElement, label: string | RegExp, value: RegExp) {
+  const labelNode = within(panel).getByText(label);
+  expect(labelNode.parentElement).toHaveTextContent(value);
+}
+
 describe('HomeScreen', () => {
-  it('shows today total, budget status, and recent cloud rows', async () => {
+  it('shows monthly totals, budget status, today chips, and recent cloud rows', async () => {
     await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.recentState.data = [
       tx({ id: 'recent-1', amount: 10_000, category: 'food-drinks' }),
@@ -120,6 +125,13 @@ describe('HomeScreen', () => {
         occurredAt: anotherDayThisMonth(),
         category: 'shopping',
       }),
+      tx({
+        id: 'month-income',
+        amount: 4_500_000,
+        direction: 'income',
+        category: 'salary',
+        occurredAt: anotherDayThisMonth(),
+      }),
     ];
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
@@ -127,10 +139,12 @@ describe('HomeScreen', () => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('region', { name: /monthly overview/i })).toBeInTheDocument();
-    expect(screen.getByText(/today's spend/i)).toBeInTheDocument();
-    expect(screen.getByText(/today's income/i)).toBeInTheDocument();
-    expect(screen.getByText(/1[.,]500[.,]000/)).toBeInTheDocument();
+    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    expectPanelMetric(monthlyOverview, /monthly income/i, /4[.,]500[.,]000/);
+    expectPanelMetric(monthlyOverview, /monthly expense/i, /2[.,]000[.,]000/);
+    expectPanelMetric(monthlyOverview, /net this month/i, /2[.,]500[.,]000/);
+    expectPanelMetric(monthlyOverview, /today's spend/i, /1[.,]500[.,]000/);
+    expectPanelMetric(monthlyOverview, /today's income/i, /0/);
     expect(screen.getByText(/3[.,]000[.,]000/)).toBeInTheDocument();
 
     const rows = screen.getAllByRole('listitem');
@@ -154,10 +168,9 @@ describe('HomeScreen', () => {
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
-    expect(screen.getByText("Today's spend")).toBeInTheDocument();
-    expect(screen.getByText("Today's income")).toBeInTheDocument();
-    expect(screen.getByText(/25[.,]000/)).toBeInTheDocument();
-    expect(screen.getByText(/100[.,]000/)).toBeInTheDocument();
+    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    expectPanelMetric(monthlyOverview, "Today's spend", /25[.,]000/);
+    expectPanelMetric(monthlyOverview, "Today's income", /100[.,]000/);
   });
 
   it('updates a recent transaction category and refreshes cloud data', async () => {
@@ -346,7 +359,7 @@ describe('HomeScreen', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Month fetch failed');
     const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(within(monthlyOverview).getAllByText('-')).toHaveLength(2);
+    expect(within(monthlyOverview).getAllByText('-')).toHaveLength(5);
     expect(within(monthlyOverview).queryByText(/0/)).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });

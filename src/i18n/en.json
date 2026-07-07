@@ -2,6 +2,9 @@
   "app": { "title": "Finance" },
   "nav": { "home": "Home", "add": "Add", "calendar": "Calendar", "reports": "Reports", "settings": "Settings" },
   "home": {
+    "monthIncome": "Monthly income",
+    "monthExpense": "Monthly expense",
+    "monthNet": "Net this month",
     "todaySpend": "Today's spend",
     "todayIncome": "Today's income",
     "remaining": "Remaining this month",

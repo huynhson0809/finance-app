@@ -12,7 +12,7 @@ import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
 import { GlassPanel, MetricCard } from './components/primitives';
-import { sumByCategory, status as budgetStatus } from '../reports';
+import { sumByCategory, status as budgetStatus, totalsByDirection } from '../reports';
 import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { supabase } from '../supabase/client';
@@ -52,6 +52,9 @@ export function HomeScreen() {
       .reduce((sum, tx) => sum + tx.amount, 0),
     [monthTx, today],
   );
+  const monthTotals = useMemo(() => totalsByDirection(monthTx), [monthTx]);
+  const monthValue = (amount: number) =>
+    monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(amount, locale);
   const sums = useMemo(() => sumByCategory(monthTx), [monthTx]);
   const bStatus = useMemo(() => budgetStatus(budget, sums), [budget, sums]);
   const monthSpent = bStatus.overallSpent;
@@ -101,9 +104,24 @@ export function HomeScreen() {
       </header>
 
       <GlassPanel aria-label="Monthly overview" className="border-sky-300/40 p-4 shadow-[0_0_26px_rgba(56,189,248,0.14)]">
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard label={t('home.todaySpend')} value={monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayExpense, locale)} tone="expense" />
-          <MetricCard label={t('home.todayIncome')} value={monthLoading ? t('cloud.loading') : monthError ? '-' : formatVND(todayIncome, locale)} tone="income" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <MetricCard label={t('home.monthIncome')} value={monthValue(monthTotals.income)} tone="income" />
+          <MetricCard label={t('home.monthExpense')} value={monthValue(monthTotals.expense)} tone="expense" />
+          <MetricCard
+            label={t('home.monthNet')}
+            value={monthValue(monthTotals.net)}
+            tone={monthTotals.net > 0 ? 'income' : monthTotals.net < 0 ? 'expense' : 'neutral'}
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="truncate text-[0.68rem] font-medium uppercase tracking-normal text-slate-400">{t('home.todaySpend')}</div>
+            <div className="mt-1 truncate text-sm font-semibold text-rose-200">{monthValue(todayExpense)}</div>
+          </div>
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="truncate text-[0.68rem] font-medium uppercase tracking-normal text-slate-400">{t('home.todayIncome')}</div>
+            <div className="mt-1 truncate text-sm font-semibold text-emerald-200">{monthValue(todayIncome)}</div>
+          </div>
         </div>
         <div className="mt-3">
           {monthLoading

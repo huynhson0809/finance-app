@@ -2,6 +2,9 @@
   "app": { "title": "Quản lý chi tiêu" },
   "nav": { "home": "Trang chủ", "add": "Thêm", "calendar": "Lịch", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
+    "monthIncome": "Thu tháng này",
+    "monthExpense": "Chi tháng này",
+    "monthNet": "Còn lại tháng này",
     "todaySpend": "Chi hôm nay",
     "todayIncome": "Thu hôm nay",
     "remaining": "Còn lại trong tháng",
