@@ -38,6 +38,37 @@ describe('mapTransactionRow', () => {
     });
   });
 
+  it('maps legacy cloud rows without direction as expenses', () => {
+    const tx = mapTransactionRow(row());
+
+    expect(tx.direction).toBe('expense');
+  });
+
+  it('maps income cloud rows to income transactions', () => {
+    const tx = mapTransactionRow(row({
+      id: 'income-1',
+      bank: null,
+      type: 'manual',
+      amount: 25000000,
+      transaction_time: '2026-07-01T02:00:00.000Z',
+      content: 'Monthly salary',
+      raw_source: 'manual',
+      merchant: null,
+      category: 'salary',
+      note: 'Monthly salary',
+      bank_hint: null,
+      created_at: '2026-07-01T02:00:10.000Z',
+      direction: 'income',
+    } as Partial<CloudTransactionRow> & { direction: 'income' }));
+
+    expect(tx).toMatchObject({
+      direction: 'income',
+      category: 'salary',
+      note: 'Monthly salary',
+      source: 'manual',
+    });
+  });
+
   it('uses a stored email category instead of reclassifying the content', () => {
     const tx = mapTransactionRow(row({
       category: 'shopping',

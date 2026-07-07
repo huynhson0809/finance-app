@@ -1,5 +1,15 @@
 import { classify, SEED_RULES } from '../categorizer';
-import type { BankHint, Category, Transaction, TransactionSource } from '../types';
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  type BankHint,
+  type Category,
+  type ExpenseCategory,
+  type IncomeCategory,
+  type Transaction,
+  type TransactionDirection,
+  type TransactionSource,
+} from '../types';
 
 export type CloudBank = 'MB' | 'ACB';
 export type CloudTransactionType = 'transfer' | 'card' | 'balance_alert' | 'manual' | 'receipt' | 'bank_screenshot';
@@ -12,6 +22,7 @@ export interface CloudTransactionRow {
   currency: 'VND';
   transaction_time: string;
   content: string;
+  direction?: TransactionDirection | null;
   raw_source: 'email' | TransactionSource;
   merchant: string | null;
   category: Category | null;
@@ -35,15 +46,69 @@ function bankHint(bank: CloudBank): BankHint {
   return bank === 'MB' ? 'mb' : 'acb';
 }
 
+function direction(row: CloudTransactionRow): TransactionDirection {
+  return row.direction ?? 'expense';
+}
+
+function isExpenseCategory(category: Category | null | undefined): category is ExpenseCategory {
+  return category != null && EXPENSE_CATEGORIES.includes(category as ExpenseCategory);
+}
+
+function isIncomeCategory(category: Category | null | undefined): category is IncomeCategory {
+  return category != null && INCOME_CATEGORIES.includes(category as IncomeCategory);
+}
+
+function expenseCategoryForEmail(row: CloudTransactionRow): ExpenseCategory {
+  if (isExpenseCategory(row.category)) {
+    return row.category;
+  }
+
+  const classifiedCategory = classify(row.content, CLOUD_CLASSIFICATION_RULES)?.category;
+  return isExpenseCategory(classifiedCategory) ? classifiedCategory : 'others';
+}
+
+function categoryForDirection(row: CloudTransactionRow, transactionDirection: 'expense'): ExpenseCategory;
+function categoryForDirection(row: CloudTransactionRow, transactionDirection: 'income'): IncomeCategory;
+function categoryForDirection(
+  row: CloudTransactionRow,
+  transactionDirection: TransactionDirection,
+): ExpenseCategory | IncomeCategory {
+  if (transactionDirection === 'income') {
+    return isIncomeCategory(row.category) ? row.category : 'temporary-income';
+  }
+
+  return isExpenseCategory(row.category) ? row.category : 'others';
+}
+
 export function mapTransactionRow(row: CloudTransactionRow): Transaction {
   if (row.raw_source !== 'email') {
+    const transactionDirection = direction(row);
+
+    if (transactionDirection === 'income') {
+      return {
+        id: row.id,
+        amount: row.amount,
+        currency: 'VND',
+        occurredAt: row.transaction_time,
+        merchant: row.merchant ?? row.content,
+        direction: transactionDirection,
+        category: categoryForDirection(row, transactionDirection),
+        note: row.note ?? undefined,
+        source: row.raw_source,
+        bankHint: row.bank_hint ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.created_at,
+      };
+    }
+
     return {
       id: row.id,
       amount: row.amount,
       currency: 'VND',
       occurredAt: row.transaction_time,
       merchant: row.merchant ?? row.content,
-      category: row.category ?? 'others',
+      direction: transactionDirection,
+      category: categoryForDirection(row, transactionDirection),
       note: row.note ?? undefined,
       source: row.raw_source,
       bankHint: row.bank_hint ?? undefined,
@@ -52,13 +117,14 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
     };
   }
 
-  const category = row.category ?? classify(row.content, CLOUD_CLASSIFICATION_RULES)?.category ?? 'others';
+  const category = expenseCategoryForEmail(row);
   return {
     id: row.id,
     amount: row.amount,
     currency: 'VND',
     occurredAt: row.transaction_time,
     merchant: row.content,
+    direction: 'expense',
     category,
     note: `${row.bank} ${row.type}`,
     source: 'bank-email',

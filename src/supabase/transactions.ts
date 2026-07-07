@@ -2,7 +2,7 @@ import { mapTransactionRow, type CloudTransactionRow } from './mapper';
 import type { AppSupabaseClient } from './client';
 import type { BankHint, Category, Transaction, TransactionSource } from '../types';
 
-const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,raw_source,merchant,category,note,bank_hint,created_at';
+const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,created_at';
 
 interface QueryError {
   message: string;

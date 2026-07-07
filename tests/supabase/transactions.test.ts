@@ -8,7 +8,7 @@ import {
 } from '../../src/supabase/transactions';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
-const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,raw_source,merchant,category,note,bank_hint,created_at';
+const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,created_at';
 
 interface QueryCall {
   method: string;
@@ -160,12 +160,47 @@ describe('cloud transaction queries', () => {
         currency: 'VND',
         occurredAt: '2026-07-06T04:19:20.000Z',
         merchant: 'Grab* BWCFLJMBDWRJ-G-1',
+        direction: 'expense',
         category: 'transportation',
         note: 'MB card',
         source: 'bank-email',
         bankHint: 'mb',
         createdAt: '2026-07-06T04:20:00.000Z',
         updatedAt: '2026-07-06T04:20:00.000Z',
+      },
+    ]);
+  });
+
+  it('maps selected income cloud rows from listCloudTransactions', async () => {
+    const { client, calls } = createClient({
+      data: [row({
+        id: 'income-1',
+        bank: null,
+        type: 'manual',
+        amount: 25000000,
+        transaction_time: '2026-07-01T02:00:00.000Z',
+        content: 'Monthly salary',
+        direction: 'income',
+        raw_source: 'manual',
+        merchant: null,
+        category: 'salary',
+        note: 'Monthly salary',
+        bank_hint: null,
+        created_at: '2026-07-01T02:00:10.000Z',
+      })],
+      error: null,
+    });
+
+    const transactions = await listCloudTransactions(client);
+
+    expect(calls).toContainEqual({ method: 'select', args: [SELECT_COLUMNS] });
+    expect(transactions).toMatchObject([
+      {
+        id: 'income-1',
+        direction: 'income',
+        category: 'salary',
+        note: 'Monthly salary',
+        source: 'manual',
       },
     ]);
   });
@@ -237,6 +272,7 @@ describe('cloud transaction queries', () => {
     });
     expect((context.insertedRow as { external_hash: string }).external_hash).toMatch(/^manual:/);
     expect(tx.source).toBe('manual');
+    expect(tx.direction).toBe('expense');
     expect(tx.category).toBe('coffee-bubble-tea');
   });
 
@@ -268,6 +304,7 @@ describe('cloud transaction queries', () => {
     expect(tx).toMatchObject({
       id: 'email-1',
       merchant: 'Lazada',
+      direction: 'expense',
       category: 'shopping',
       source: 'manual',
     });
