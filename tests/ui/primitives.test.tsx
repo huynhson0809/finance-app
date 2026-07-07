@@ -66,7 +66,7 @@ describe('dark UI primitives', () => {
     render(
       <>
         <DarkField label="Merchant">
-          <input aria-label="Merchant" />
+          <input />
         </DarkField>
         <KeypadButton label="4" onPress={onKey}>4</KeypadButton>
       </>,
@@ -75,6 +75,7 @@ describe('dark UI primitives', () => {
     await user.click(screen.getByRole('button', { name: '4' }));
 
     expect(screen.getByText('Merchant')).toBeInTheDocument();
+    expect(screen.getByLabelText('Merchant')).toBeInstanceOf(HTMLInputElement);
     expect(onKey).toHaveBeenCalledWith('4');
   });
 
