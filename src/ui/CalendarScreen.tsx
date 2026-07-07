@@ -14,8 +14,8 @@ import type { CategoryDayTotal, CalendarDaySummary } from '../reports';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-function safeMonth(value: string | null): string {
-  return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(todayVietnamDate());
+function safeMonth(value: string | null, today: string): string {
+  return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(today);
 }
 
 function displayMonth(monthISO: string): string {
@@ -98,14 +98,16 @@ function CalendarGrid({
   );
 }
 
-export function CalendarScreen() {
-  const { t, i18n } = useTranslation();
-  const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
-  const [searchParams, setSearchParams] = useSearchParams();
-  const month = safeMonth(searchParams.get('month'));
-  const today = todayVietnamDate();
+interface CalendarMonthViewProps {
+  month: string;
+  today: string;
+  locale: 'en' | 'vi';
+}
+
+function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
+  const { t } = useTranslation();
   const { data: transactions, loading, error, reload } = useMonthCloudTransactions(month);
-  const [manualSelection, setManualSelection] = useState<{ month: string; date: string } | null>(null);
+  const [manualSelection, setManualSelection] = useState<string | null>(null);
 
   const daySummaries = useMemo(
     () => calendarDaySummaries(transactions, month),
@@ -126,21 +128,15 @@ export function CalendarScreen() {
     () => initialSelectedDate(month, transactions, today),
     [month, transactions, today],
   );
-  const selectedDate = manualSelection?.month === month ? manualSelection.date : automaticSelectedDate;
+  const selectedDate = manualSelection ?? automaticSelectedDate;
   const selectedRows = useMemo(
     () => categoryTotalsForDate(transactions, selectedDate),
     [transactions, selectedDate],
   );
   const hasMonthTransactions = daySummaries.some(day => day.hasTransactions);
 
-  function step(direction: -1 | 1) {
-    const next = direction === -1 ? prevMonth(month) : nextMonth(month);
-    setSearchParams({ month: next });
-    setManualSelection(null);
-  }
-
   function selectDate(date: string) {
-    setManualSelection({ month, date });
+    setManualSelection(date);
   }
 
   function retry() {
@@ -148,27 +144,7 @@ export function CalendarScreen() {
   }
 
   return (
-    <div className="pb-20">
-      <header className="flex items-center justify-between p-4">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          aria-label="Previous month"
-          className="h-10 w-10 rounded border text-xl"
-        >
-          {'<'}
-        </button>
-        <h1 className="text-lg font-semibold">{displayMonth(month)}</h1>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          aria-label="Next month"
-          className="h-10 w-10 rounded border text-xl"
-        >
-          {'>'}
-        </button>
-      </header>
-
+    <>
       {error && (
         <div role="alert" className="mx-4 mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <div>{error}</div>
@@ -245,6 +221,45 @@ export function CalendarScreen() {
           </section>
         </>
       )}
+    </>
+  );
+}
+
+export function CalendarScreen() {
+  const { i18n } = useTranslation();
+  const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const today = todayVietnamDate();
+  const month = safeMonth(searchParams.get('month'), today);
+
+  function step(direction: -1 | 1) {
+    const next = direction === -1 ? prevMonth(month) : nextMonth(month);
+    setSearchParams({ month: next });
+  }
+
+  return (
+    <div className="pb-20">
+      <header className="flex items-center justify-between p-4">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label="Previous month"
+          className="h-10 w-10 rounded border text-xl"
+        >
+          {'<'}
+        </button>
+        <h1 className="text-lg font-semibold">{displayMonth(month)}</h1>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          aria-label="Next month"
+          className="h-10 w-10 rounded border text-xl"
+        >
+          {'>'}
+        </button>
+      </header>
+
+      <CalendarMonthView key={month} month={month} today={today} locale={locale} />
     </div>
   );
 }

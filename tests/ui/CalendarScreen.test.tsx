@@ -6,7 +6,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
 import type { Transaction, TransactionDirection } from '../../src/types';
 
+interface MockCloudState {
+  data: Transaction[];
+  loading: boolean;
+  error: string | null;
+}
+
 const cloudHooks = vi.hoisted(() => ({
+  mode: 'static' as 'static' | 'stateful',
+  monthStates: {} as Record<string, MockCloudState>,
   reload: vi.fn(),
   useMonthCloudTransactions: vi.fn(),
   state: {
@@ -16,9 +24,41 @@ const cloudHooks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../src/hooks/useCloudTransactions', () => ({
-  useMonthCloudTransactions: cloudHooks.useMonthCloudTransactions,
+const dateHooks = vi.hoisted(() => ({
+  today: '2026-07-07',
 }));
+
+vi.mock('../../src/lib/date', async () => {
+  const actual = await vi.importActual<typeof import('../../src/lib/date')>('../../src/lib/date');
+
+  return {
+    ...actual,
+    todayVietnamDate: (now?: Date) => (now ? actual.todayVietnamDate(now) : dateHooks.today),
+  };
+});
+
+vi.mock('../../src/hooks/useCloudTransactions', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+
+  function useStatefulMonthCloudTransactions(month: string) {
+    cloudHooks.useMonthCloudTransactions(month);
+    const [state] = React.useState<MockCloudState>(() => (
+      cloudHooks.monthStates[month] ?? { data: [], loading: true, error: null }
+    ));
+
+    return {
+      ...state,
+      reload: cloudHooks.reload,
+    };
+  }
+
+  return {
+    useMonthCloudTransactions: (month: string) => {
+      if (cloudHooks.mode === 'stateful') return useStatefulMonthCloudTransactions(month);
+      return cloudHooks.useMonthCloudTransactions(month);
+    },
+  };
+});
 
 import { CalendarScreen } from '../../src/ui/CalendarScreen';
 
@@ -26,6 +66,9 @@ beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
+  dateHooks.today = '2026-07-07';
+  cloudHooks.mode = 'static';
+  cloudHooks.monthStates = {};
   cloudHooks.reload.mockReset();
   cloudHooks.reload.mockResolvedValue(undefined);
   cloudHooks.state = {
@@ -80,6 +123,10 @@ function renderCalendarWithProbe(path: string, snapshots: string[]) {
       <CommitProbe snapshots={snapshots} />
     </MemoryRouter>,
   );
+}
+
+function setupUser() {
+  return userEvent.setup();
 }
 
 describe('CalendarScreen', () => {
@@ -140,7 +187,7 @@ describe('CalendarScreen', () => {
   });
 
   it('groups the selected day by category', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     cloudHooks.state.data = [
       tx({ amount: 20_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T05:00:00.000Z' }),
       tx({ amount: 30_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T06:00:00.000Z' }),
@@ -161,7 +208,7 @@ describe('CalendarScreen', () => {
   });
 
   it('steps between months', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
 
     renderCalendar('/calendar?month=2026-07');
     await user.click(screen.getByRole('button', { name: 'Previous month' }));
@@ -175,7 +222,7 @@ describe('CalendarScreen', () => {
   });
 
   it('uses the target month automatic date after month navigation without committing the previous manual date', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const snapshots: string[] = [];
     cloudHooks.state.data = [
       tx({ amount: 25_000, direction: 'expense', category: 'transportation', occurredAt: '2026-07-10T05:00:00.000Z' }),
@@ -198,8 +245,44 @@ describe('CalendarScreen', () => {
     expect(within(screen.getByRole('list', { name: /Selected date/ })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
+  it('does not commit an empty target month from the previous hook state while the target month starts loading', async () => {
+    const user = setupUser();
+    const snapshots: string[] = [];
+    cloudHooks.mode = 'stateful';
+    cloudHooks.monthStates = {
+      '2026-07': {
+        data: [
+          tx({ amount: 25_000, direction: 'expense', category: 'transportation', occurredAt: '2026-07-10T05:00:00.000Z' }),
+        ],
+        loading: false,
+        error: null,
+      },
+      '2026-08': {
+        data: [],
+        loading: true,
+        error: null,
+      },
+    };
+
+    renderCalendarWithProbe('/calendar?month=2026-07', snapshots);
+    expect(screen.getByRole('heading', { name: '07/2026' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select 2026-07-10/ })).toHaveTextContent(/25[.,]000/);
+
+    snapshots.length = 0;
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+
+    const staleEmptyTargetMonth = snapshots.find(snapshot => (
+      snapshot.includes('08/2026') &&
+      snapshot.includes('No transactions this month')
+    ));
+    expect(staleEmptyTargetMonth).toBeUndefined();
+    expect(screen.getByRole('heading', { name: '08/2026' })).toBeInTheDocument();
+    expect(screen.queryByText('No transactions this month')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading transactions...');
+  });
+
   it('shows loading, empty, and error states', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     cloudHooks.state.loading = true;
     const { rerender } = render(
       <MemoryRouter initialEntries={['/calendar?month=2026-07']}>
