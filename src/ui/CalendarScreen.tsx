@@ -13,6 +13,7 @@ import {
 import type { CategoryDayTotal, CalendarDaySummary } from '../reports';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const SEVEN_COLUMN_GRID = { gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' };
 
 function safeMonth(value: string | null, today: string): string {
   return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(today);
@@ -53,16 +54,22 @@ function CalendarGrid({
   ];
 
   return (
-    <section className="px-3">
-      <div className="grid grid-cols-7 border-y bg-gray-50 text-center text-[11px] uppercase text-gray-500">
+    <section className="px-4">
+      <div
+        className="grid rounded-t-lg border border-b-0 bg-gray-50 text-center text-[11px] font-medium uppercase text-gray-500"
+        style={SEVEN_COLUMN_GRID}
+      >
         {weekdays.map(day => (
           <div key={day} className="py-2">{day}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 border-l">
+      <div
+        className="grid overflow-hidden rounded-b-lg border-l border-t"
+        style={SEVEN_COLUMN_GRID}
+      >
         {cells.map(cell => {
           if (cell.kind === 'blank') {
-            return <div key={cell.id} className="min-h-16 border-b border-r bg-gray-50" />;
+            return <div key={cell.id} className="h-16 border-b border-r bg-gray-50" />;
           }
 
           const { day } = cell;
@@ -75,7 +82,7 @@ function CalendarGrid({
               aria-current={isToday ? 'date' : undefined}
               aria-pressed={isSelected}
               className={[
-                'min-h-16 border-b border-r p-1 text-left text-xs',
+                'h-16 min-w-0 border-b border-r p-1.5 text-left text-xs',
                 isSelected ? 'bg-blue-50 ring-2 ring-inset ring-blue-500' : 'bg-white',
                 isToday ? 'font-semibold' : '',
               ].join(' ')}
@@ -86,7 +93,7 @@ function CalendarGrid({
                 {Number(day.date.slice(8, 10))}
               </span>
               {day.expenseTotal > 0 && (
-                <span className="mt-1 block truncate text-[11px] font-semibold text-red-600">
+                <span className="mt-1 block max-w-full truncate text-[10px] font-semibold leading-tight text-red-600">
                   {formatVND(day.expenseTotal, locale)}
                 </span>
               )}
@@ -239,23 +246,23 @@ export function CalendarScreen() {
 
   return (
     <div className="pb-20">
-      <header className="flex items-center justify-between p-4">
+      <header className="flex items-center justify-between px-4 py-3">
         <button
           type="button"
           onClick={() => step(-1)}
           aria-label="Previous month"
-          className="h-10 w-10 rounded border text-xl"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-2xl leading-none text-gray-700 shadow-sm"
         >
-          {'<'}
+          ‹
         </button>
         <h1 className="text-lg font-semibold">{displayMonth(month)}</h1>
         <button
           type="button"
           onClick={() => step(1)}
           aria-label="Next month"
-          className="h-10 w-10 rounded border text-xl"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-2xl leading-none text-gray-700 shadow-sm"
         >
-          {'>'}
+          ›
         </button>
       </header>
 

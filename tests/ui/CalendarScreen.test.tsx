@@ -149,6 +149,16 @@ describe('CalendarScreen', () => {
     expect(screen.queryByText(/100[.,]000/, { selector: 'button *' })).not.toBeInTheDocument();
   });
 
+  it('locks the calendar header and day cells into seven columns', () => {
+    renderCalendar();
+
+    const weekdayGrid = screen.getByText('Mon').parentElement;
+    const dayGrid = screen.getByRole('button', { name: /Select 2026-07-01/ }).parentElement;
+
+    expect(weekdayGrid).toHaveStyle({ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' });
+    expect(dayGrid).toHaveStyle({ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' });
+  });
+
   it('selects the first transaction day when transactions arrive without committing stale empty day content', () => {
     const snapshots: string[] = [];
     cloudHooks.state.loading = true;
