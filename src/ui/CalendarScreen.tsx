@@ -10,7 +10,7 @@ import {
   initialSelectedDate,
   mondayWeekdayIndex,
 } from '../reports';
-import type { CategoryDayTotal, CalendarDaySummary } from '../reports';
+import type { CalendarCategoryDayTotal, CalendarDaySummary } from '../reports';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const SEVEN_COLUMN_GRID = { gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' };
@@ -24,7 +24,7 @@ function displayMonth(monthISO: string): string {
   return `${month}/${year}`;
 }
 
-function directionColor(direction: CategoryDayTotal['direction']): string {
+function directionColor(direction: CalendarCategoryDayTotal['direction']): string {
   return direction === 'income' ? 'text-emerald-700' : 'text-red-600';
 }
 

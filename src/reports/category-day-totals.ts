@@ -10,7 +10,6 @@ import { transactionDirection } from './direction';
 export interface CategoryDayTotal {
   date: string;
   total: number;
-  direction?: TransactionDirection;
 }
 
 export function categoryDayTotals(
