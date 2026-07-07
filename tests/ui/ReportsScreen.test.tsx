@@ -139,7 +139,75 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByText('Healthcare')).toBeInTheDocument();
     expect(screen.queryByText('Salary')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /food & drinks/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /food & drinks/i })).toBeInTheDocument();
+  });
+
+  it('opens a category detail view with matching transactions', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'food-1',
+          amount: 30_000,
+          category: 'food-drinks',
+          merchant: 'Grab',
+          occurredAt: '2099-06-04T14:48:00.000Z',
+        }),
+        tx({
+          id: 'food-2',
+          amount: 10_000,
+          category: 'food-drinks',
+          note: 'Lunch',
+          occurredAt: '2099-06-05T14:48:00.000Z',
+        }),
+        tx({
+          id: 'health',
+          amount: 12_000,
+          category: 'healthcare',
+          merchant: 'Pharmacy',
+          occurredAt: '2099-06-05T14:48:00.000Z',
+        }),
+      ],
+      directionTotals: {
+        expense: 52_000,
+        income: 0,
+        net: -52_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /food & drinks/i }));
+
+    expect(screen.getByRole('button', { name: /back to reports/i })).toBeInTheDocument();
+    expect(screen.getByText('Grab')).toBeInTheDocument();
+    expect(screen.getByText('Lunch')).toBeInTheDocument();
+    expect(screen.queryByText('Pharmacy')).not.toBeInTheDocument();
+  });
+
+  it('resets category detail when switching to an incompatible direction', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({ id: 'food', amount: 30_000, category: 'food-drinks', merchant: 'Grab' }),
+        tx({ id: 'salary', amount: 100_000, direction: 'income', category: 'salary', merchant: 'Company' }),
+      ],
+      directionTotals: {
+        expense: 30_000,
+        income: 100_000,
+        net: 70_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /food & drinks/i }));
+    expect(screen.getByRole('button', { name: /back to reports/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /income/i }));
+
+    expect(screen.queryByRole('button', { name: /back to reports/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Salary')).toBeInTheDocument();
   });
 
   it('renders a by-category empty state when the selected direction has no rows', () => {

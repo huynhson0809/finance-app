@@ -1,13 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useReports } from '../hooks/useReports';
-import { categorySummaries } from '../reports';
+import { categoryDayTotals, categorySummaries, transactionDirection } from '../reports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
-import { EXPENSE_CATEGORIES, type Category, type TransactionDirection } from '../types';
+import {
+  categoryBelongsToDirection,
+  EXPENSE_CATEGORIES,
+  type Category,
+  type Transaction,
+  type TransactionDirection,
+} from '../types';
 import { formatVND } from '../lib/money';
 
 const CATEGORY_COLORS: Record<Category, string> = {
@@ -33,11 +39,20 @@ function safeMonth(value: string | null): string {
   return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(todayVietnamDate());
 }
 
+function transactionTitle(transaction: Transaction): string {
+  return transaction.merchant?.trim() || transaction.note?.trim() || transaction.category;
+}
+
+function signedAmount(transaction: Transaction): number {
+  return transactionDirection(transaction) === 'income' ? transaction.amount : -transaction.amount;
+}
+
 export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
   const [direction, setDirection] = useState<TransactionDirection>('expense');
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const month = safeMonth(searchParams.get('month'));
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const reportAvailable = !loading && !error;
@@ -47,6 +62,36 @@ export function ReportsScreen() {
   const categoryRows = useMemo(
     () => categorySummaries(transactions, direction),
     [transactions, direction],
+  );
+
+  useEffect(() => {
+    if (selectedCategory && !categoryBelongsToDirection(selectedCategory, direction)) {
+      setSelectedCategory(null);
+    }
+  }, [direction, selectedCategory]);
+
+  const selectedSummary = selectedCategory
+    ? categoryRows.find(row => row.category === selectedCategory)
+    : undefined;
+
+  const detailDaily = useMemo(
+    () => selectedCategory
+      ? categoryDayTotals(transactions, month, direction, selectedCategory)
+      : [],
+    [transactions, month, direction, selectedCategory],
+  );
+
+  const detailTransactions = useMemo(
+    () => selectedCategory
+      ? transactions
+        .filter(transaction => (
+          transactionDirection(transaction) === direction &&
+          transaction.category === selectedCategory &&
+          monthOfVietnamDate(transaction.occurredAt) === month
+        ))
+        .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+      : [],
+    [transactions, month, direction, selectedCategory],
   );
 
   const pieData = useMemo(
@@ -139,66 +184,127 @@ export function ReportsScreen() {
             ))}
           </section>
 
-          <section className="px-2">
-            <CategoryPie
-              data={pieData}
-              emptyLabel={noDirectionDataLabel}
-            />
-          </section>
+          {selectedCategory ? (
+            <section className="px-4">
+              <button
+                type="button"
+                className="mb-4 text-sm font-semibold text-blue-600"
+                onClick={() => setSelectedCategory(null)}
+              >
+                {t('reports.backToReports')}
+              </button>
 
-          <section className="px-2 mt-4">
-            <MonthBar data={daily} />
-          </section>
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">
+                  {t('reports.categoryDetailTitle', {
+                    category: t(`category.${selectedCategory}`),
+                    month,
+                  })}
+                </h2>
+                <div className="mt-1 text-2xl font-bold">
+                  {formatVND(selectedSummary?.total ?? 0, locale)}
+                </div>
+              </div>
 
-          {anomalyHints.length > 0 && (
-            <section className="px-4 mt-4">
-              <h2 className="text-sm uppercase text-gray-500">{t('reports.anomalies')}</h2>
-              <ul className="mt-2 space-y-1">
-                {anomalyHints.map(h => (
-                  <li key={h.category} className="text-sm">
-                    {t('reports.anomalyLine', {
-                      category: t(`category.${h.category}`),
-                      pct: Math.min(Math.round(h.deltaPct * 100), 999),
-                    })}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+              <MonthBar data={detailDaily} />
 
-          <section className="px-4 mt-6">
-            <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
-            {categoryRows.length === 0 ? (
-              <p className="mt-2 rounded-lg border border-gray-100 bg-white px-3 py-4 text-sm text-gray-500">
-                {noDirectionDataLabel}
-              </p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {categoryRows.map(row => {
-                  const categoryLabel = t(`category.${row.category}`);
-                  return (
-                    <li key={row.category}>
-                      <div className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm">
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-gray-900">{categoryLabel}</div>
-                          <div className="text-xs text-gray-500">
-                            {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
-                          </div>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {formatVND(row.total, locale)}
+              {detailTransactions.length === 0 ? (
+                <div className="mt-4 rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+                  {t('reports.noCategoryTransactions')}
+                </div>
+              ) : (
+                <ul className="mt-4 divide-y divide-gray-200">
+                  {detailTransactions.map(transaction => {
+                    const title = transactionTitle(transaction);
+                    return (
+                      <li key={transaction.id} className="flex items-center justify-between gap-3 py-3">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold">
+                            {title === transaction.category ? t(`category.${transaction.category}`) : title}
+                          </span>
+                          <span className="block text-xs text-gray-500">
+                            {monthOfVietnamDate(transaction.occurredAt)}
+                            {transaction.bankHint ? ` · ${transaction.bankHint.toUpperCase()}` : ''}
+                          </span>
                         </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+                        <span className="text-sm font-semibold">
+                          {formatVND(signedAmount(transaction), locale)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : (
+            <>
+              <section className="px-2">
+                <CategoryPie
+                  data={pieData}
+                  emptyLabel={noDirectionDataLabel}
+                />
+              </section>
+
+              <section className="px-2 mt-4">
+                <MonthBar data={daily} />
+              </section>
+
+              {anomalyHints.length > 0 && (
+                <section className="px-4 mt-4">
+                  <h2 className="text-sm uppercase text-gray-500">{t('reports.anomalies')}</h2>
+                  <ul className="mt-2 space-y-1">
+                    {anomalyHints.map(h => (
+                      <li key={h.category} className="text-sm">
+                        {t('reports.anomalyLine', {
+                          category: t(`category.${h.category}`),
+                          pct: Math.min(Math.round(h.deltaPct * 100), 999),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              <section className="px-4 mt-6">
+                <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
+                {categoryRows.length === 0 ? (
+                  <p className="mt-2 rounded-lg border border-gray-100 bg-white px-3 py-4 text-sm text-gray-500">
+                    {noDirectionDataLabel}
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {categoryRows.map(row => {
+                      const categoryLabel = t(`category.${row.category}`);
+                      return (
+                        <li key={row.category}>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm"
+                            onClick={() => setSelectedCategory(row.category)}
+                          >
+                            <span
+                              className="h-3 w-3 shrink-0 rounded-full"
+                              style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium text-gray-900">{categoryLabel}</span>
+                              <span className="block text-xs text-gray-500">
+                                {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
+                              </span>
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {formatVND(row.total, locale)}
+                            </span>
+                            <span className="text-gray-400" aria-hidden="true">›</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            </>
+          )}
         </>
       )}
     </div>
