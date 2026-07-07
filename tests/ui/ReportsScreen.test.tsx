@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { initI18n, i18n } from '../../src/i18n';
-import { CATEGORIES, type Category } from '../../src/types';
+import { CATEGORIES, type Category, type Transaction } from '../../src/types';
 import type { UseReportsResult } from '../../src/hooks/useReports';
 
 const reportHooks = vi.hoisted(() => ({
@@ -39,6 +39,21 @@ function zeroDeltas(): UseReportsResult['deltas'] {
   ) as UseReportsResult['deltas'];
 }
 
+function tx(overrides: Partial<Transaction> = {}): Transaction {
+  return {
+    id: overrides.id ?? 'tx-1',
+    amount: overrides.amount ?? 10_000,
+    currency: 'VND',
+    occurredAt: overrides.occurredAt ?? '2099-06-04T14:48:00.000Z',
+    category: 'food-drinks',
+    direction: 'expense',
+    source: 'manual',
+    createdAt: '2099-06-04T14:48:00.000Z',
+    updatedAt: '2099-06-04T14:48:00.000Z',
+    ...overrides,
+  } as Transaction;
+}
+
 function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsResult {
   return {
     loading: false,
@@ -66,7 +81,7 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
 describe('ReportsScreen', () => {
   it('shows empty state when the current month has no transactions', () => {
     render(<MemoryRouter><ReportsScreen /></MemoryRouter>);
-    expect(screen.getByText('No spending this month')).toBeInTheDocument();
+    expect(screen.getByText('No Expense transactions this month')).toBeInTheDocument();
   });
 
   it('shows over-budget banner when overall exceeded', () => {
@@ -103,6 +118,54 @@ describe('ReportsScreen', () => {
     expect(screen.getByText(/375[.,]000/)).toBeInTheDocument();
   });
 
+  it('renders expense category rows with percentages by default', () => {
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({ id: 'food', amount: 30_000, category: 'food-drinks' }),
+        tx({ id: 'health', amount: 10_000, category: 'healthcare' }),
+        tx({ id: 'salary', amount: 100_000, direction: 'income', category: 'salary' }),
+      ],
+      directionTotals: {
+        expense: 40_000,
+        income: 100_000,
+        net: 60_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('button', { name: /expense/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Food & Drinks')).toBeInTheDocument();
+    expect(screen.getByText(/75/)).toBeInTheDocument();
+    expect(screen.getByText('Healthcare')).toBeInTheDocument();
+    expect(screen.queryByText('Salary')).not.toBeInTheDocument();
+  });
+
+  it('switches to income category rows with percentages', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({ id: 'food', amount: 30_000, category: 'food-drinks' }),
+        tx({ id: 'salary', amount: 80_000, direction: 'income', category: 'salary' }),
+        tx({ id: 'bonus', amount: 20_000, direction: 'income', category: 'bonus' }),
+      ],
+      directionTotals: {
+        expense: 30_000,
+        income: 100_000,
+        net: 70_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /income/i }));
+
+    expect(screen.getByRole('button', { name: /income/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Salary')).toBeInTheDocument();
+    expect(screen.getByText('Bonus')).toBeInTheDocument();
+    expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
+  });
+
   it('shows cloud loading without stale report content', () => {
     reportHooks.state = makeUnavailableReportState({ loading: true });
 
@@ -111,6 +174,7 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Loading transactions...')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('No Expense transactions this month')).not.toBeInTheDocument();
     expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
     expect(screen.queryByText('By category')).not.toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
@@ -126,6 +190,7 @@ describe('ReportsScreen', () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent('Cloud report failed');
     expect(screen.queryByText('No spending this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('No Expense transactions this month')).not.toBeInTheDocument();
     expect(screen.queryByText('Anomalies')).not.toBeInTheDocument();
     expect(screen.queryByText('By category')).not.toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();

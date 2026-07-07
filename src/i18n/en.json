@@ -59,7 +59,14 @@
     "expenseTotal": "Expense total",
     "incomeTotal": "Income total",
     "netTotal": "Net total",
-    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month"
+    "anomalyLine": "Spent {{pct}}% more on {{category}} than last month",
+    "expenseTab": "Expense",
+    "incomeTab": "Income",
+    "categoryShare": "{{pct}}%",
+    "noDirectionData": "No {{direction}} transactions this month",
+    "categoryDetailTitle": "{{category}} in {{month}}",
+    "noCategoryTransactions": "No transactions in this category",
+    "backToReports": "Back to reports"
   },
   "calendar": {
     "title": "Calendar",

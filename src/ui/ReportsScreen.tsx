@@ -1,24 +1,31 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useReports } from '../hooks/useReports';
+import { categorySummaries } from '../reports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types';
+import { EXPENSE_CATEGORIES, type Category, type TransactionDirection } from '../types';
 import { formatVND } from '../lib/money';
 
-const CHART_COLORS: Record<ExpenseCategory, string> = {
+const CATEGORY_COLORS: Record<Category, string> = {
   'food-drinks': '#ef4444',
   'coffee-bubble-tea': '#f59e0b',
-  'transportation': '#3b82f6',
-  'shopping': '#a855f7',
+  transportation: '#3b82f6',
+  shopping: '#a855f7',
   'bills-utilities': '#10b981',
-  'healthcare': '#ec4899',
-  'entertainment': '#06b6d4',
+  healthcare: '#ec4899',
+  entertainment: '#06b6d4',
   'transfers-debt': '#6b7280',
-  'others': '#9ca3af',
+  others: '#9ca3af',
+  salary: '#22c55e',
+  allowance: '#14b8a6',
+  bonus: '#f97316',
+  'side-income': '#06b6d4',
+  investment: '#8b5cf6',
+  'temporary-income': '#f472b6',
 };
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -30,15 +37,27 @@ export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
+  const [direction, setDirection] = useState<TransactionDirection>('expense');
   const month = safeMonth(searchParams.get('month'));
-  const { loading, error, reload, sums, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
+  const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const reportAvailable = !loading && !error;
+  const selectedDirectionLabel = direction === 'expense'
+    ? t('reports.expenseTab')
+    : t('reports.incomeTab');
+
+  const categoryRows = useMemo(
+    () => categorySummaries(transactions, direction),
+    [transactions, direction],
+  );
 
   const pieData = useMemo(
-    () => EXPENSE_CATEGORIES.map(c => ({
-      category: c, total: sums[c], label: t(`category.${c}`), color: CHART_COLORS[c],
+    () => categoryRows.map(row => ({
+      category: row.category,
+      total: row.total,
+      label: t(`category.${row.category}`),
+      color: CATEGORY_COLORS[row.category],
     })),
-    [sums, t],
+    [categoryRows, t],
   );
 
   const perCategoryOver = useMemo(
@@ -105,8 +124,27 @@ export function ReportsScreen() {
             </div>
           </section>
 
+          <section className="mx-4 mb-4 grid grid-cols-2 rounded-lg bg-gray-100 p-1">
+            {(['expense', 'income'] as const).map(value => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={direction === value}
+                className={`rounded-md px-3 py-2 text-sm font-semibold ${
+                  direction === value ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
+                }`}
+                onClick={() => setDirection(value)}
+              >
+                {value === 'expense' ? t('reports.expenseTab') : t('reports.incomeTab')}
+              </button>
+            ))}
+          </section>
+
           <section className="px-2">
-            <CategoryPie data={pieData} />
+            <CategoryPie
+              data={pieData}
+              emptyLabel={t('reports.noDirectionData', { direction: selectedDirectionLabel })}
+            />
           </section>
 
           <section className="px-2 mt-4">
@@ -132,24 +170,29 @@ export function ReportsScreen() {
           <section className="px-4 mt-6">
             <h2 className="text-sm uppercase text-gray-500">{t('reports.byCategory')}</h2>
             <ul className="mt-2 space-y-2">
-              {EXPENSE_CATEGORIES.map(c => {
-                const s = bStatus.perCategory[c];
-                const barColor = s === 'over' ? 'bg-red-500'
-                               : s === 'warn' ? 'bg-amber-500'
-                               : 'bg-blue-500';
-                const showBar = s === 'over' || s === 'warn';
-                const barWidth = s === 'over' ? '100%' : s === 'warn' ? '90%' : '0%';
+              {categoryRows.map(row => {
+                const categoryLabel = t(`category.${row.category}`);
                 return (
-                  <li key={c}>
-                    <div className="flex justify-between text-sm">
-                      <span>{t(`category.${c}`)}</span>
-                      <span>{formatVND(sums[c], locale)}</span>
-                    </div>
-                    {showBar && (
-                      <div className="h-1 bg-gray-200 rounded mt-1 overflow-hidden">
-                        <div className={`h-full ${barColor}`} style={{ width: barWidth }} />
+                  <li key={row.category}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-white px-3 py-3 text-left shadow-sm"
+                    >
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: CATEGORY_COLORS[row.category] }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-gray-900">{categoryLabel}</div>
+                        <div className="text-xs text-gray-500">
+                          {t('reports.categoryShare', { pct: Math.round(row.percentage * 100) })}
+                        </div>
                       </div>
-                    )}
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatVND(row.total, locale)}
+                      </span>
+                      <span className="text-lg leading-none text-gray-400" aria-hidden="true">›</span>
+                    </button>
                   </li>
                 );
               })}

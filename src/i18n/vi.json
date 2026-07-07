@@ -59,7 +59,14 @@
     "expenseTotal": "Tổng chi",
     "incomeTotal": "Tổng thu",
     "netTotal": "Còn lại",
-    "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước"
+    "anomalyLine": "Chi tiêu {{category}} tăng {{pct}}% so với tháng trước",
+    "expenseTab": "Chi tiêu",
+    "incomeTab": "Thu nhập",
+    "categoryShare": "{{pct}}%",
+    "noDirectionData": "Chưa có giao dịch {{direction}} trong tháng này",
+    "categoryDetailTitle": "{{category}} trong {{month}}",
+    "noCategoryTransactions": "Chưa có giao dịch trong danh mục này",
+    "backToReports": "Quay lại báo cáo"
   },
   "calendar": {
     "title": "Lịch",

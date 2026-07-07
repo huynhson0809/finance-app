@@ -9,13 +9,19 @@ export interface CategoryDatum {
   color: string;
 }
 
-export function CategoryPie({ data }: { data: CategoryDatum[] }) {
+export function CategoryPie({
+  data,
+  emptyLabel,
+}: {
+  data: CategoryDatum[];
+  emptyLabel?: string;
+}) {
   const { t } = useTranslation();
   const nonZero = data.filter(d => d.total > 0);
   if (nonZero.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-gray-500" role="status">
-        {t('reports.noSpending')}
+        {emptyLabel ?? t('reports.noSpending')}
       </div>
     );
   }
