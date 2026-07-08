@@ -126,6 +126,40 @@ describe('createIngestTransactionHandler', () => {
     expect((inserts[0] as { row: { external_hash: string } }).row.external_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('inserts ACB credit alerts as income rows', async () => {
+    const { handle, inserts } = handler();
+
+    const response = await handle(request({
+      body: JSON.stringify({
+        bank: 'ACB',
+        type: 'balance_alert',
+        amount: '+6,666.00',
+        datetime: '080726-13:14:07',
+        content: 'HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07',
+        raw_source: 'email',
+        direction: 'income',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(await jsonBody(response)).toEqual({ ok: true, status: 'inserted' });
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatchObject({
+      table: 'transactions',
+      row: {
+        bank: 'ACB',
+        type: 'balance_alert',
+        amount: 6666,
+        transaction_time: '2026-07-08T06:14:07.000Z',
+        content: 'HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07',
+        category: 'temporary-income',
+        direction: 'income',
+        raw_source: 'email',
+        user_id: 'user-1',
+      },
+    });
+  });
+
   it('treats unique constraint errors as duplicate inserts', async () => {
     const { handle } = handler({ insertError: { code: '23505' } });
 

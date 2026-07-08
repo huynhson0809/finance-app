@@ -1,25 +1,26 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Outlet } from 'react-router-dom';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { InstallPrompt } from './components/InstallPrompt';
+import {
+  APP_SHELL_MAX_WIDTH_CLASS,
+  BottomNav,
+  NAV_CONTENT_CLEARANCE_CLASS,
+} from './components/primitives';
 
 export function Layout() {
-  const { t } = useTranslation();
-  const tab = 'flex-1 py-3 text-center text-sm';
-  const active = ({ isActive }: { isActive: boolean }) =>
-    `${tab} ${isActive ? 'font-bold text-blue-600' : 'text-gray-600'}`;
   return (
-    <div className="min-h-screen flex flex-col">
+    <div data-testid="app-shell" className="min-h-screen bg-transparent text-slate-50">
       <UpdatePrompt />
       <InstallPrompt />
-      <main className="flex-1 pb-16"><Outlet /></main>
-      <nav className="fixed bottom-0 inset-x-0 flex bg-white border-t">
-        <NavLink to="/" end className={active}>{t('nav.home')}</NavLink>
-        <NavLink to="/add" className={active}>{t('nav.add')}</NavLink>
-        <NavLink to="/calendar" className={active}>{t('nav.calendar')}</NavLink>
-        <NavLink to="/reports" className={active}>{t('nav.reports')}</NavLink>
-        <NavLink to="/settings" className={active}>{t('nav.settings')}</NavLink>
-      </nav>
+      <div className={`mx-auto flex min-h-screen w-full ${APP_SHELL_MAX_WIDTH_CLASS} flex-col bg-transparent`}>
+        <main
+          data-testid="app-main"
+          className={`flex-1 px-0 ${NAV_CONTENT_CLEARANCE_CLASS} pt-0`}
+        >
+          <Outlet />
+        </main>
+        <BottomNav />
+      </div>
     </div>
   );
 }

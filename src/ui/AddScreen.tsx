@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Mail } from 'lucide-react';
+import { AddImageButton } from './AddImageButton';
 import { Keypad } from './components/Keypad';
 import { CategoryChips } from './components/CategoryChips';
+import { DarkField, GlassPanel, SegmentedControl } from './components/primitives';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { shouldLearn } from '../categorizer';
@@ -134,60 +137,79 @@ export function AddScreen() {
   }
 
   return (
-    <div className="flex flex-col">
-      <h1 className="p-4 text-xl">{t('add.title')}</h1>
-      <div className="mx-4 flex rounded border p-1">
-        <button
-          type="button"
-          onClick={() => handleDirection('expense')}
-          aria-pressed={direction === 'expense'}
-          className={`flex-1 rounded px-3 py-2 text-sm ${direction === 'expense' ? 'bg-blue-600 text-white' : 'bg-white'}`}
-        >
-          {t('add.expense')}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDirection('income')}
-          aria-pressed={direction === 'income'}
-          className={`flex-1 rounded px-3 py-2 text-sm ${direction === 'income' ? 'bg-blue-600 text-white' : 'bg-white'}`}
-        >
-          {t('add.income')}
-        </button>
+    <div className="space-y-4 px-4 py-5">
+      <header className="text-center">
+        <h1 className="text-2xl font-bold text-white">{t('add.title')}</h1>
+      </header>
+
+      <SegmentedControl
+        ariaLabel="Direction"
+        value={direction}
+        onChange={handleDirection}
+        options={[
+          { value: 'expense', label: t('add.expense') },
+          { value: 'income', label: t('add.income') },
+        ]}
+      />
+
+      <GlassPanel
+        aria-label={t('add.amount')}
+        className="flex min-h-28 items-center justify-center p-4"
+      >
+        <div className="text-center text-5xl font-bold text-white">{formatVND(amount, locale)}</div>
+      </GlassPanel>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="flex min-h-20 flex-col items-center justify-center rounded-2xl border border-sky-300/30 bg-sky-400/10 px-2 text-center text-sm font-semibold text-sky-300">
+          Manual
+        </div>
+        <AddImageButton variant="tile" />
+        <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-2 text-center text-sm font-semibold text-sky-300">
+          <Mail aria-hidden="true" className="h-7 w-7" />
+          <span>Link Email</span>
+        </div>
       </div>
-      <div className="px-4 text-4xl text-center">{formatVND(amount, locale)}</div>
-      <label className="px-4 mt-2 block text-sm text-gray-600">
-        {t('add.date')}
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="mt-1 w-full p-2 border rounded"
-          aria-label={t('add.date')}
-        />
-      </label>
-      <label className="px-4 mt-2 block text-sm text-gray-600">
-        {t('add.merchant')}
-        <input
-          value={merchant}
-          onChange={e => setMerchant(e.target.value)}
-          className="mt-1 w-full p-2 border rounded"
-          aria-label={t('add.merchant')}
-        />
-      </label>
-      <Keypad onChange={handleKey} />
-      <CategoryChips value={chosen} onSelect={handleChip} categories={categoryOptions} />
+
+      <div className="grid gap-3">
+        <DarkField label={t('add.date')}>
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            aria-label={t('add.date')}
+          />
+        </DarkField>
+        <DarkField label={t('add.merchant')}>
+          <input
+            value={merchant}
+            onChange={e => setMerchant(e.target.value)}
+            aria-label={t('add.merchant')}
+          />
+        </DarkField>
+      </div>
+
+      <div className="-mx-4">
+        <Keypad onChange={handleKey} />
+      </div>
+      <div className="-mx-4">
+        <CategoryChips value={chosen} onSelect={handleChip} categories={categoryOptions} />
+      </div>
+
       {saveError && (
-        <div role="alert" className="mx-4 mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div>{t('add.saveFailed')}</div>
           <div>{saveError}</div>
         </div>
       )}
+
       <button
         type="button"
         onClick={handleSave}
         disabled={!canSave}
-        className="mx-4 my-4 py-3 bg-blue-600 text-white rounded disabled:bg-gray-300"
-      >{saving ? t('add.saving') : t(direction === 'expense' ? 'add.submitExpense' : 'add.submitIncome')}</button>
+        className="min-h-14 w-full rounded-2xl bg-sky-400 px-4 text-base font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
+      >
+        {saving ? t('add.saving') : t(direction === 'expense' ? 'add.submitExpense' : 'add.submitIncome')}
+      </button>
     </div>
   );
 }

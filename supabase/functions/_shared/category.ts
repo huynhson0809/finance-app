@@ -7,7 +7,13 @@ export type Category =
   | 'healthcare'
   | 'entertainment'
   | 'transfers-debt'
-  | 'others';
+  | 'others'
+  | 'salary'
+  | 'allowance'
+  | 'bonus'
+  | 'side-income'
+  | 'investment'
+  | 'temporary-income';
 
 interface CategoryRule {
   id: string;

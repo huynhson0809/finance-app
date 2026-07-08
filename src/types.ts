@@ -60,6 +60,15 @@ export function categoryBelongsToDirection(
 
 export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot' | 'bank-email';
 export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay' | 'mb' | 'acb';
+export type CloudBank = 'MB' | 'ACB';
+export type CloudTransactionType =
+  | 'transfer'
+  | 'card'
+  | 'balance_alert'
+  | 'manual'
+  | 'receipt'
+  | 'bank_screenshot';
+export type CloudRawSource = 'email' | 'manual' | 'receipt' | 'bank-screenshot';
 
 interface TransactionBase {
   id: string;
@@ -70,6 +79,9 @@ interface TransactionBase {
   note?: string;
   source: TransactionSource;
   bankHint?: BankHint;
+  bank?: CloudBank;
+  transactionType?: CloudTransactionType;
+  rawSource?: CloudRawSource;
   createdAt: string;
   updatedAt: string;
 }

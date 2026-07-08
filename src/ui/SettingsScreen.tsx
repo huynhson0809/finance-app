@@ -7,6 +7,7 @@ import { parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
 import { useAuth } from '../hooks/useAuth';
+import { GlassPanel, DarkField } from './components/primitives';
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -46,14 +47,16 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="p-4 space-y-6">
-      <h1 className="text-xl">{t('settings.title')}</h1>
+    <div className="space-y-4 px-4 py-5">
+      <header>
+        <h1 className="text-3xl font-bold text-white">{t('settings.title')}</h1>
+      </header>
 
-      <section>
-        <h2 className="font-semibold">{t('settings.language')}</h2>
-        <div className="flex gap-4 mt-2">
+      <GlassPanel aria-label={t('settings.language')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.language')}</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {(['vi','en'] as Locale[]).map(l => (
-            <label key={l} className="flex items-center gap-2">
+            <label key={l} className="flex min-h-12 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 text-slate-100">
               <input
                 type="radio"
                 name="locale"
@@ -64,21 +67,26 @@ export function SettingsScreen() {
             </label>
           ))}
         </div>
-      </section>
+      </GlassPanel>
 
-      <section>
-        <h2 className="font-semibold">{t('settings.monthlyBudget')}</h2>
-        <input
-          inputMode="numeric"
-          value={raw}
-          onChange={e => setRaw(e.target.value)}
-          className="mt-2 w-full p-2 border rounded"
-        />
+      <GlassPanel aria-label={t('settings.monthlyBudget')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.monthlyBudget')}</h2>
+        <div className="mt-3">
+          <DarkField label={t('settings.monthlyBudget')}>
+            <input
+              inputMode="numeric"
+              value={raw}
+              onChange={e => setRaw(e.target.value)}
+            />
+          </DarkField>
+        </div>
         <button
           type="button"
           onClick={handleSaveBudget}
-          className="mt-2 py-2 px-4 bg-blue-600 text-white rounded"
-        >{t('settings.save')}</button>
+          className="mt-3 min-h-12 rounded-2xl bg-sky-400 px-4 font-bold text-slate-950"
+        >
+          {t('settings.save')}
+        </button>
 
         {total > 0 && (
           <div className="mt-4">
@@ -90,12 +98,12 @@ export function SettingsScreen() {
             />
           </div>
         )}
-      </section>
+      </GlassPanel>
 
-      <section>
-        <h2 className="font-semibold">{t('settings.account')}</h2>
+      <GlassPanel aria-label={t('settings.account')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.account')}</h2>
         {signOutError && (
-          <div role="alert" className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+          <div role="alert" className="mt-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
             {t('settings.signOutFailed')}: {signOutError}
           </div>
         )}
@@ -103,9 +111,11 @@ export function SettingsScreen() {
           type="button"
           onClick={() => void handleSignOut()}
           disabled={signingOut}
-          className="mt-2 py-2 px-4 bg-gray-600 text-white rounded disabled:opacity-60"
-        >{signingOut ? t('settings.signingOut') : t('settings.signOut')}</button>
-      </section>
+          className="mt-3 min-h-12 rounded-2xl border border-white/10 bg-white/[0.07] px-4 font-semibold text-slate-100 disabled:opacity-60"
+        >
+          {signingOut ? t('settings.signingOut') : t('settings.signOut')}
+        </button>
+      </GlassPanel>
     </div>
   );
 }

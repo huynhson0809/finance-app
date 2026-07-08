@@ -124,6 +124,12 @@ function setupUser() {
 }
 
 describe('CalendarScreen', () => {
+  it('renders the calendar inside a dark calendar panel', () => {
+    renderCalendar();
+
+    expect(screen.getByRole('region', { name: /calendar month/i })).toBeInTheDocument();
+  });
+
   it('loads the selected month and renders month totals plus expense day cells', () => {
     cloudHooks.state.data = [
       tx({ amount: 20_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T05:00:00.000Z' }),
@@ -142,11 +148,24 @@ describe('CalendarScreen', () => {
     expect(screen.getAllByText(/100[.,]000/).length).toBeGreaterThan(0);
     expect(screen.getByText(/68[.,]000/)).toBeInTheDocument();
     const selectedDay = screen.getByRole('button', { name: /Select 2026-07-07/ });
-    expect(selectedDay).toHaveTextContent(/20[.,]000/);
+    expect(selectedDay).toHaveTextContent('-20k');
+    expect(selectedDay).toHaveTextContent('+100k');
     expect(selectedDay).toHaveAttribute('aria-pressed', 'true');
     expect(selectedDay).toHaveAttribute('aria-current', 'date');
     expect(screen.getByRole('button', { name: /Select 2026-07-08/ })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByText(/100[.,]000/, { selector: 'button *' })).not.toBeInTheDocument();
+  });
+
+  it('renders compact day totals without truncating large amounts', () => {
+    cloudHooks.state.data = [
+      tx({ amount: 1_645_650, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-08T05:00:00.000Z' }),
+    ];
+
+    renderCalendar();
+
+    const day = screen.getByRole('button', { name: /Select 2026-07-08/ });
+    expect(day).toHaveTextContent('-1.65M');
+    expect(day).not.toHaveTextContent('...');
   });
 
   it('locks the calendar header and day cells into seven columns', () => {
@@ -270,7 +289,7 @@ describe('CalendarScreen', () => {
 
     renderCalendarWithProbe('/calendar?month=2026-07', snapshots);
     expect(screen.getByRole('heading', { name: '07/2026' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Select 2026-07-10/ })).toHaveTextContent(/25[.,]000/);
+    expect(screen.getByRole('button', { name: /Select 2026-07-10/ })).toHaveTextContent('-25k');
 
     snapshots.length = 0;
     await user.click(screen.getByRole('button', { name: 'Next month' }));

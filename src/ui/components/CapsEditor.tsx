@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../../types';
 import { parseVNDInput } from '../../lib/money';
-import { upsertBudget } from '../../db/budgets';
+import { getBudgetForMonth, upsertBudget } from '../../db/budgets';
 
 type Caps = Partial<Record<ExpenseCategory, number>>;
 
@@ -32,7 +32,8 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
         const v = parseVNDInput(next[c]);
         if (!Number.isNaN(v) && v > 0) finalCaps[c] = v;
       }
-      await upsertBudget(month, total, finalCaps);
+      const latestBudget = await getBudgetForMonth(month);
+      await upsertBudget(month, latestBudget?.total ?? total, finalCaps);
       onSaved?.();
     }, 500);
   }
@@ -49,22 +50,22 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
-        className="text-sm text-blue-600"
+        className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-semibold text-slate-100"
       >
         {open ? t('settings.caps.collapse') : t('settings.caps.expand')}
       </button>
       {open && (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-3 space-y-2">
           {EXPENSE_CATEGORIES.map(c => (
             <li key={c}>
-              <label className="flex justify-between items-center text-sm">
+              <label className="flex items-center justify-between gap-3 text-sm text-slate-400">
                 <span>{t(`category.${c}`)}</span>
                 <input
                   inputMode="numeric"
                   aria-label={t(`category.${c}`)}
                   value={caps[c]}
                   onChange={e => handleChange(c, e.target.value)}
-                  className="w-32 p-1 border rounded text-right"
+                  className="w-32 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-right text-white"
                 />
               </label>
             </li>

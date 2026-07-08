@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CATEGORIES, type Category } from '../../types';
+import { CATEGORY_META } from '../theme/categoryMeta';
+import { CategoryIconTile } from './primitives';
 
 export function CategoryChips({
   value, onSelect, categories = CATEGORIES,
@@ -10,15 +12,22 @@ export function CategoryChips({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap gap-2 p-2">
-      {categories.map(c => (
-        <button key={c}
-          type="button"
-          aria-pressed={value === c}
-          onClick={() => onSelect(c)}
-          className={`px-3 py-2 rounded-full border text-sm ${value === c ? 'bg-blue-600 text-white' : 'bg-white'}`}
-        >{t(`category.${c}`)}</button>
-      ))}
+    <div className="grid grid-cols-3 gap-2 px-4 py-3">
+      {categories.map(c => {
+        const meta = CATEGORY_META[c];
+        return (
+          <CategoryIconTile
+            key={c}
+            value={c}
+            label={t(`category.${c}`)}
+            selected={value === c}
+            onSelect={onSelect}
+            Icon={meta.Icon}
+            accentClass={meta.accentClass}
+            surfaceClass={meta.surfaceClass}
+          />
+        );
+      })}
     </div>
   );
 }

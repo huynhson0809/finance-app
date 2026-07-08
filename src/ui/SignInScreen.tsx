@@ -25,25 +25,25 @@ export function SignInScreen({ setupError, authError = null, onSignIn }: SignInS
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <section className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-gray-900">{t('auth.title')}</h1>
-        <p className="mt-2 text-sm leading-6 text-gray-600">{t('auth.subtitle')}</p>
+    <main className="flex min-h-screen items-center justify-center bg-[#0e1117] px-4 text-slate-100">
+      <section className="w-full max-w-sm rounded-[28px] border border-white/10 bg-white/[0.07] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+        <h1 className="text-2xl font-semibold text-white">{t('auth.title')}</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{t('auth.subtitle')}</p>
 
         {setupError && (
-          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div role="alert" className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
             {t('auth.setupError')}
           </div>
         )}
 
         {authError && (
-          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div role="alert" className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
             {authError}
           </div>
         )}
 
         {error && (
-          <div role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div role="alert" className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
             {error}
           </div>
         )}
@@ -52,7 +52,7 @@ export function SignInScreen({ setupError, authError = null, onSignIn }: SignInS
           type="button"
           onClick={handleSignIn}
           disabled={setupError || submitting}
-          className="mt-6 w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="mt-6 min-h-12 w-full rounded-2xl bg-sky-400 px-4 py-3 text-sm font-bold text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.24)] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
         >
           {t('auth.signInWithGoogle')}
         </button>

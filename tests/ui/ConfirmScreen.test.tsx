@@ -49,6 +49,19 @@ function mountWithImage(text: string) {
 }
 
 describe('ConfirmScreen', () => {
+  it('renders OCR confirmation as an edit form after extraction', async () => {
+    mountWithImage([
+      'Vietcombank',
+      'So tien: -250.000 VND',
+      'Noi dung: Thanh toan Highlands Coffee Hanoi',
+    ].join('\n'));
+
+    await waitFor(() => expect(screen.getByText(/250.*000/)).toBeInTheDocument());
+
+    expect(screen.getByRole('heading', { name: /confirm|xác nhận/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/merchant|cửa hàng/i)).toBeInTheDocument();
+  });
+
   it('pre-fills amount and merchant from a Vietcombank-shaped OCR text', async () => {
     mountWithImage([
       'Vietcombank',

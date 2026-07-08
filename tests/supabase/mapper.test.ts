@@ -128,4 +128,37 @@ describe('mapTransactionRow', () => {
       source: 'manual',
     });
   });
+
+  it('keeps cloud metadata for MB card email rows', () => {
+    const tx = mapTransactionRow(row({
+      bank: 'MB',
+      type: 'card',
+      raw_source: 'email',
+    }));
+
+    expect(tx).toMatchObject({
+      bank: 'MB',
+      transactionType: 'card',
+      rawSource: 'email',
+      bankHint: 'mb',
+      source: 'bank-email',
+    });
+  });
+
+  it('keeps cloud metadata for manual rows', () => {
+    const tx = mapTransactionRow(row({
+      bank: null,
+      type: 'manual',
+      raw_source: 'manual',
+      merchant: 'Coffee',
+      category: 'coffee-bubble-tea',
+    }));
+
+    expect(tx).toMatchObject({
+      bank: undefined,
+      transactionType: 'manual',
+      rawSource: 'manual',
+      source: 'manual',
+    });
+  });
 });

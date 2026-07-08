@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { __resetDBForTests } from '../../src/db';
 import { upsertBudget, getBudgetForMonth } from '../../src/db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
-import { initI18n } from '../../src/i18n';
+import { i18n, initI18n, setLocale } from '../../src/i18n';
 import { SettingsScreen } from '../../src/ui/SettingsScreen';
 
 const authMocks = vi.hoisted(() => ({
@@ -33,6 +33,47 @@ beforeEach(async () => {
 });
 
 describe('SettingsScreen caps editor', () => {
+  it('renders settings in grouped dark sections', async () => {
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    expect(await screen.findByRole('heading', { name: /settings|cài đặt/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /language|ngôn ngữ/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /monthly budget|ngân sách/i })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /account|tài khoản/i })).toBeInTheDocument();
+  });
+
+  it('switches the active language from the locale radios', async () => {
+    await setLocale('vi');
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    const vietnamese = screen.getByRole('radio', { name: /tiếng việt/i });
+    const english = screen.getByRole('radio', { name: /english/i });
+    expect(vietnamese).toBeChecked();
+    expect(english).not.toBeChecked();
+
+    await user.click(english);
+
+    await waitFor(() => {
+      expect(i18n.language).toBe('en');
+      expect(english).toBeChecked();
+      expect(vietnamese).not.toBeChecked();
+    });
+  });
+
+  it('saves the monthly budget total', async () => {
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/monthly budget|ngân sách hàng tháng/i, { selector: 'input' }), '6000000');
+    await user.click(screen.getByRole('button', { name: /save|lưu/i }));
+
+    await waitFor(async () => {
+      const budget = await getBudgetForMonth(currentVietnamMonth());
+      expect(budget?.total).toBe(6000000);
+    });
+  });
+
   it('saves a per-category cap after debounce', async () => {
     await upsertBudget(currentVietnamMonth(), 5000000);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
@@ -67,6 +108,29 @@ describe('SettingsScreen caps editor', () => {
     expect(await screen.findByLabelText(/coffee|cà phê/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/salary|lương/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/bonus|thưởng/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps a newly saved monthly total when a cap autosave finishes later', async () => {
+    await upsertBudget(currentVietnamMonth(), 5000000);
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    const budgetInput = await screen.findByLabelText(/monthly budget|ngân sách hàng tháng/i, { selector: 'input' });
+    await waitFor(() => {
+      expect(budgetInput).toHaveValue('5000000');
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
+    fireEvent.change(await screen.findByLabelText(/coffee|cà phê/i), {
+      target: { value: '500000' },
+    });
+    fireEvent.change(budgetInput, { target: { value: '6000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /save|lưu/i }));
+
+    await waitFor(async () => {
+      const budget = await getBudgetForMonth(currentVietnamMonth());
+      expect(budget?.total).toBe(6000000);
+      expect(budget?.caps?.['coffee-bubble-tea']).toBe(500000);
+    }, { timeout: 1500 });
   });
 });
 

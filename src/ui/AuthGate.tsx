@@ -13,7 +13,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4 text-sm text-gray-500">
+      <main className="flex min-h-screen items-center justify-center bg-[#0e1117] px-4 text-sm text-slate-400">
         {t('auth.loading')}
       </main>
     );

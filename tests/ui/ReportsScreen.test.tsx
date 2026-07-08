@@ -11,8 +11,20 @@ const reportHooks = vi.hoisted(() => ({
   state: null as UseReportsResult | null,
 }));
 
+const chartMocks = vi.hoisted(() => ({
+  monthBarData: [] as Array<Array<{ date: string; total: number }>>,
+}));
+
 vi.mock('../../src/hooks/useReports', () => ({
   useReports: vi.fn(() => reportHooks.state),
+}));
+
+vi.mock('../../src/ui/components/Charts/MonthBar', () => ({
+  MonthBar: ({ data }: { data: Array<{ date: string; total: number }> }) => {
+    chartMocks.monthBarData.push(data);
+
+    return <div data-testid="month-bar" />;
+  },
 }));
 
 import { ReportsScreen } from '../../src/ui/ReportsScreen';
@@ -22,6 +34,7 @@ beforeAll(async () => { await initI18n(); });
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   reportHooks.reload.mockReset();
+  chartMocks.monthBarData = [];
   reportHooks.state = makeReportState();
 });
 
@@ -116,6 +129,16 @@ describe('ReportsScreen', () => {
     expect(screen.getByText(/125[.,]000/)).toBeInTheDocument();
     expect(screen.getByText(/500[.,]000/)).toBeInTheDocument();
     expect(screen.getByText(/375[.,]000/)).toBeInTheDocument();
+  });
+
+  it('renders report totals in the dark metric section', () => {
+    reportHooks.state = makeReportState({
+      directionTotals: { expense: 125_000, income: 500_000, net: 375_000 },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByRole('region', { name: /report totals/i })).toBeInTheDocument();
   });
 
   it('renders expense category rows with percentages by default', () => {
@@ -268,6 +291,49 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Bonus')).toBeInTheDocument();
     expect(screen.getByText('20%')).toBeInTheDocument();
     expect(screen.queryByText('Food & Drinks')).not.toBeInTheDocument();
+  });
+
+  it('uses income daily totals in the overview chart when income is selected', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'food',
+          amount: 30_000,
+          category: 'food-drinks',
+          occurredAt: '2099-06-04T14:48:00.000Z',
+        }),
+        tx({
+          id: 'salary',
+          amount: 80_000,
+          direction: 'income',
+          category: 'salary',
+          occurredAt: '2099-06-05T14:48:00.000Z',
+        }),
+        tx({
+          id: 'bonus',
+          amount: 20_000,
+          direction: 'income',
+          category: 'bonus',
+          occurredAt: '2099-06-06T14:48:00.000Z',
+        }),
+      ],
+      daily: [{ date: '2099-06-04', total: 30_000 }],
+      directionTotals: {
+        expense: 30_000,
+        income: 100_000,
+        net: 70_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    await user.click(screen.getByRole('button', { name: /income/i }));
+
+    const latestOverviewSeries = chartMocks.monthBarData.at(-1) ?? [];
+    expect(latestOverviewSeries.find(day => day.date === '2099-06-04')?.total).toBe(0);
+    expect(latestOverviewSeries.find(day => day.date === '2099-06-05')?.total).toBe(80_000);
+    expect(latestOverviewSeries.find(day => day.date === '2099-06-06')?.total).toBe(20_000);
   });
 
   it('keeps stale report content hidden during loading', async () => {

@@ -29,12 +29,57 @@ function mount() {
   );
 }
 
+function mountTile() {
+  return render(
+    <MemoryRouter initialEntries={['/']}>
+      <Routes>
+        <Route path="/" element={<AddImageButton variant="tile" />} />
+        <Route path="/confirm" element={<ConfirmStub />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe('AddImageButton', () => {
+  it('renders the floating trigger as a keyboard-accessible button', () => {
+    render(
+      <MemoryRouter>
+        <AddImageButton />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('button', { name: /image|hình ảnh|ảnh/i })).toHaveClass('rounded-full');
+  });
+
+  it('can render as a dark action tile', () => {
+    render(
+      <MemoryRouter>
+        <AddImageButton variant="tile" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toHaveClass('rounded-2xl');
+  });
+
   it('puts blob in imageHolder and navigates to /confirm with imageId in router state', async () => {
     const user = userEvent.setup();
     mount();
-    const input = screen.getByLabelText(/image|ảnh/i) as HTMLInputElement;
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement;
     const file = new File([new Uint8Array([1, 2, 3])], 'pic.jpg', { type: 'image/jpeg' });
+    await user.upload(input, file);
+    const idEl = await waitFor(() => screen.getByTestId('confirm-imageid'));
+    const imageId = idEl.textContent ?? '';
+    expect(imageId.length).toBeGreaterThan(0);
+    const stashed = imageHolder.get(imageId);
+    expect(stashed).toBeInstanceOf(Blob);
+    expect(imageHolder._size()).toBe(1);
+  });
+
+  it('uploads from the tile variant and navigates to /confirm with imageId in router state', async () => {
+    const user = userEvent.setup();
+    mountTile();
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement;
+    const file = new File([new Uint8Array([4, 5, 6])], 'receipt.png', { type: 'image/png' });
     await user.upload(input, file);
     const idEl = await waitFor(() => screen.getByTestId('confirm-imageid'));
     const imageId = idEl.textContent ?? '';
@@ -47,14 +92,9 @@ describe('AddImageButton', () => {
   it('resets the input value after change so re-selecting the same file fires change again', async () => {
     const user = userEvent.setup();
     mount();
-    const input = screen.getByLabelText(/image|ảnh/i) as HTMLInputElement;
+    const input = screen.getByTestId('image-file-input') as HTMLInputElement;
     const file = new File([new Uint8Array([1, 2, 3])], 'pic.jpg', { type: 'image/jpeg' });
     await user.upload(input, file);
-    // After the first upload, navigation has occurred — the AddImageButton instance is gone
-    // from the rendered tree, so we cannot test reselection on the same component instance.
-    // Instead, assert that the input ref was cleared synchronously by checking that the
-    // change handler emptied input.files on the original DOM node before navigation.
-    // (Re-upload behavior on the underlying DOM input is browser-managed via empty value.)
-    expect(imageHolder._size()).toBe(1);
+    expect(input.value).toBe('');
   });
 });

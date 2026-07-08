@@ -13,6 +13,7 @@ import { formatVND } from '../lib/money';
 import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
 import { EXPENSE_CATEGORIES, type Category, type ExpenseCategory } from '../types';
+import { DarkField, GlassPanel } from './components/primitives';
 import type { BankHint, Extracted } from '../extractors';
 
 export function ConfirmScreen() {
@@ -137,21 +138,25 @@ export function ConfirmScreen() {
   const loading = status === 'loading-engine' || status === 'recognizing';
 
   return (
-    <div className="flex flex-col">
-      <h1 className="p-4 text-xl">{t('confirm.title')}</h1>
+    <div className="space-y-4 px-4 py-5">
+      <header className="text-center">
+        <h1 className="text-2xl font-bold text-white">{t('confirm.title')}</h1>
+      </header>
 
       {objectURL && (
-        <img src={objectURL} alt="" className="mx-4 max-h-48 object-contain rounded border" />
+        <GlassPanel className="p-3">
+          <img src={objectURL} alt="" className="max-h-52 w-full rounded-2xl object-contain" />
+        </GlassPanel>
       )}
 
       {loading && (
-        <div className="px-4 py-2 text-sm text-gray-500" role="status">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-3 text-sm text-slate-300" role="status">
           {t('confirm.reading')} {progress}%
         </div>
       )}
 
       {error && (
-        <div className="px-4 py-2 text-sm text-red-600" role="alert">
+        <div className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100" role="alert">
           <div>{t('confirm.failed')}</div>
           <button
             type="button"
@@ -162,39 +167,45 @@ export function ConfirmScreen() {
               setText(null);
               if (blob) recognize(blob).then(r => setText(r.text)).catch(() => setText(''));
             }}
-            className="mt-1 underline disabled:opacity-50"
+            className="mt-2 font-semibold underline disabled:opacity-50"
           >
             {t('confirm.tryAgain')}
           </button>
         </div>
       )}
 
-      <div className="px-4 text-4xl text-center">{formatVND(amount, locale)}</div>
+      <GlassPanel
+        aria-label={t('add.amount')}
+        className="flex min-h-24 items-center justify-center p-4"
+      >
+        <div className="text-center text-5xl font-bold text-white">{formatVND(amount, locale)}</div>
+      </GlassPanel>
 
-      <label className="px-4 mt-2 block text-sm text-gray-600">
-        {t('add.merchant')}
+      <DarkField label={t('add.merchant')}>
         <input
           value={merchant}
           onChange={e => setMerchant(e.target.value)}
-          className="mt-1 w-full p-2 border rounded"
           aria-label={t('add.merchant')}
         />
-      </label>
+      </DarkField>
 
-      <label className="px-4 mt-2 block text-sm text-gray-600">
-        {t('confirm.date')}
+      <DarkField label={t('confirm.date')}>
         <input
           type="datetime-local"
           value={occurredAt}
           onChange={e => setOccurredAt(e.target.value)}
-          className="mt-1 w-full p-2 border rounded"
         />
-      </label>
+      </DarkField>
 
-      <Keypad onChange={handleKey} />
-      <CategoryChips value={chosen} onSelect={handleChip} categories={EXPENSE_CATEGORIES} />
+      <div className="-mx-4">
+        <Keypad onChange={handleKey} />
+      </div>
+      <div className="-mx-4">
+        <CategoryChips value={chosen} onSelect={handleChip} categories={EXPENSE_CATEGORIES} />
+      </div>
+
       {saveError && (
-        <div role="alert" className="mx-4 mt-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert" className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
           <div>{t('add.saveFailed')}</div>
           <div>{saveError}</div>
         </div>
@@ -204,8 +215,10 @@ export function ConfirmScreen() {
         type="button"
         onClick={handleSave}
         disabled={!canSave}
-        className="mx-4 my-4 py-3 bg-blue-600 text-white rounded disabled:bg-gray-300"
-      >{saving ? t('add.saving') : t('add.save')}</button>
+        className="min-h-14 w-full rounded-2xl bg-sky-400 px-4 text-base font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
+      >
+        {saving ? t('add.saving') : t('add.save')}
+      </button>
     </div>
   );
 }
