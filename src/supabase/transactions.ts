@@ -31,12 +31,19 @@ export interface QueryBuilder extends PromiseLike<QueryResult> {
   order(column: string, opts: { ascending: boolean }): QueryBuilder;
   gte(column: string, value: string): QueryBuilder;
   lt(column: string, value: string): QueryBuilder;
+  eq(column: string, value: string): QueryBuilder;
+  single(): PromiseLike<MutationResult>;
 }
 
 export interface QuerySelectBuilder {
   select(columns: string): QueryBuilder;
   insert(row: CloudTransactionInsert): InsertSelectBuilder;
   update(row: CloudTransactionUpdate): UpdateFilterBuilder;
+  delete(): DeleteFilterBuilder;
+}
+
+export interface DeleteFilterBuilder {
+  eq(column: string, value: string): PromiseLike<{ error: QueryError | null }>;
 }
 
 export interface InsertSelectBuilder {
@@ -99,6 +106,15 @@ export interface CloudTransactionUpdate {
   category: Category;
 }
 
+export interface CloudTransactionFullUpdate {
+  amount: number;
+  occurredAt: string;
+  content: string;
+  merchant: string | null;
+  note: string | null;
+  category: Category;
+}
+
 function mapResult({ data, error }: QueryResult): Transaction[] {
   if (error) {
     throw new Error(error.message);
@@ -155,6 +171,69 @@ export async function addCloudTransaction(
   }
 
   return mapTransactionRow(result.data);
+}
+
+export async function getCloudTransaction(
+  client: QueryClient,
+  id: string,
+): Promise<Transaction> {
+  const result = await client
+    .from('transactions')
+    .select(TRANSACTION_COLUMNS)
+    .eq('id', id)
+    .single();
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  if (!result.data) {
+    throw new Error('No transaction returned');
+  }
+
+  return mapTransactionRow(result.data);
+}
+
+export async function updateCloudTransaction(
+  client: QueryClient,
+  id: string,
+  input: CloudTransactionFullUpdate,
+): Promise<Transaction> {
+  const result = await client
+    .from('transactions')
+    .update({
+      amount: input.amount,
+      transaction_time: input.occurredAt,
+      content: input.content,
+      merchant: input.merchant,
+      note: input.note,
+      category: input.category,
+    })
+    .eq('id', id)
+    .select(TRANSACTION_COLUMNS)
+    .single();
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  if (!result.data) {
+    throw new Error('No updated transaction returned');
+  }
+
+  return mapTransactionRow(result.data);
+}
+
+export async function deleteCloudTransaction(
+  client: QueryClient,
+  id: string,
+): Promise<void> {
+  const result = await client
+    .from('transactions')
+    .delete()
+    .eq('id', id);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
 }
 
 export async function updateCloudTransactionCategory(

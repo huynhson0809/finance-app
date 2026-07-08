@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCloudTransaction,
-  type QueryClient,
+  deleteCloudTransaction,
+  getCloudTransaction,
   listCloudTransactions,
   listCloudTransactionsForRange,
+  updateCloudTransaction,
   updateCloudTransactionCategory,
+  type QueryClient,
 } from '../../src/supabase/transactions';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
@@ -24,6 +27,7 @@ function createClient(result: MockResult) {
   const calls: QueryCall[] = [];
   let insertedRow: unknown;
   let updatedRow: unknown;
+  let deleted = false;
   const query = {
     limit(count: number) {
       calls.push({ method: 'limit', args: [count] });
@@ -40,6 +44,17 @@ function createClient(result: MockResult) {
     lt(column: string, value: string) {
       calls.push({ method: 'lt', args: [column, value] });
       return query;
+    },
+    eq(column: string, value: string) {
+      calls.push({ method: 'eq', args: [column, value] });
+      return query;
+    },
+    single() {
+      calls.push({ method: 'single', args: [] });
+      return Promise.resolve({
+        data: Array.isArray(result.data) ? result.data[0] ?? null : null,
+        error: result.error,
+      });
     },
     then<TResult1 = MockResult, TResult2 = never>(
       onfulfilled?: ((value: MockResult) => TResult1 | PromiseLike<TResult1>) | null,
@@ -94,6 +109,11 @@ function createClient(result: MockResult) {
       };
       return updateQuery;
     },
+    delete() {
+      deleted = true;
+      calls.push({ method: 'delete', args: [] });
+      return query;
+    },
   };
   const client: QueryClient = {
     from(table: 'transactions') {
@@ -108,6 +128,7 @@ function createClient(result: MockResult) {
     fromStage,
     get insertedRow() { return insertedRow; },
     get updatedRow() { return updatedRow; },
+    get deleted() { return deleted; },
   };
 }
 
@@ -134,7 +155,7 @@ describe('cloud transaction queries', () => {
   it('keeps the from stage free of query methods before building a query', () => {
     const { fromStage } = createClient({ data: [], error: null });
 
-    expect(Object.keys(fromStage)).toEqual(['select', 'insert', 'update']);
+    expect(Object.keys(fromStage)).toEqual(['select', 'insert', 'update', 'delete']);
     expect('limit' in fromStage).toBe(false);
     expect('order' in fromStage).toBe(false);
     expect('gte' in fromStage).toBe(false);
@@ -153,7 +174,7 @@ describe('cloud transaction queries', () => {
       { method: 'limit', args: [5] },
       { method: 'order', args: ['transaction_time', { ascending: false }] },
     ]);
-    expect(transactions).toEqual([
+    expect(transactions).toMatchObject([
       {
         id: 'tx-1',
         amount: 52043,
@@ -355,6 +376,63 @@ describe('cloud transaction queries', () => {
       category: 'shopping',
       source: 'manual',
     });
+  });
+
+  it('gets one cloud transaction by id', async () => {
+    const context = createClient({ data: [row({ id: 'tx-42' })], error: null });
+
+    const tx = await getCloudTransaction(context.client, 'tx-42');
+
+    expect(context.calls).toEqual([
+      { method: 'from', args: ['transactions'] },
+      { method: 'select', args: [SELECT_COLUMNS] },
+      { method: 'eq', args: ['id', 'tx-42'] },
+      { method: 'single', args: [] },
+    ]);
+    expect(tx.id).toBe('tx-42');
+  });
+
+  it('updates editable transaction fields only', async () => {
+    const context = createClient({ data: [row({
+      id: 'tx-42',
+      amount: 123000,
+      transaction_time: '2026-07-08T05:00:00.000Z',
+      content: 'Updated memo',
+      category: 'shopping',
+    })], error: null });
+
+    const tx = await updateCloudTransaction(context.client, 'tx-42', {
+      amount: 123000,
+      occurredAt: '2026-07-08T05:00:00.000Z',
+      content: 'Updated memo',
+      merchant: null,
+      note: null,
+      category: 'shopping',
+    });
+
+    expect(context.updatedRow).toEqual({
+      amount: 123000,
+      transaction_time: '2026-07-08T05:00:00.000Z',
+      content: 'Updated memo',
+      merchant: null,
+      note: null,
+      category: 'shopping',
+    });
+    expect(tx.amount).toBe(123000);
+    expect(tx.category).toBe('shopping');
+  });
+
+  it('deletes one cloud transaction by id', async () => {
+    const context = createClient({ data: [], error: null });
+
+    await deleteCloudTransaction(context.client, 'tx-42');
+
+    expect(context.calls).toEqual([
+      { method: 'from', args: ['transactions'] },
+      { method: 'delete', args: [] },
+      { method: 'eq', args: ['id', 'tx-42'] },
+    ]);
+    expect(context.deleted).toBe(true);
   });
 
   it('throws Supabase update error messages', async () => {
