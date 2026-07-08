@@ -6,6 +6,7 @@ import { AddScreen } from './ui/AddScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 import { ConfirmScreen } from './ui/ConfirmScreen';
 import { AuthGate } from './ui/AuthGate';
+import { TransactionEditScreen } from './ui/TransactionEditScreen';
 
 const CalendarScreen = lazy(() =>
   import('./ui/CalendarScreen').then(m => ({ default: m.CalendarScreen })),
@@ -27,6 +28,7 @@ export default function App() {
           <Route index element={<HomeScreen />} />
           <Route path="add" element={<AddScreen />} />
           <Route path="confirm" element={<ConfirmScreen />} />
+          <Route path="transactions/:id" element={<TransactionEditScreen />} />
           <Route
             path="calendar"
             element={
