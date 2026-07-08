@@ -95,6 +95,7 @@ export interface Budget {
   id: string;
   month: string;          // 'YYYY-MM'
   total: number;          // integer VND
+  savingsTarget?: number; // integer VND
   caps: Partial<Record<ExpenseCategory, number>>;
 }
 
