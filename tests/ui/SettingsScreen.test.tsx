@@ -61,6 +61,16 @@ describe('SettingsScreen caps editor', () => {
     });
   });
 
+  it('shows email automation support details in settings', async () => {
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    const section = await screen.findByRole('region', { name: /email automation|tự động email/i });
+    expect(section).toHaveTextContent(/iphone/i);
+    expect(section).toHaveTextContent(/MB/);
+    expect(section).toHaveTextContent(/ACB/);
+    expect(section).toHaveTextContent(/admin|quản trị/i);
+  });
+
   it('saves the monthly budget total', async () => {
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
     const user = userEvent.setup();

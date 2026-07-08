@@ -70,6 +70,13 @@
   "settings": {
     "title": "Settings",
     "language": "Language",
+    "emailAutomation": {
+      "title": "Email automation",
+      "description": "Bank-email transaction setup is manual and requires admin support.",
+      "device": "Currently supports iPhone through iOS Shortcuts.",
+      "banks": "Supported banks: MB and ACB.",
+      "contact": "Contact admin for setup support."
+    },
     "monthlyBudget": "Monthly budget",
     "save": "Save",
     "account": "Account",

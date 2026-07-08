@@ -70,6 +70,13 @@
   "settings": {
     "title": "Cài đặt",
     "language": "Ngôn ngữ",
+    "emailAutomation": {
+      "title": "Tự động email",
+      "description": "Thiết lập nhận giao dịch qua email cần cấu hình thủ công với admin.",
+      "device": "Hiện tại chỉ hỗ trợ iPhone thông qua iOS Shortcuts.",
+      "banks": "Ngân hàng đang hỗ trợ: MB và ACB.",
+      "contact": "Liên hệ admin để được hỗ trợ cấu hình."
+    },
     "monthlyBudget": "Ngân sách hàng tháng",
     "save": "Lưu",
     "account": "Tài khoản",

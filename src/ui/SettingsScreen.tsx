@@ -69,6 +69,16 @@ export function SettingsScreen() {
         </div>
       </GlassPanel>
 
+      <GlassPanel aria-label={t('settings.emailAutomation.title')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.emailAutomation.title')}</h2>
+        <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-300">
+          <p>{t('settings.emailAutomation.description')}</p>
+          <p>{t('settings.emailAutomation.device')}</p>
+          <p>{t('settings.emailAutomation.banks')}</p>
+          <p className="font-semibold text-sky-300">{t('settings.emailAutomation.contact')}</p>
+        </div>
+      </GlassPanel>
+
       <GlassPanel aria-label={t('settings.monthlyBudget')} className="p-4">
         <h2 className="font-semibold text-white">{t('settings.monthlyBudget')}</h2>
         <div className="mt-3">
