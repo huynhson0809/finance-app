@@ -38,7 +38,7 @@ export interface QueryBuilder extends PromiseLike<QueryResult> {
 export interface QuerySelectBuilder {
   select(columns: string): QueryBuilder;
   insert(row: CloudTransactionInsert): InsertSelectBuilder;
-  update(row: CloudTransactionUpdate): UpdateFilterBuilder;
+  update(row: CloudTransactionUpdateRow): UpdateFilterBuilder;
   delete(): DeleteFilterBuilder;
 }
 
@@ -66,9 +66,13 @@ export interface QueryClient {
   from(table: 'transactions'): QuerySelectBuilder;
 }
 
+interface QueryClientInput {
+  from(table: 'transactions'): unknown;
+}
+
 type Assert<T extends true> = T;
 export type SupabaseClientQueryCompatibility = Assert<
-  AppSupabaseClient extends QueryClient ? true : false
+  AppSupabaseClient['from'] extends QueryClientInput['from'] ? true : false
 >;
 
 interface UserTransactionInputBase {
@@ -106,6 +110,17 @@ export interface CloudTransactionUpdate {
   category: Category;
 }
 
+interface CloudTransactionFullUpdateRow {
+  amount: number;
+  transaction_time: string;
+  content: string;
+  merchant: string | null;
+  note: string | null;
+  category: Category;
+}
+
+type CloudTransactionUpdateRow = CloudTransactionUpdate | CloudTransactionFullUpdateRow;
+
 export interface CloudTransactionFullUpdate {
   amount: number;
   occurredAt: string;
@@ -123,12 +138,15 @@ function mapResult({ data, error }: QueryResult): Transaction[] {
   return (data ?? []).map(mapTransactionRow);
 }
 
+function transactionsTable(client: QueryClientInput): QuerySelectBuilder {
+  return client.from('transactions') as QuerySelectBuilder;
+}
+
 export async function listCloudTransactions(
-  client: QueryClient,
+  client: QueryClientInput,
   opts: { limit?: number } = {},
 ): Promise<Transaction[]> {
-  let query = client
-    .from('transactions')
+  let query = transactionsTable(client)
     .select(TRANSACTION_COLUMNS);
 
   if (opts.limit !== undefined) {
@@ -140,11 +158,10 @@ export async function listCloudTransactions(
 }
 
 export async function listCloudTransactionsForRange(
-  client: QueryClient,
+  client: QueryClientInput,
   opts: { sinceISO: string; untilISO: string },
 ): Promise<Transaction[]> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .select(TRANSACTION_COLUMNS)
     .gte('transaction_time', opts.sinceISO)
     .lt('transaction_time', opts.untilISO)
@@ -154,11 +171,10 @@ export async function listCloudTransactionsForRange(
 }
 
 export async function addCloudTransaction(
-  client: QueryClient,
+  client: QueryClientInput,
   input: UserTransactionInput,
 ): Promise<Transaction> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .insert(toInsertRow(input))
     .select(TRANSACTION_COLUMNS)
     .single();
@@ -174,11 +190,10 @@ export async function addCloudTransaction(
 }
 
 export async function getCloudTransaction(
-  client: QueryClient,
+  client: QueryClientInput,
   id: string,
 ): Promise<Transaction> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .select(TRANSACTION_COLUMNS)
     .eq('id', id)
     .single();
@@ -194,12 +209,11 @@ export async function getCloudTransaction(
 }
 
 export async function updateCloudTransaction(
-  client: QueryClient,
+  client: QueryClientInput,
   id: string,
   input: CloudTransactionFullUpdate,
 ): Promise<Transaction> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .update({
       amount: input.amount,
       transaction_time: input.occurredAt,
@@ -223,11 +237,10 @@ export async function updateCloudTransaction(
 }
 
 export async function deleteCloudTransaction(
-  client: QueryClient,
+  client: QueryClientInput,
   id: string,
 ): Promise<void> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .delete()
     .eq('id', id);
 
@@ -237,12 +250,11 @@ export async function deleteCloudTransaction(
 }
 
 export async function updateCloudTransactionCategory(
-  client: QueryClient,
+  client: QueryClientInput,
   id: string,
   category: Category,
 ): Promise<Transaction> {
-  const result = await client
-    .from('transactions')
+  const result = await transactionsTable(client)
     .update({ category })
     .eq('id', id)
     .select(TRANSACTION_COLUMNS)
