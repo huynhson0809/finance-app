@@ -24,7 +24,7 @@ export function TransactionRow({ t: tx, locale }: TransactionRowProps) {
     <li>
       <Link
         to={`/transactions/${tx.id}`}
-        className="grid min-h-[4.25rem] grid-cols-[2.75rem_1fr_auto_1.25rem] items-center gap-2 border-b border-white/10 bg-black px-3 py-2 text-slate-50"
+        className="grid min-h-[4.25rem] grid-cols-[2.75rem_minmax(0,1fr)_minmax(5.5rem,7.5rem)_1.25rem] items-center gap-2 border-b border-white/10 bg-black px-3 py-2 text-slate-50"
         aria-label={`${title} ${subtitle} ${signedAmount}`}
       >
         <span className="grid h-9 w-9 place-items-center rounded-lg">
@@ -34,7 +34,7 @@ export function TransactionRow({ t: tx, locale }: TransactionRowProps) {
           <span className="block truncate text-base font-bold">{title}</span>
           <span className="block truncate text-xs text-zinc-400">{subtitle}</span>
         </span>
-        <span className={tx.direction === 'income' ? 'text-base font-bold text-emerald-400' : 'text-base font-bold text-zinc-50'}>
+        <span className={`shrink-0 truncate whitespace-nowrap text-right text-base font-bold ${tx.direction === 'income' ? 'text-emerald-400' : 'text-zinc-50'}`}>
           {signedAmount}
         </span>
         <ChevronRight aria-hidden="true" className="h-5 w-5 text-zinc-500" />
