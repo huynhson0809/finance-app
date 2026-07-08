@@ -41,24 +41,24 @@ function renderAt(path: string) {
 }
 
 describe('AddScreen manual entry', () => {
-  it('renders the fast-entry amount panel and add methods', () => {
+  it('renders the compact manual-entry screen without the email setup tile', () => {
     render(<MemoryRouter><AddScreen /></MemoryRouter>);
 
     expect(screen.getByRole('heading', { name: /add transaction|thêm giao dịch/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/amount|số tiền/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' })).toBeInTheDocument();
     expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /direction|loại giao dịch/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /manage categories|quản lý danh mục/i })).toBeInTheDocument();
+    expect(screen.queryByText(/link email/i)).not.toBeInTheDocument();
   });
 
   it('saves a transaction with the entered amount and selected category', async () => {
     const user = userEvent.setup();
     renderAt('/add');
-    // Three taps: digit 4, digit 5, then three zeros via the "000" key, pick chip, save
     await user.clear(screen.getByLabelText(/date|ngày/i));
     await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
-    await user.click(screen.getByRole('button', { name: '4' }));
-    await user.click(screen.getByRole('button', { name: '5' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.clear(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }));
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '45000');
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
     await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
     expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
@@ -75,8 +75,7 @@ describe('AddScreen manual entry', () => {
     renderAt('/add');
 
     await user.clear(screen.getByLabelText(/date|ngày/i));
-    await user.click(screen.getByRole('button', { name: '4' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '4000');
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
 
     const saveButton = screen.getByRole('button', { name: /add expense|thêm tiền chi/i });
@@ -92,8 +91,7 @@ describe('AddScreen manual entry', () => {
     await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
     await user.clear(screen.getByLabelText(/date|ngày/i));
     await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
-    await user.click(screen.getByRole('button', { name: '5' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '5000');
     await user.click(screen.getByRole('button', { name: /salary|lương/i }));
     await user.click(screen.getByRole('button', { name: /add income|thêm tiền thu/i }));
 
@@ -126,9 +124,7 @@ it('shows a visible error when saving a manual transaction fails', async () => {
 
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
 
-  await user.click(screen.getByRole('button', { name: '4' }));
-  await user.click(screen.getByRole('button', { name: '5' }));
-  await user.click(screen.getByRole('button', { name: '000' }));
+  await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '45000');
   await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
   await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
 
@@ -149,11 +145,9 @@ it('auto-highlights category chip when merchant matches seed', async () => {
 it('learns when user overrides the suggested chip on save', async () => {
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
   // enter amount
-  fireEvent.click(screen.getByText('1'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
+  fireEvent.change(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), {
+    target: { value: '10000' },
+  });
   // merchant -> triggers suggestion 'coffee-bubble-tea'
   fireEvent.change(screen.getByLabelText(/merchant|cửa hàng/i), {
     target: { value: 'Highlands Coffee' },
