@@ -114,6 +114,41 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.category).toBe('others');
   });
 
+  it('accepts ACB credit alerts as income when direction is supplied', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '+6,666.00',
+      datetime: '080726-13:14:07',
+      content: 'HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07',
+      direction: 'income',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value).toMatchObject({
+      amount: 6666,
+      transaction_time: '2026-07-08T06:14:07.000Z',
+      direction: 'income',
+      category: 'temporary-income',
+    });
+  });
+
+  it('infers income for ACB balance alerts with a positive signed amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '+6,666.00',
+      datetime: '080726-13:14:07',
+      content: 'HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.direction).toBe('income');
+    expect(result.value.category).toBe('temporary-income');
+  });
+
   it('accepts ACB thousands-dot amount', () => {
     const result = normalizeIngestPayload({
       bank: 'ACB',
@@ -334,6 +369,19 @@ describe('normalizeIngestPayload', () => {
     });
 
     expect(result).toEqual({ ok: false, error: 'invalid_raw_source' });
+  });
+
+  it('rejects invalid direction', () => {
+    const result = normalizeIngestPayload({
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: '+6,666.00',
+      datetime: '080726-13:14:07',
+      content: 'HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07',
+      direction: 'credit',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'invalid_direction' });
   });
 });
 

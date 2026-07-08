@@ -2,6 +2,7 @@ import { classifyEmailContent, type Category } from './category.ts';
 
 export type Bank = 'MB' | 'ACB';
 export type TransactionKind = 'transfer' | 'card' | 'balance_alert';
+export type TransactionDirection = 'expense' | 'income';
 
 export interface NormalizedIngestPayload {
   bank: Bank;
@@ -10,7 +11,7 @@ export interface NormalizedIngestPayload {
   transaction_time: string;
   content: string;
   category: Category;
-  direction: 'expense';
+  direction: TransactionDirection;
   raw_source: 'email';
 }
 
@@ -21,7 +22,8 @@ export type NormalizeError =
   | 'invalid_amount'
   | 'invalid_datetime'
   | 'invalid_content'
-  | 'invalid_raw_source';
+  | 'invalid_raw_source'
+  | 'invalid_direction';
 
 export type NormalizeResult =
   | { ok: true; value: NormalizedIngestPayload }
@@ -31,6 +33,7 @@ type InputRecord = Record<string, unknown>;
 
 const BANKS = new Set<Bank>(['MB', 'ACB']);
 const TRANSACTION_KINDS = new Set<TransactionKind>(['transfer', 'card', 'balance_alert']);
+const TRANSACTION_DIRECTIONS = new Set<TransactionDirection>(['expense', 'income']);
 const POSTGRES_INT4_MAX = 2147483647;
 const POSTGRES_INT4_MAX_TEXT = String(POSTGRES_INT4_MAX);
 const VIETNAM_UTC_OFFSET_HOURS = 7;
@@ -71,6 +74,8 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
   if (input.raw_source !== undefined && input.raw_source !== null && input.raw_source !== 'email') {
     return { ok: false, error: 'invalid_raw_source' };
   }
+  const direction = normalizeDirection(input);
+  if (!direction) return { ok: false, error: 'invalid_direction' };
 
   return {
     ok: true,
@@ -80,8 +85,8 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
       amount,
       transaction_time: transactionTime,
       content,
-      category: classifyEmailContent(content),
-      direction: 'expense',
+      category: categoryForDirection(content, direction),
+      direction,
       raw_source: 'email',
     },
   };
@@ -105,6 +110,28 @@ export async function buildExternalHash(payload: NormalizedIngestPayload): Promi
 
 function isInputRecord(input: unknown): input is InputRecord {
   return typeof input === 'object' && input !== null && !Array.isArray(input);
+}
+
+function normalizeDirection(input: InputRecord): TransactionDirection | null {
+  if (input.direction !== undefined && input.direction !== null) {
+    return TRANSACTION_DIRECTIONS.has(input.direction as TransactionDirection)
+      ? input.direction as TransactionDirection
+      : null;
+  }
+
+  if (input.bank === 'ACB' && input.type === 'balance_alert' && isPositiveSignedAmount(input.amount)) {
+    return 'income';
+  }
+
+  return 'expense';
+}
+
+function isPositiveSignedAmount(input: unknown): boolean {
+  return typeof input === 'string' && input.trim().startsWith('+');
+}
+
+function categoryForDirection(content: string, direction: TransactionDirection): Category {
+  return direction === 'income' ? 'temporary-income' : classifyEmailContent(content);
 }
 
 function parseDatetimeParts(input: string):

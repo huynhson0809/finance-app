@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatVND, parseVNDInput } from '../../src/lib/money';
+import { formatCompactVND, formatVND, parseVNDInput } from '../../src/lib/money';
 
 describe('formatVND', () => {
   it('formats vi locale with dot thousands and trailing đ', () => {
@@ -10,6 +10,14 @@ describe('formatVND', () => {
   });
   it('handles zero', () => {
     expect(formatVND(0, 'vi')).toBe("0 ₫");
+  });
+});
+
+describe('formatCompactVND', () => {
+  it('formats calendar-sized amounts without currency clutter', () => {
+    expect(formatCompactVND(297000, 'vi')).toBe('297k');
+    expect(formatCompactVND(1645650, 'vi')).toBe('1,65tr');
+    expect(formatCompactVND(1645650, 'en')).toBe('1.65M');
   });
 });
 

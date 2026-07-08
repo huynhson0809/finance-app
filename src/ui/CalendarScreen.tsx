@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useMonthCloudTransactions } from '../hooks/useCloudTransactions';
 import { monthOfVietnamDate, nextMonth, prevMonth, todayVietnamDate } from '../lib/date';
-import { formatVND } from '../lib/money';
+import { formatCompactVND, formatVND } from '../lib/money';
 import {
   calendarDaySummaries,
   categoryTotalsForDate,
@@ -67,7 +67,7 @@ function CalendarGrid({
       >
         {cells.map(cell => {
           if (cell.kind === 'blank') {
-            return <div key={cell.id} className="h-16 rounded-xl bg-white/[0.03]" />;
+            return <div key={cell.id} className="h-[4.65rem] rounded-xl bg-white/[0.03]" />;
           }
 
           const { day } = cell;
@@ -80,7 +80,7 @@ function CalendarGrid({
               aria-current={isToday ? 'date' : undefined}
               aria-pressed={isSelected}
               className={[
-                'h-16 min-w-0 rounded-xl border p-1.5 text-left text-xs transition',
+                'flex h-[4.65rem] min-w-0 flex-col rounded-xl border px-1.5 py-1.5 text-left text-xs transition',
                 isSelected
                   ? 'border-sky-300/70 bg-sky-400/15 ring-1 ring-inset ring-sky-300/60'
                   : 'border-white/10 bg-white/[0.055]',
@@ -92,11 +92,18 @@ function CalendarGrid({
               <span className={isToday ? 'text-sky-200' : 'text-slate-200'}>
                 {Number(day.date.slice(8, 10))}
               </span>
-              {day.expenseTotal > 0 && (
-                <span className="mt-1 block max-w-full truncate text-[10px] font-semibold leading-tight text-rose-300">
-                  {formatVND(day.expenseTotal, locale)}
-                </span>
-              )}
+              <span className="mt-auto flex min-w-0 flex-col gap-0.5">
+                {day.incomeTotal > 0 && (
+                  <span className="block whitespace-nowrap text-[10px] font-semibold leading-none text-emerald-300">
+                    +{formatCompactVND(day.incomeTotal, locale)}
+                  </span>
+                )}
+                {day.expenseTotal > 0 && (
+                  <span className="block whitespace-nowrap text-[10px] font-semibold leading-none text-rose-300">
+                    -{formatCompactVND(day.expenseTotal, locale)}
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}
