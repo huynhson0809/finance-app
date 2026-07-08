@@ -78,6 +78,8 @@
       "contact": "Contact admin for setup support."
     },
     "monthlyBudget": "Monthly budget",
+    "savingsTarget": "Savings target",
+    "spendableBudget": "Spendable budget",
     "save": "Save",
     "account": "Account",
     "signOut": "Sign out",

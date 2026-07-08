@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../lib/date';
-import { parseVNDInput } from '../lib/money';
+import { formatVND, parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -14,14 +14,25 @@ export function SettingsScreen() {
   const { signOut } = useAuth();
   const month = monthOfVietnamDate(todayVietnamDate());
   const [raw, setRaw] = useState('');
+  const [savingsRaw, setSavingsRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);
+  const [savingsTarget, setSavingsTarget] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const locale = i18n.language === 'en' ? 'en' : 'vi';
+  const spendableBudget = Math.max(0, total - savingsTarget);
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
-      if (b) { setRaw(String(b.total)); setTotal(b.total); setCaps(b.caps ?? {}); }
+      if (b) {
+        const loadedSavingsTarget = b.savingsTarget ?? 0;
+        setRaw(String(b.total));
+        setSavingsRaw(loadedSavingsTarget > 0 ? String(loadedSavingsTarget) : '');
+        setTotal(b.total);
+        setSavingsTarget(loadedSavingsTarget);
+        setCaps(b.caps ?? {});
+      }
     });
   }, [month]);
 
@@ -29,9 +40,12 @@ export function SettingsScreen() {
 
   async function handleSaveBudget() {
     const parsed = parseVNDInput(raw);
+    const parsedSavings = savingsRaw.trim() === '' ? 0 : parseVNDInput(savingsRaw);
     if (Number.isNaN(parsed) || parsed <= 0) return;
-    await upsertBudget(month, parsed, caps);
+    if (savingsRaw.includes('-') || Number.isNaN(parsedSavings) || parsedSavings < 0) return;
+    await upsertBudget(month, parsed, caps, parsedSavings);
     setTotal(parsed);
+    setSavingsTarget(parsedSavings);
   }
 
   async function handleSignOut() {
@@ -90,6 +104,15 @@ export function SettingsScreen() {
             />
           </DarkField>
         </div>
+        <div className="mt-3">
+          <DarkField label={t('settings.savingsTarget')}>
+            <input
+              inputMode="numeric"
+              value={savingsRaw}
+              onChange={e => setSavingsRaw(e.target.value)}
+            />
+          </DarkField>
+        </div>
         <button
           type="button"
           onClick={handleSaveBudget}
@@ -97,6 +120,16 @@ export function SettingsScreen() {
         >
           {t('settings.save')}
         </button>
+        {total > 0 && (
+          <div
+            role="status"
+            aria-label={t('settings.spendableBudget')}
+            className="mt-3 rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3"
+          >
+            <p className="text-sm text-slate-400">{t('settings.spendableBudget')}</p>
+            <p className="mt-1 text-lg font-bold text-white">{formatVND(spendableBudget, locale)}</p>
+          </div>
+        )}
 
         {total > 0 && (
           <div className="mt-4">
