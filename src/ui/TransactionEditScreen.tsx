@@ -29,7 +29,7 @@ function isIncomeCategory(category: Category): category is IncomeCategory {
   return categoryBelongsToDirection(category, 'income');
 }
 
-export function toLocalDatetimeInput(iso: string): string {
+function toLocalDatetimeInput(iso: string): string {
   const date = new Date(iso);
   const parts = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -43,7 +43,7 @@ export function toLocalDatetimeInput(iso: string): string {
   return parts.replace(' ', 'T');
 }
 
-export function vietnamDatetimeInputToISO(value: string): string {
+function vietnamDatetimeInputToISO(value: string): string {
   return new Date(`${value}:00+07:00`).toISOString();
 }
 
@@ -177,20 +177,34 @@ export function TransactionEditScreen() {
     if (!transaction || !id || !category || !canSubmit) return;
     setSaving(true);
     setActionError(null);
-    const content = text.trim();
+    const trimmedText = text.trim();
+    const content = trimmedText || category;
     try {
       const client = supabase;
       if (!client) {
         throw new Error(t('auth.setupError'));
       }
-      await updateCloudTransaction(client, id, {
-        amount: parsedAmount,
-        occurredAt: vietnamDatetimeInputToISO(date),
-        content,
-        merchant: transaction.direction === 'expense' ? content || null : null,
-        note: transaction.direction === 'income' ? content || null : null,
-        category,
-      });
+      if (transaction.direction === 'expense') {
+        if (!isExpenseCategory(category)) return;
+        await updateCloudTransaction(client, id, {
+          amount: parsedAmount,
+          occurredAt: vietnamDatetimeInputToISO(date),
+          content,
+          merchant: trimmedText || null,
+          note: null,
+          category,
+        });
+      } else {
+        if (!isIncomeCategory(category)) return;
+        await updateCloudTransaction(client, id, {
+          amount: parsedAmount,
+          occurredAt: vietnamDatetimeInputToISO(date),
+          content,
+          merchant: null,
+          note: trimmedText || null,
+          category,
+        });
+      }
       navigate('/');
     } catch (err) {
       setActionError(`${t('transactionEdit.saveFailed')}: ${errorMessage(err)}`);
@@ -346,34 +360,36 @@ export function TransactionEditScreen() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
-        <button
-          type="button"
-          onClick={handleCopy}
-          disabled={!canSubmit}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-3 text-sm font-bold text-slate-100 disabled:text-slate-500"
-        >
-          <Copy aria-hidden="true" className="h-4 w-4" />
-          {t('transactionEdit.copy')}
-        </button>
+      <div className="space-y-3">
         <button
           type="button"
           onClick={handleSave}
           disabled={!canSubmit}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-sky-400 px-3 text-sm font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
+          className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-sky-400 px-4 text-base font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
         >
-          <Save aria-hidden="true" className="h-4 w-4" />
+          <Save aria-hidden="true" className="h-5 w-5" />
           {t('transactionEdit.save')}
         </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={saving}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-3 text-sm font-bold text-rose-100 disabled:text-rose-300/50"
-        >
-          <Trash2 aria-hidden="true" className="h-4 w-4" />
-          {t('transactionEdit.delete')}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={handleCopy}
+            disabled={!canSubmit}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-3 text-sm font-bold text-slate-100 disabled:text-slate-500"
+          >
+            <Copy aria-hidden="true" className="h-4 w-4" />
+            {t('transactionEdit.copy')}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-3 text-sm font-bold text-rose-100 disabled:text-rose-300/50"
+          >
+            <Trash2 aria-hidden="true" className="h-4 w-4" />
+            {t('transactionEdit.delete')}
+          </button>
+        </div>
       </div>
     </div>
   );

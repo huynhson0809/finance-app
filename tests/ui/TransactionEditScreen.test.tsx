@@ -32,6 +32,7 @@ beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
   await i18n.changeLanguage('vi');
+  vi.restoreAllMocks();
   transactionMocks.supabase = {};
   transactionMocks.getCloudTransaction.mockReset();
   transactionMocks.updateCloudTransaction.mockReset();
@@ -118,6 +119,32 @@ describe('TransactionEditScreen', () => {
     expect(await screen.findByText('Home')).toBeInTheDocument();
   });
 
+  it('saves blank text with category fallback content', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({ merchant: undefined }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    await user.clear(screen.getByLabelText(/ghi chú/i));
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateCloudTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        'tx-1',
+        expect.objectContaining({
+          content: 'transportation',
+          merchant: null,
+          note: null,
+          category: 'transportation',
+        }),
+      );
+    });
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
   it('confirms before deleting a transaction', async () => {
     const user = userEvent.setup();
     transactionMocks.getCloudTransaction.mockResolvedValue(tx());
@@ -135,6 +162,22 @@ describe('TransactionEditScreen', () => {
       expect(transactionMocks.deleteCloudTransaction).toHaveBeenCalledWith(expect.anything(), 'tx-1');
     });
     expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('does not delete when confirmation is cancelled', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
+
+    renderEdit();
+
+    expect(await screen.findByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /xóa/i }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledWith('Xóa giao dịch này?');
+    expect(transactionMocks.deleteCloudTransaction).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
   });
 
   it('copies the visible transaction as a manual transaction', async () => {
