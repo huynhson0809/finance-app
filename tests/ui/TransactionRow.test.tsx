@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { initI18n } from '../../src/i18n';
 import { TransactionRow } from '../../src/ui/components/TransactionRow';
 import type { Transaction } from '../../src/types';
@@ -22,92 +22,44 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
   };
 }
 
+function renderRow(transaction: Transaction, locale: 'vi' | 'en' = 'vi') {
+  return render(
+    <MemoryRouter>
+      <TransactionRow t={transaction} locale={locale} />
+    </MemoryRouter>,
+  );
+}
+
 describe('TransactionRow', () => {
-  it('shows the transaction date so recent rows are not confused with today spend', async () => {
-    render(<TransactionRow t={tx()} locale="vi" />);
+  it('shows category and date information', () => {
+    renderRow(tx());
 
     expect(screen.getByText('Khác')).toBeInTheDocument();
     expect(screen.getByText(/04\/07\/2026/)).toBeInTheDocument();
   });
 
-  it('lets the user choose a new category', async () => {
-    const user = userEvent.setup();
-    const onCategoryChange = vi.fn();
+  it('links to the transaction detail screen', () => {
+    renderRow(tx({ id: 'tx-42', merchant: 'Corner Store' }), 'en');
 
-    render(
-      <TransactionRow
-        t={tx({ id: 'tx-42', category: 'others' })}
-        locale="vi"
-        onCategoryChange={onCategoryChange}
-      />,
-    );
-
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Danh mục giao dịch' }), 'shopping');
-
-    expect(onCategoryChange).toHaveBeenCalledWith('tx-42', 'shopping');
-  });
-
-  it('uses a custom accessible category label when provided', () => {
-    render(
-      <TransactionRow
-        t={tx({ id: 'tx-42', category: 'others' })}
-        locale="vi"
-        onCategoryChange={vi.fn()}
-        categoryLabel="Danh mục giao dịch tx-42 ₫297.000"
-      />,
-    );
-
-    expect(screen.getByRole('combobox', { name: 'Danh mục giao dịch tx-42 ₫297.000' })).toHaveValue('others');
-  });
-
-  it('disables category editing while the row is saving', () => {
-    render(
-      <TransactionRow
-        t={tx({ category: 'others' })}
-        locale="vi"
-        onCategoryChange={vi.fn()}
-        categorySaving
-      />,
-    );
-
-    expect(screen.getByRole('combobox', { name: 'Danh mục giao dịch' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /Corner Store/ })).toHaveAttribute('href', '/transactions/tx-42');
   });
 
   it('shows income amounts with a plus sign', () => {
-    render(
-      <TransactionRow
-        t={tx({ amount: 1_250_000, direction: 'income', category: 'salary' })}
-        locale="en"
-      />,
-    );
+    renderRow(tx({ amount: 1_250_000, direction: 'income', category: 'salary' }), 'en');
 
     expect(screen.getByText(/\+\D*1[.,]250[.,]000/)).toBeInTheDocument();
   });
 
-  it('shows expense amounts with a minus sign', () => {
-    render(
-      <TransactionRow
-        t={tx({ amount: 297_000, direction: 'expense', category: 'others' })}
-        locale="en"
-      />,
-    );
+  it('shows expense amounts without an inline category combobox', () => {
+    renderRow(tx({ amount: 297_000, direction: 'expense', category: 'others' }), 'en');
 
-    expect(screen.getByText(/-\D*297[.,]000/)).toBeInTheDocument();
+    expect(screen.getByText(/\D*297[.,]000/)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /transaction category|danh mục giao dịch/i })).not.toBeInTheDocument();
   });
 
-  it('only offers categories for the transaction direction when editing', () => {
-    render(
-      <TransactionRow
-        t={tx({ direction: 'income', category: 'salary' })}
-        locale="en"
-        onCategoryChange={vi.fn()}
-      />,
-    );
+  it('uses a useful accessible link name with title, date, and amount', () => {
+    renderRow(tx({ merchant: 'Grab* BXTTDKA62JSE', amount: 38_560, category: 'transportation' }), 'en');
 
-    const options = screen.getAllByRole('option').map(option => option.getAttribute('value'));
-    expect(options).toContain('salary');
-    expect(options).toContain('bonus');
-    expect(options).not.toContain('food-drinks');
-    expect(options).not.toContain('shopping');
+    expect(screen.getByRole('link', { name: /Grab.*07\/04\/2026.*38/i })).toBeInTheDocument();
   });
 });
