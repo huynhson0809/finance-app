@@ -27,8 +27,25 @@ describe('Layout', () => {
     );
 
     expect(screen.getByTestId('app-shell')).toHaveClass('min-h-screen');
-    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+9rem)]');
+    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
     expect(screen.getByRole('link', { name: /add|thêm/i })).toHaveAttribute('href', '/add');
+  });
+
+  it('keeps the bottom navigation comfortably above the iOS home indicator', () => {
+    render(
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<div>Home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('navigation', { name: /primary/i }))
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+0.875rem)]');
+    expect(screen.getByTestId('app-main'))
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
   });
 
   it('orders bottom navigation like a mobile finance app', () => {
