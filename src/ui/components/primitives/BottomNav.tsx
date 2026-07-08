@@ -15,7 +15,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className={`fixed inset-x-0 bottom-0 z-30 mx-auto ${APP_SHELL_MAX_WIDTH_CLASS} rounded-t-[2rem] border border-white/10 bg-slate-900/[0.88] px-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] shadow-[0_-16px_38px_rgba(0,0,0,0.34)] backdrop-blur-xl`}
+      className={`fixed inset-x-0 bottom-0 z-30 mx-auto ${APP_SHELL_MAX_WIDTH_CLASS} border-t border-white/10 bg-black px-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]`}
     >
       <div className="grid min-h-[5.25rem] grid-cols-[1fr_1fr_4.8rem_1fr_1fr] items-end">
         <NavLink to="/" end className={linkClass}>
@@ -33,7 +33,7 @@ export function BottomNav() {
             isActive ? active : inactive,
           ].join(' ')}
         >
-          <span className="absolute -top-8 flex h-[4.35rem] w-[4.35rem] items-center justify-center rounded-full bg-gradient-to-br from-emerald-300 to-sky-400 text-slate-950 shadow-[0_0_28px_rgba(56,189,248,0.58)]">
+          <span className="absolute -top-7 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-700 text-white shadow-[0_0_18px_rgba(10,132,255,0.22)]">
             <Plus aria-hidden="true" className="h-9 w-9" />
           </span>
           <span className="mt-10 truncate">{t('nav.add')}</span>

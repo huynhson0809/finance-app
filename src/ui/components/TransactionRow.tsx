@@ -1,53 +1,45 @@
+import { ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { formatVND } from '../../lib/money';
-import { categoriesForDirection, type Category, type Transaction } from '../../types';
-import { CATEGORY_META, categoryToneClass } from '../theme/categoryMeta';
-import { MoneyRow } from './primitives';
+import type { Transaction } from '../../types';
+import { CATEGORY_META } from '../theme/categoryMeta';
 
 interface TransactionRowProps {
   t: Transaction;
   locale: 'vi' | 'en';
-  onCategoryChange?: (id: string, category: Category) => void;
-  categorySaving?: boolean;
-  categoryLabel?: string;
 }
 
-export function TransactionRow({ t: tx, locale, onCategoryChange, categorySaving, categoryLabel }: TransactionRowProps) {
+export function TransactionRow({ t: tx, locale }: TransactionRowProps) {
   const { t } = useTranslation();
-  const categoryOptions = categoriesForDirection(tx.direction);
   const meta = CATEGORY_META[tx.category];
   const Icon = meta.Icon;
   const signedAmount = tx.direction === 'income'
     ? `+${formatVND(tx.amount, locale)}`
-    : `-${formatVND(tx.amount, locale)}`;
+    : formatVND(tx.amount, locale);
   const title = tx.merchant?.trim() || tx.note?.trim() || t(`category.${tx.category}`);
   const subtitle = `${t(`category.${tx.category}`)} · ${formatTransactionDate(tx.occurredAt, locale)}`;
 
   return (
-    <MoneyRow
-      as="li"
-      icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-      title={title}
-      subtitle={subtitle}
-      amount={signedAmount}
-      tone={tx.direction}
-    >
-      {onCategoryChange && (
-        <select
-          aria-label={categoryLabel ?? t('transactions.categoryLabel')}
-          className={`mt-2 max-w-full rounded-xl border border-white/10 bg-slate-950/70 px-2 py-1 text-xs ${categoryToneClass(tx.category)}`}
-          disabled={categorySaving}
-          value={tx.category}
-          onChange={event => onCategoryChange(tx.id, event.target.value as Category)}
-        >
-          {categoryOptions.map(category => (
-            <option key={category} value={category}>
-              {t(`category.${category}`)}
-            </option>
-          ))}
-        </select>
-      )}
-    </MoneyRow>
+    <li>
+      <Link
+        to={`/transactions/${tx.id}`}
+        className="grid min-h-[4.25rem] grid-cols-[2.75rem_1fr_auto_1.25rem] items-center gap-2 border-b border-white/10 bg-black px-3 py-2 text-slate-50"
+        aria-label={`${title} ${subtitle} ${signedAmount}`}
+      >
+        <span className="grid h-9 w-9 place-items-center rounded-lg">
+          <Icon aria-hidden="true" className={`h-7 w-7 ${meta.accentClass}`} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-base font-bold">{title}</span>
+          <span className="block truncate text-xs text-zinc-400">{subtitle}</span>
+        </span>
+        <span className={tx.direction === 'income' ? 'text-base font-bold text-emerald-400' : 'text-base font-bold text-zinc-50'}>
+          {signedAmount}
+        </span>
+        <ChevronRight aria-hidden="true" className="h-5 w-5 text-zinc-500" />
+      </Link>
+    </li>
   );
 }
 

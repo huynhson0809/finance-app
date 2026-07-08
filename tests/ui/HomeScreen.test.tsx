@@ -23,11 +23,6 @@ const cloudHooks = vi.hoisted(() => ({
   },
 }));
 
-const categoryMutationMocks = vi.hoisted(() => ({
-  supabase: {},
-  updateCloudTransactionCategory: vi.fn(),
-}));
-
 vi.mock('../../src/hooks/useCloudTransactions', () => ({
   useRecentCloudTransactions: vi.fn(() => ({
     ...cloudHooks.recentState,
@@ -37,16 +32,6 @@ vi.mock('../../src/hooks/useCloudTransactions', () => ({
     ...cloudHooks.monthState,
     reload: cloudHooks.monthReload,
   })),
-}));
-
-vi.mock('../../src/supabase/client', () => ({
-  get supabase() {
-    return categoryMutationMocks.supabase;
-  },
-}));
-
-vi.mock('../../src/supabase/transactions', () => ({
-  updateCloudTransactionCategory: categoryMutationMocks.updateCloudTransactionCategory,
 }));
 
 import { HomeScreen } from '../../src/ui/HomeScreen';
@@ -59,9 +44,6 @@ beforeEach(async () => {
   cloudHooks.recentReload.mockResolvedValue(undefined);
   cloudHooks.monthReload.mockReset();
   cloudHooks.monthReload.mockResolvedValue(undefined);
-  categoryMutationMocks.supabase = {};
-  categoryMutationMocks.updateCloudTransactionCategory.mockReset();
-  categoryMutationMocks.updateCloudTransactionCategory.mockResolvedValue(undefined);
   cloudHooks.recentState.data = [];
   cloudHooks.recentState.loading = false;
   cloudHooks.recentState.error = null;
@@ -149,8 +131,8 @@ describe('HomeScreen', () => {
 
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('food-drinks');
-    expect(within(rows[2]).getByRole('combobox', { name: /Transaction category/ })).toHaveValue('shopping');
+    expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-1');
+    expect(within(rows[2]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-3');
   });
 
   it('shows today expense and today income separately', () => {
@@ -173,124 +155,17 @@ describe('HomeScreen', () => {
     expectPanelMetric(monthlyOverview, "Today's income", /100[.,]000/);
   });
 
-  it('updates a recent transaction category and refreshes cloud data', async () => {
-    const user = userEvent.setup();
-    let resolveUpdate!: (value: Transaction) => void;
-    categoryMutationMocks.updateCloudTransactionCategory.mockReturnValue(
-      new Promise<Transaction>(resolve => {
-        resolveUpdate = resolve;
-      }),
-    );
+  it('renders recent transaction rows as links to detail screens', () => {
     cloudHooks.recentState.data = [
-      tx({ id: 'email-1', category: 'others' }),
-    ];
-    cloudHooks.monthState.data = [
-      tx({ id: 'month-1', category: 'others' }),
+      tx({ id: 'email-1', merchant: 'Grab* BXTTDKA62JSE', amount: 38_560, category: 'transportation' }),
+      tx({ id: 'income-1', amount: 6_666, direction: 'income', category: 'temporary-income', note: 'ACB Ghi có' }),
     ];
 
     render(<MemoryRouter><HomeScreen /></MemoryRouter>);
 
-    const categorySelect = screen.getByRole('combobox', { name: /Transaction category/ });
-    await user.selectOptions(categorySelect, 'shopping');
-
-    await waitFor(() => {
-      expect(categoryMutationMocks.updateCloudTransactionCategory).toHaveBeenCalledWith(
-        expect.anything(),
-        'email-1',
-        'shopping',
-      );
-    });
-    expect(categorySelect).toBeDisabled();
-
-    resolveUpdate(tx({ id: 'email-1', category: 'shopping' }));
-
-    await waitFor(() => {
-      expect(cloudHooks.recentReload).toHaveBeenCalledTimes(1);
-      expect(cloudHooks.monthReload).toHaveBeenCalledTimes(1);
-      expect(categorySelect).not.toBeDisabled();
-    });
-  });
-
-  it('disables every recent category control while a category update is pending', async () => {
-    const user = userEvent.setup();
-    categoryMutationMocks.updateCloudTransactionCategory.mockReturnValue(new Promise(() => {}));
-    cloudHooks.recentState.data = [
-      tx({ id: 'email-1', amount: 10_000, category: 'others' }),
-      tx({ id: 'email-2', amount: 20_000, category: 'food-drinks' }),
-    ];
-
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
-
-    await user.selectOptions(
-      screen.getAllByRole('combobox', { name: /Transaction category/ })[0],
-      'shopping',
-    );
-
-    await waitFor(() => {
-      expect(categoryMutationMocks.updateCloudTransactionCategory).toHaveBeenCalledTimes(1);
-    });
-
-    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
-    expect(categorySelects).toHaveLength(2);
-    expect(categorySelects[0]).toBeDisabled();
-    expect(categorySelects[1]).toBeDisabled();
-  });
-
-  it('gives recent category controls distinct accessible names', () => {
-    cloudHooks.recentState.data = [
-      tx({ id: 'email-1', amount: 10_000, category: 'others' }),
-      tx({ id: 'email-2', amount: 20_000, category: 'food-drinks' }),
-    ];
-
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
-
-    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
-    const accessibleNames = categorySelects.map(select => select.getAttribute('aria-label'));
-    expect(new Set(accessibleNames).size).toBe(categorySelects.length);
-    expect(accessibleNames).toEqual([
-      expect.stringContaining('email-1'),
-      expect.stringContaining('email-2'),
-    ]);
-  });
-
-  it('keeps recent category accessible names unique for matching merchant and amount', () => {
-    cloudHooks.recentState.data = [
-      tx({ id: 'email-1', merchant: 'Corner Store', amount: 10_000, category: 'others' }),
-      tx({ id: 'email-2', merchant: 'Corner Store', amount: 10_000, category: 'food-drinks' }),
-    ];
-
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
-
-    const categorySelects = screen.getAllByRole('combobox', { name: /Transaction category/ });
-    const accessibleNames = categorySelects.map(select => select.getAttribute('aria-label'));
-    expect(new Set(accessibleNames).size).toBe(categorySelects.length);
-    expect(accessibleNames).toEqual([
-      expect.stringContaining('email-1'),
-      expect.stringContaining('email-2'),
-    ]);
-  });
-
-  it('shows a visible error when category update fails', async () => {
-    const user = userEvent.setup();
-    categoryMutationMocks.updateCloudTransactionCategory.mockRejectedValue(
-      new Error('Supabase category update failed'),
-    );
-    cloudHooks.recentState.data = [
-      tx({ id: 'email-1', category: 'others' }),
-    ];
-
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
-
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: /Transaction category/ }),
-      'shopping',
-    );
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Could not update category');
-    expect(alert).toHaveTextContent('Supabase category update failed');
-    expect(cloudHooks.recentReload).not.toHaveBeenCalled();
-    expect(cloudHooks.monthReload).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: /Grab.*38/i })).toHaveAttribute('href', '/transactions/email-1');
+    expect(screen.getByRole('link', { name: /ACB Ghi có.*6/i })).toHaveAttribute('href', '/transactions/income-1');
+    expect(screen.queryByRole('combobox', { name: /Transaction category/ })).not.toBeInTheDocument();
   });
 
   it('shows noBudget message when no budget is set', async () => {
