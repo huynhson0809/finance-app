@@ -122,13 +122,15 @@ describe('TransactionEditScreen', () => {
     const user = userEvent.setup();
     transactionMocks.getCloudTransaction.mockResolvedValue(tx());
     transactionMocks.deleteCloudTransaction.mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
 
     renderEdit();
 
     await screen.findByRole('heading', { name: /chỉnh sửa/i });
     await user.click(screen.getByRole('button', { name: /xóa/i }));
 
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).toHaveBeenCalledWith('Xóa giao dịch này?');
     await waitFor(() => {
       expect(transactionMocks.deleteCloudTransaction).toHaveBeenCalledWith(expect.anything(), 'tx-1');
     });
