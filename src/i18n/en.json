@@ -62,6 +62,8 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "byImage": "Add by image",
+    "manageCategories": "Manage categories",
+    "manageCategoriesSoon": "Category management is coming soon.",
     "saving": "Saving...",
     "saveFailed": "Could not save transaction"
   },

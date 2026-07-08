@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { imageHolder } from '../lib/image';
 
-export function AddImageButton({ variant = 'floating' }: { variant?: 'floating' | 'tile' }) {
+export function AddImageButton({ variant = 'floating' }: { variant?: 'floating' | 'tile' | 'compact' }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,7 +19,11 @@ export function AddImageButton({ variant = 'floating' }: { variant?: 'floating' 
 
   const className = variant === 'tile'
     ? 'flex min-h-20 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-3 py-3 text-sm font-semibold text-sky-300'
-    : 'fixed right-4 bottom-36 z-20 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg';
+    : variant === 'compact'
+      ? 'inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.07] text-sky-300'
+      : 'fixed right-4 bottom-36 z-20 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg';
+
+  const iconClassName = variant === 'floating' ? 'h-6 w-6' : 'h-5 w-5';
 
   return (
     <>
@@ -37,7 +41,7 @@ export function AddImageButton({ variant = 'floating' }: { variant?: 'floating' 
         aria-label={t('add.byImage')}
         onClick={() => inputRef.current?.click()}
       >
-        <Camera aria-hidden="true" className={variant === 'tile' ? 'h-7 w-7' : 'h-6 w-6'} />
+        <Camera aria-hidden="true" className={iconClassName} />
         {variant === 'tile' && <span>{t('add.byImage')}</span>}
       </button>
     </>

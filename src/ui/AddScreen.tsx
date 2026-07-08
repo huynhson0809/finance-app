@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Mail } from 'lucide-react';
 import { AddImageButton } from './AddImageButton';
-import { Keypad } from './components/Keypad';
 import { CategoryChips } from './components/CategoryChips';
-import { DarkField, GlassPanel, SegmentedControl } from './components/primitives';
+import { DarkField, SegmentedControl } from './components/primitives';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { shouldLearn } from '../categorizer';
-import { formatVND } from '../lib/money';
+import { parseVNDInput } from '../lib/money';
 import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
 import { dateInputValueForVietnam, vietnamDateInputToNoonISO } from '../lib/date';
@@ -42,7 +40,7 @@ function isValidDateInput(value: string): boolean {
 }
 
 export function AddScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [raw, setRaw] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -67,11 +65,8 @@ export function AddScreen() {
     }
   }, [chosen, direction]);
 
-  function handleKey(k: string) {
-    if (k === '⌫') { setRaw(raw.slice(0, -1)); return; }
-    const next = raw + k;
-    if (next.length > 12) return;
-    setRaw(next);
+  function handleAmountChange(value: string) {
+    setRaw(value.replace(/[^\d]/g, '').slice(0, 12));
   }
 
   function handleChip(c: Category) {
@@ -87,10 +82,14 @@ export function AddScreen() {
     ));
   }
 
-  const amount = parseInt(raw || '0', 10);
-  const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
+  const parsedAmount = parseVNDInput(raw);
+  const amount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
   const categoryOptions = categoriesForDirection(direction);
   const canSave = Boolean(amount && chosen && isValidDateInput(date) && !saving);
+
+  function handleManageCategories() {
+    window.alert(t('add.manageCategoriesSoon'));
+  }
 
   async function handleSave() {
     if (!canSave || !chosen) return;
@@ -138,8 +137,9 @@ export function AddScreen() {
 
   return (
     <div className="space-y-4 px-4 py-5">
-      <header className="text-center">
+      <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">{t('add.title')}</h1>
+        <AddImageButton variant="compact" />
       </header>
 
       <SegmentedControl
@@ -151,24 +151,6 @@ export function AddScreen() {
           { value: 'income', label: t('add.income') },
         ]}
       />
-
-      <GlassPanel
-        aria-label={t('add.amount')}
-        className="flex min-h-28 items-center justify-center p-4"
-      >
-        <div className="text-center text-5xl font-bold text-white">{formatVND(amount, locale)}</div>
-      </GlassPanel>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="flex min-h-20 flex-col items-center justify-center rounded-2xl border border-sky-300/30 bg-sky-400/10 px-2 text-center text-sm font-semibold text-sky-300">
-          Manual
-        </div>
-        <AddImageButton variant="tile" />
-        <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-2 text-center text-sm font-semibold text-sky-300">
-          <Mail aria-hidden="true" className="h-7 w-7" />
-          <span>Link Email</span>
-        </div>
-      </div>
 
       <div className="grid gap-3">
         <DarkField label={t('add.date')}>
@@ -186,13 +168,34 @@ export function AddScreen() {
             aria-label={t('add.merchant')}
           />
         </DarkField>
+        <DarkField label={t('add.amount')}>
+          <input
+            value={raw}
+            onChange={e => handleAmountChange(e.target.value)}
+            aria-label={t('add.amount')}
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+        </DarkField>
       </div>
 
-      <div className="-mx-4">
-        <Keypad onChange={handleKey} />
-      </div>
-      <div className="-mx-4">
-        <CategoryChips value={chosen} onSelect={handleChip} categories={categoryOptions} />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-slate-200">{t('add.category')}</h2>
+          <button
+            type="button"
+            onClick={handleManageCategories}
+            className="rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-semibold text-sky-300"
+          >
+            {t('add.manageCategories')}
+          </button>
+        </div>
+        <CategoryChips
+          value={chosen}
+          onSelect={handleChip}
+          categories={categoryOptions}
+          density="compact"
+        />
       </div>
 
       {saveError && (
