@@ -4,15 +4,14 @@ import {
   INCOME_CATEGORIES,
   type BankHint,
   type Category,
+  type CloudBank,
+  type CloudRawSource,
+  type CloudTransactionType,
   type ExpenseCategory,
   type IncomeCategory,
   type Transaction,
   type TransactionDirection,
-  type TransactionSource,
 } from '../types';
-
-export type CloudBank = 'MB' | 'ACB';
-export type CloudTransactionType = 'transfer' | 'card' | 'balance_alert' | 'manual' | 'receipt' | 'bank_screenshot';
 
 export interface CloudTransactionRow {
   id: string;
@@ -23,7 +22,7 @@ export interface CloudTransactionRow {
   transaction_time: string;
   content: string;
   direction?: TransactionDirection | null;
-  raw_source: 'email' | TransactionSource;
+  raw_source: CloudRawSource;
   merchant: string | null;
   category: Category | null;
   note: string | null;
@@ -96,6 +95,9 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
         note: row.note ?? undefined,
         source: row.raw_source,
         bankHint: row.bank_hint ?? undefined,
+        bank: row.bank ?? undefined,
+        transactionType: row.type,
+        rawSource: row.raw_source,
         createdAt: row.created_at,
         updatedAt: row.created_at,
       };
@@ -112,6 +114,9 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
       note: row.note ?? undefined,
       source: row.raw_source,
       bankHint: row.bank_hint ?? undefined,
+      bank: row.bank ?? undefined,
+      transactionType: row.type,
+      rawSource: row.raw_source,
       createdAt: row.created_at,
       updatedAt: row.created_at,
     };
@@ -129,6 +134,9 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
     note: `${row.bank} ${row.type}`,
     source: 'bank-email',
     bankHint: row.bank ? bankHint(row.bank) : undefined,
+    bank: row.bank ?? undefined,
+    transactionType: row.type,
+    rawSource: row.raw_source,
     createdAt: row.created_at,
     updatedAt: row.created_at,
   };
