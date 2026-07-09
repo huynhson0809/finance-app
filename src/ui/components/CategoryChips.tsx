@@ -1,18 +1,22 @@
 import { useTranslation } from 'react-i18next';
-import { CATEGORIES, type Category } from '../../types';
-import { CATEGORY_META } from '../theme/categoryMeta';
+import { CATEGORIES, type Category, type UserCategory } from '../../types';
+import { categoryLabel, getCategoryMeta } from '../theme/categoryMeta';
 import { CategoryIconTile } from './primitives';
 
 export function CategoryChips({
   value,
   onSelect,
   categories = CATEGORIES,
+  customCategories = [],
+  labels = {},
   density = 'comfortable',
   className = '',
 }: {
   value: Category | null;
   onSelect: (c: Category) => void;
   categories?: readonly Category[];
+  customCategories?: readonly UserCategory[];
+  labels?: Partial<Record<Category, string>>;
   density?: 'comfortable' | 'compact';
   className?: string;
 }) {
@@ -24,12 +28,12 @@ export function CategoryChips({
       className,
     ].join(' ')}>
       {categories.map(c => {
-        const meta = CATEGORY_META[c];
+        const meta = getCategoryMeta(c);
         return (
           <CategoryIconTile
             key={c}
             value={c}
-            label={t(`category.${c}`)}
+            label={labels[c] ?? categoryLabel(c, customCategories, t)}
             selected={value === c}
             onSelect={onSelect}
             Icon={meta.Icon}

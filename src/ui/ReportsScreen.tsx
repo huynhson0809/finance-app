@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useReports } from '../hooks/useReports';
-import { categoryDayTotals, categorySummaries, transactionDirection } from '../reports';
+import { categoryDayTotals, categorySummaries, transactionDirection, type CategorySummary } from '../reports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar, type DailyDatum } from './components/Charts/MonthBar';
 import { BudgetAlert } from './components/BudgetAlert';
@@ -16,7 +17,7 @@ import {
 } from '../types';
 import { formatVND } from '../lib/money';
 import { GlassPanel, MetricCard, MoneyRow, SegmentedControl } from './components/primitives';
-import { CATEGORY_META } from './theme/categoryMeta';
+import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
 const CATEGORY_COLORS: Record<Category, string> = {
   'food-drinks': '#ef4444',
@@ -35,6 +36,7 @@ const CATEGORY_COLORS: Record<Category, string> = {
   investment: '#8b5cf6',
   'temporary-income': '#f472b6',
 };
+const FALLBACK_CATEGORY_COLOR = '#94a3b8';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 function safeMonth(value: string | null): string {
@@ -101,12 +103,41 @@ export function ReportsScreen() {
   const reportMode = isReportMode(rawReportMode) ? rawReportMode : null;
   const reportModeLabel = reportMode ? t(REPORT_MODE_LABELS[reportMode]) : null;
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
+  const { categories: customCategories } = useCustomCategories();
   const reportAvailable = !loading && !error;
   const selectedDirectionLabel = t(`direction.${direction}`).toLowerCase();
   const noDirectionDataLabel = t('reports.noDirectionData', { direction: selectedDirectionLabel });
 
   const categoryRows = useMemo(
-    () => categorySummaries(transactions, direction),
+    () => {
+      const rows = categorySummaries(transactions, direction);
+      const existingCategories = new Set(rows.map(row => row.category));
+      const customTotals = new Map<Category, number>();
+
+      for (const transaction of transactions) {
+        if (transactionDirection(transaction) !== direction) continue;
+        if (!categoryBelongsToDirection(transaction.category, direction)) continue;
+        if (existingCategories.has(transaction.category)) continue;
+
+        customTotals.set(
+          transaction.category,
+          (customTotals.get(transaction.category) ?? 0) + transaction.amount,
+        );
+      }
+
+      if (customTotals.size === 0) return rows;
+
+      const directionTotal = rows.reduce((total, row) => total + row.total, 0)
+        + Array.from(customTotals.values()).reduce((total, value) => total + value, 0);
+      const customRows: CategorySummary[] = Array.from(customTotals, ([category, total]) => ({
+        category,
+        direction,
+        total,
+        percentage: directionTotal > 0 ? total / directionTotal : 0,
+      }));
+
+      return [...rows, ...customRows];
+    },
     [transactions, direction],
   );
 
@@ -155,7 +186,7 @@ export function ReportsScreen() {
     if (!normalizedQuery) return newestFirst;
 
     return newestFirst.filter(transaction => {
-      const categoryLabel = t(`category.${transaction.category}`);
+      const label = categoryLabel(transaction.category, customCategories, t);
       const values = [
         transaction.merchant,
         transaction.note,
@@ -165,21 +196,21 @@ export function ReportsScreen() {
         formatVND(transaction.amount, locale),
         formatVND(signedAmount(transaction), locale),
         transaction.category,
-        categoryLabel,
+        label,
       ];
 
       return values.some(value => value?.toLowerCase().includes(normalizedQuery));
     });
-  }, [locale, t, transactionSearch, transactions]);
+  }, [customCategories, locale, t, transactionSearch, transactions]);
 
   const pieData = useMemo(
     () => categoryRows.map(row => ({
       category: row.category,
       total: row.total,
-      label: t(`category.${row.category}`),
-      color: CATEGORY_COLORS[row.category],
+      label: categoryLabel(row.category, customCategories, t),
+      color: CATEGORY_COLORS[row.category] ?? FALLBACK_CATEGORY_COLOR,
     })),
-    [categoryRows, t],
+    [categoryRows, customCategories, t],
   );
 
   const perCategoryOver = useMemo(
@@ -200,7 +231,8 @@ export function ReportsScreen() {
 
   function renderTransactionRow(transaction: Transaction) {
     const title = transactionTitle(transaction);
-    const meta = CATEGORY_META[transaction.category];
+    const label = categoryLabel(transaction.category, customCategories, t);
+    const meta = getCategoryMeta(transaction.category);
     const Icon = meta.Icon;
     const direction = transactionDirection(transaction);
     const subtitle = [
@@ -213,7 +245,7 @@ export function ReportsScreen() {
         key={transaction.id}
         as="li"
         icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-        title={title === transaction.category ? t(`category.${transaction.category}`) : title}
+        title={title === transaction.category ? label : title}
         subtitle={subtitle}
         amount={formatVND(signedAmount(transaction), locale)}
         tone={direction}
@@ -275,7 +307,7 @@ export function ReportsScreen() {
           <BudgetAlert
             overall={bStatus.overall}
             perCategoryOver={perCategoryOver}
-            categoryLabel={c => t(`category.${c}`)}
+            categoryLabel={c => categoryLabel(c, customCategories, t)}
           />
 
           <section aria-label="Report totals" className="grid grid-cols-3 gap-2 px-4">
@@ -346,7 +378,7 @@ export function ReportsScreen() {
               <GlassPanel className="p-4">
                 <h2 className="text-lg font-semibold text-white">
                   {t('reports.categoryDetailTitle', {
-                    category: t(`category.${selectedCategory}`),
+                    category: categoryLabel(selectedCategory, customCategories, t),
                     month,
                   })}
                 </h2>
@@ -391,7 +423,7 @@ export function ReportsScreen() {
                       {anomalyHints.map(h => (
                         <li key={h.category} className="text-sm text-slate-200">
                           {t('reports.anomalyLine', {
-                            category: t(`category.${h.category}`),
+                            category: categoryLabel(h.category, customCategories, t),
                             pct: Math.min(Math.round(h.deltaPct * 100), 999),
                           })}
                         </li>
@@ -411,8 +443,9 @@ export function ReportsScreen() {
                   ) : (
                     <ul className="mt-2 space-y-2">
                       {categoryRows.map(row => {
-                        const meta = CATEGORY_META[row.category];
+                        const meta = getCategoryMeta(row.category);
                         const Icon = meta.Icon;
+                        const label = categoryLabel(row.category, customCategories, t);
 
                         return (
                           <li key={row.category}>
@@ -423,7 +456,7 @@ export function ReportsScreen() {
                             >
                               <MoneyRow
                                 icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                                title={t(`category.${row.category}`)}
+                                title={label}
                                 subtitle={`${Math.round(row.percentage * 100)}%`}
                                 amount={formatVND(row.total, locale)}
                                 tone={direction}

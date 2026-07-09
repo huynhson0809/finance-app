@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useMonthCloudTransactions } from '../hooks/useCloudTransactions';
 import { monthOfVietnamDate, nextMonth, prevMonth, todayVietnamDate } from '../lib/date';
 import { formatCompactVND, formatVND } from '../lib/money';
@@ -12,7 +13,7 @@ import {
 } from '../reports';
 import type { CalendarDaySummary } from '../reports';
 import { GlassPanel, MetricCard, MoneyRow } from './components/primitives';
-import { CATEGORY_META } from './theme/categoryMeta';
+import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const SEVEN_COLUMN_GRID = { gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' };
@@ -121,6 +122,7 @@ interface CalendarMonthViewProps {
 function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
   const { t } = useTranslation();
   const { data: transactions, loading, error, reload } = useMonthCloudTransactions(month);
+  const { categories: customCategories } = useCustomCategories();
   const [manualSelection, setManualSelection] = useState<string | null>(null);
 
   const daySummaries = useMemo(
@@ -221,7 +223,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
             ) : (
               <ul aria-label={t('calendar.selectedDate')} className="space-y-2">
                 {selectedRows.map(row => {
-                  const meta = CATEGORY_META[row.category];
+                  const meta = getCategoryMeta(row.category);
                   const Icon = meta.Icon;
 
                   return (
@@ -229,7 +231,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
                       key={`${row.direction}-${row.category}`}
                       as="li"
                       icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                      title={t(`category.${row.category}`)}
+                      title={categoryLabel(row.category, customCategories, t)}
                       subtitle={t('calendar.transactionCount', { count: row.count })}
                       amount={formatVND(row.direction === 'income' ? row.total : -row.total, locale)}
                       tone={row.direction}

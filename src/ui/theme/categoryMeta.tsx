@@ -20,11 +20,13 @@ import {
   Wallet,
 } from 'lucide-react';
 import {
+  CATEGORIES,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   type Category,
   type ExpenseCategory,
   type IncomeCategory,
+  type UserCategory,
 } from '../../types';
 
 export interface CategoryMeta {
@@ -142,3 +144,51 @@ export function categoryToneClass(category: Category): string {
 export const DEFAULT_EXPENSE_ICON = Landmark;
 export const DEFAULT_INCOME_ICON = Banknote;
 export const EDUCATION_ICON = GraduationCap;
+
+const DEFAULT_EXPENSE_META: CategoryMeta = {
+  labelKey: 'category.others',
+  Icon: DEFAULT_EXPENSE_ICON,
+  accentClass: 'text-rose-300',
+  surfaceClass: 'bg-rose-400/20',
+};
+
+const DEFAULT_INCOME_META: CategoryMeta = {
+  labelKey: 'category.temporary-income',
+  Icon: DEFAULT_INCOME_ICON,
+  accentClass: 'text-emerald-300',
+  surfaceClass: 'bg-emerald-400/20',
+};
+
+function isBuiltInCategory(category: Category): category is typeof CATEGORIES[number] {
+  return (CATEGORIES as readonly Category[]).includes(category);
+}
+
+export function getCategoryMeta(category: Category): CategoryMeta {
+  if (isBuiltInCategory(category)) return CATEGORY_META[category];
+  return category.startsWith('custom-income-') ? DEFAULT_INCOME_META : DEFAULT_EXPENSE_META;
+}
+
+function humanizeCategoryId(category: Category): string {
+  const words = category
+    .replace(/^custom-(expense|income)-/, '')
+    .split('-')
+    .map(word => word.trim())
+    .filter(Boolean);
+
+  if (words.length === 0) return 'Custom category';
+
+  return words
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+export function categoryLabel(
+  category: Category,
+  customCategories: readonly UserCategory[],
+  t: (key: string) => string,
+): string {
+  const customCategory = customCategories.find(item => item.id === category);
+  if (customCategory) return customCategory.name;
+  if (isBuiltInCategory(category)) return t(`category.${category}`);
+  return humanizeCategoryId(category);
+}

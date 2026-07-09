@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { initI18n, i18n } from '../../src/i18n';
-import { CATEGORIES, type Category, type Transaction } from '../../src/types';
+import { CATEGORIES, type Category, type Transaction, type UserCategory } from '../../src/types';
 import type { UseReportsResult } from '../../src/hooks/useReports';
 
 const reportHooks = vi.hoisted(() => ({
@@ -11,13 +11,30 @@ const reportHooks = vi.hoisted(() => ({
   state: null as UseReportsResult | null,
 }));
 
+const customCategoryHooks = vi.hoisted(() => ({
+  categories: [] as UserCategory[],
+}));
+
 const chartMocks = vi.hoisted(() => ({
   monthBarData: [] as Array<Array<{ date: string; total: number }>>,
+  pieData: [] as Array<Array<{ label: string; total: number; color: string }>>,
   pieLocales: [] as Array<'vi' | 'en' | undefined>,
 }));
 
 vi.mock('../../src/hooks/useReports', () => ({
   useReports: vi.fn(() => reportHooks.state),
+}));
+
+vi.mock('../../src/hooks/useCustomCategories', () => ({
+  useCustomCategories: vi.fn(() => ({
+    categories: customCategoryHooks.categories,
+    loading: false,
+    error: null,
+    reload: vi.fn(),
+    addCategory: vi.fn(),
+    renameCategory: vi.fn(),
+    deleteCategory: vi.fn(),
+  })),
 }));
 
 vi.mock('../../src/ui/components/Charts/MonthBar', () => ({
@@ -34,10 +51,11 @@ vi.mock('../../src/ui/components/Charts/CategoryPie', () => ({
     emptyLabel,
     locale,
   }: {
-    data: Array<{ label: string; total: number }>;
+    data: Array<{ label: string; total: number; color: string }>;
     emptyLabel?: string;
     locale?: 'vi' | 'en';
   }) => {
+    chartMocks.pieData.push(data);
     chartMocks.pieLocales.push(locale);
 
     if (data.every(datum => datum.total === 0)) {
@@ -56,7 +74,9 @@ beforeEach(async () => {
   await i18n.changeLanguage('en');
   reportHooks.reload.mockReset();
   chartMocks.monthBarData = [];
+  chartMocks.pieData = [];
   chartMocks.pieLocales = [];
+  customCategoryHooks.categories = [];
   reportHooks.state = makeReportState();
 });
 
@@ -87,6 +107,17 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     updatedAt: '2099-06-04T14:48:00.000Z',
     ...overrides,
   } as Transaction;
+}
+
+function customCategory(overrides: Partial<UserCategory> = {}): UserCategory {
+  return {
+    id: 'custom-expense-pet-care',
+    direction: 'expense',
+    name: 'Pet Care',
+    createdAt: '2099-06-04T14:48:00.000Z',
+    updatedAt: '2099-06-04T14:48:00.000Z',
+    ...overrides,
+  } as UserCategory;
 }
 
 function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsResult {
@@ -241,6 +272,57 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Healthcare')).toBeInTheDocument();
     expect(screen.queryByText('Salary')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /food & drinks/i })).toBeInTheDocument();
+  });
+
+  it('renders custom expense categories with saved labels and fallback pie colors', () => {
+    customCategoryHooks.categories = [customCategory()];
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'pet-care',
+          amount: 25_000,
+          category: 'custom-expense-pet-care',
+          merchant: 'Vet',
+        }),
+      ],
+      directionTotals: {
+        expense: 25_000,
+        income: 0,
+        net: -25_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Pet Care')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pet care/i })).toBeInTheDocument();
+    expect(chartMocks.pieData.at(-1)).toContainEqual(expect.objectContaining({
+      label: 'Pet Care',
+      color: '#94a3b8',
+    }));
+  });
+
+  it('does not crash when search results include an unknown custom category', () => {
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'child-care',
+          amount: 25_000,
+          category: 'custom-expense-child-care',
+          merchant: '',
+          note: '',
+        }),
+      ],
+      directionTotals: {
+        expense: 25_000,
+        income: 0,
+        net: -25_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getAllByText('Child Care').length).toBeGreaterThan(0);
   });
 
   it('opens a category detail view with matching transactions', async () => {
