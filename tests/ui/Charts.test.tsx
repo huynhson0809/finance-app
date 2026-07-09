@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { CategoryPie } from '../../src/ui/components/Charts/CategoryPie';
 import { MonthBar } from '../../src/ui/components/Charts/MonthBar';
 import { initI18n } from '../../src/i18n';
@@ -27,6 +28,28 @@ it('renders an svg when there is data', () => {
     { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
   ]} />);
   expect(container.querySelector('svg')).toBeInTheDocument();
+});
+
+it('shows and updates the selected category callout', async () => {
+  const user = userEvent.setup();
+
+  render(<CategoryPie
+    locale="en"
+    data={[
+      { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },
+      { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
+    ]}
+  />);
+
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('Food');
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('₫1,000');
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('67%');
+
+  await user.click(screen.getByRole('button', { name: /select shop/i }));
+
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('Shop');
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('₫500');
+  expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('33%');
 });
 
 it('renders MonthBar svg with provided data', () => {
