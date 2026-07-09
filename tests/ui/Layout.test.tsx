@@ -27,7 +27,7 @@ describe('Layout', () => {
     );
 
     expect(screen.getByTestId('app-shell')).toHaveClass('min-h-screen');
-    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
+    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10.625rem)]');
     expect(screen.getByRole('link', { name: /add|thêm/i })).toHaveAttribute('href', '/add');
   });
 
@@ -43,9 +43,9 @@ describe('Layout', () => {
     );
 
     expect(screen.getByRole('navigation', { name: /primary/i }))
-      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+0.875rem)]');
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+1.5rem)]');
     expect(screen.getByTestId('app-main'))
-      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10.625rem)]');
   });
 
   it('orders bottom navigation like a mobile finance app', () => {
