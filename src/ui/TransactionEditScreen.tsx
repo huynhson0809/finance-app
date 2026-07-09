@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Copy, Save, Trash2 } from 'lucide-react';
@@ -10,16 +10,17 @@ import {
   updateCloudTransaction,
 } from '../supabase/transactions';
 import {
-  categoriesForDirection,
   categoryBelongsToDirection,
   type Category,
   type ExpenseCategory,
   type IncomeCategory,
   type Transaction,
 } from '../types';
+import { categoriesForDirectionWithCustom } from '../categories/catalog';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { errorMessage } from '../lib/error';
 import { DarkField, GlassPanel } from './components/primitives';
-import { CATEGORY_META } from './theme/categoryMeta';
+import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
 function isExpenseCategory(category: Category): category is ExpenseCategory {
   return categoryBelongsToDirection(category, 'expense');
@@ -102,6 +103,22 @@ export function TransactionEditScreen() {
   const [date, setDate] = useState('');
   const [text, setText] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
+  const { categories: customCategories } = useCustomCategories();
+
+  const categoryOptions = useMemo(() => {
+    if (!transaction) return [];
+
+    const options = categoriesForDirectionWithCustom(transaction.direction, customCategories);
+    if (
+      category &&
+      categoryBelongsToDirection(category, transaction.direction) &&
+      !options.includes(category)
+    ) {
+      return [...options, category];
+    }
+
+    return options;
+  }, [category, customCategories, transaction]);
 
   useEffect(() => {
     let ignore = false;
@@ -164,7 +181,6 @@ export function TransactionEditScreen() {
     );
   }
 
-  const categoryOptions = categoriesForDirection(transaction.direction);
   const amountLabel = t(
     transaction.direction === 'expense'
       ? 'transactionEdit.expenseAmount'
@@ -320,7 +336,7 @@ export function TransactionEditScreen() {
         <h2 className="text-sm font-semibold text-slate-200">{t('transactionEdit.category')}</h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {categoryOptions.map(option => {
-            const meta = CATEGORY_META[option];
+            const meta = getCategoryMeta(option);
             return (
               <button
                 key={option}
@@ -338,7 +354,7 @@ export function TransactionEditScreen() {
                   <meta.Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
                 </span>
                 <span className="mt-2 block text-xs font-medium leading-tight text-slate-100">
-                  {t(meta.labelKey)}
+                  {categoryLabel(option, customCategories, t)}
                 </span>
               </button>
             );

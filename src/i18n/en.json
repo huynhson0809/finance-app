@@ -65,6 +65,12 @@
     "byImage": "Add by image",
     "manageCategories": "Manage categories",
     "manageCategoriesSoon": "Category management is coming soon.",
+    "categoryManagerTitle": "Category manager",
+    "newCategoryName": "New category name",
+    "addCategory": "Add category",
+    "renameCategoryName": "Rename {{name}}",
+    "renameCategory": "Save {{name}}",
+    "deleteCategory": "Delete {{name}}",
     "saving": "Saving...",
     "saveFailed": "Could not save transaction"
   },

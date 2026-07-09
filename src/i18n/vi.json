@@ -65,6 +65,12 @@
     "byImage": "Thêm bằng ảnh",
     "manageCategories": "Quản lý danh mục",
     "manageCategoriesSoon": "Tính năng quản lý danh mục sắp ra mắt.",
+    "categoryManagerTitle": "Quản lý danh mục",
+    "newCategoryName": "Tên danh mục mới",
+    "addCategory": "Thêm danh mục",
+    "renameCategoryName": "Đổi tên {{name}}",
+    "renameCategory": "Lưu {{name}}",
+    "deleteCategory": "Xoá {{name}}",
     "saving": "Đang lưu...",
     "saveFailed": "Không thể lưu giao dịch"
   },

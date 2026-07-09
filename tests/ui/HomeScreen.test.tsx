@@ -6,7 +6,7 @@ import { initI18n, i18n } from '../../src/i18n';
 import { upsertBudget } from '../../src/db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
 import { __resetDBForTests } from '../../src/db';
-import type { Transaction } from '../../src/types';
+import type { Transaction, UserCategory } from '../../src/types';
 
 const cloudHooks = vi.hoisted(() => ({
   recentReload: vi.fn(),
@@ -23,6 +23,19 @@ const cloudHooks = vi.hoisted(() => ({
   },
 }));
 
+const customCategoryHooks = vi.hoisted(() => ({
+  useCustomCategories: vi.fn(),
+  state: {
+    categories: [] as UserCategory[],
+    loading: false,
+    error: null as string | null,
+    reload: vi.fn(),
+    addCategory: vi.fn(),
+    renameCategory: vi.fn(),
+    deleteCategory: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/hooks/useCloudTransactions', () => ({
   useRecentCloudTransactions: vi.fn(() => ({
     ...cloudHooks.recentState,
@@ -32,6 +45,10 @@ vi.mock('../../src/hooks/useCloudTransactions', () => ({
     ...cloudHooks.monthState,
     reload: cloudHooks.monthReload,
   })),
+}));
+
+vi.mock('../../src/hooks/useCustomCategories', () => ({
+  useCustomCategories: customCategoryHooks.useCustomCategories,
 }));
 
 import { HomeScreen } from '../../src/ui/HomeScreen';
@@ -50,6 +67,15 @@ beforeEach(async () => {
   cloudHooks.monthState.data = [];
   cloudHooks.monthState.loading = false;
   cloudHooks.monthState.error = null;
+  customCategoryHooks.useCustomCategories.mockReset();
+  customCategoryHooks.state.categories = [];
+  customCategoryHooks.state.loading = false;
+  customCategoryHooks.state.error = null;
+  customCategoryHooks.state.reload.mockReset();
+  customCategoryHooks.state.addCategory.mockReset();
+  customCategoryHooks.state.renameCategory.mockReset();
+  customCategoryHooks.state.deleteCategory.mockReset();
+  customCategoryHooks.useCustomCategories.mockImplementation(() => customCategoryHooks.state);
   await new Promise<void>(resolve => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
@@ -184,6 +210,24 @@ describe('HomeScreen', () => {
     expect(screen.getByRole('link', { name: /Grab.*38/i })).toHaveAttribute('href', '/transactions/email-1');
     expect(screen.getByRole('link', { name: /ACB Ghi có.*6/i })).toHaveAttribute('href', '/transactions/income-1');
     expect(screen.queryByRole('combobox', { name: /Transaction category/ })).not.toBeInTheDocument();
+  });
+
+  it('uses saved custom category names in recent transaction rows', () => {
+    customCategoryHooks.state.categories = [{
+      id: 'custom-expense-pet-care',
+      direction: 'expense',
+      name: 'Pet Care',
+      createdAt: '2026-07-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    cloudHooks.recentState.data = [
+      tx({ id: 'custom-pet-care', category: 'custom-expense-pet-care' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(customCategoryHooks.useCustomCategories).toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: /Pet Care/i })).toHaveAttribute('href', '/transactions/custom-pet-care');
   });
 
   it('shows noBudget message when no budget is set', async () => {

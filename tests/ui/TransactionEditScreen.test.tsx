@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
-import type { Transaction } from '../../src/types';
+import type { Transaction, UserCategory } from '../../src/types';
 
 const transactionMocks = vi.hoisted(() => ({
   supabase: {},
@@ -11,6 +11,10 @@ const transactionMocks = vi.hoisted(() => ({
   updateCloudTransaction: vi.fn(),
   deleteCloudTransaction: vi.fn(),
   addCloudTransaction: vi.fn(),
+}));
+
+const customCategoryMocks = vi.hoisted(() => ({
+  categories: [] as UserCategory[],
 }));
 
 vi.mock('../../src/supabase/client', () => ({
@@ -26,6 +30,18 @@ vi.mock('../../src/supabase/transactions', () => ({
   addCloudTransaction: transactionMocks.addCloudTransaction,
 }));
 
+vi.mock('../../src/hooks/useCustomCategories', () => ({
+  useCustomCategories: vi.fn(() => ({
+    categories: customCategoryMocks.categories,
+    loading: false,
+    error: null,
+    reload: vi.fn(),
+    addCategory: vi.fn(),
+    renameCategory: vi.fn(),
+    deleteCategory: vi.fn(),
+  })),
+}));
+
 import { TransactionEditScreen } from '../../src/ui/TransactionEditScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -38,6 +54,7 @@ beforeEach(async () => {
   transactionMocks.updateCloudTransaction.mockReset();
   transactionMocks.deleteCloudTransaction.mockReset();
   transactionMocks.addCloudTransaction.mockReset();
+  customCategoryMocks.categories = [];
 });
 
 function tx(overrides: Partial<Transaction> = {}): Transaction {
@@ -58,6 +75,17 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     updatedAt: '2026-07-08T04:14:45.000Z',
     ...overrides,
   } as Transaction;
+}
+
+function customCategory(overrides: Partial<UserCategory> = {}): UserCategory {
+  return {
+    id: 'custom-expense-pet-care',
+    direction: 'expense',
+    name: 'Pet Care',
+    createdAt: '2026-07-08T04:14:45.000Z',
+    updatedAt: '2026-07-08T04:14:45.000Z',
+    ...overrides,
+  } as UserCategory;
 }
 
 function renderEdit(path = '/transactions/tx-1') {
@@ -117,6 +145,71 @@ describe('TransactionEditScreen', () => {
       );
     });
     expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('saves an edited transaction with a custom category', async () => {
+    const user = userEvent.setup();
+    customCategoryMocks.categories = [customCategory()];
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({ category: 'custom-expense-pet-care' }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    await user.click(screen.getByRole('button', { name: 'Pet Care' }));
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateCloudTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        'tx-1',
+        expect.objectContaining({
+          category: 'custom-expense-pet-care',
+        }),
+      );
+    });
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('copies an edited transaction with a custom category', async () => {
+    const user = userEvent.setup();
+    customCategoryMocks.categories = [customCategory()];
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    transactionMocks.addCloudTransaction.mockResolvedValue(tx({
+      source: 'manual',
+      bank: undefined,
+      category: 'custom-expense-pet-care',
+    }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    await user.click(screen.getByRole('button', { name: 'Pet Care' }));
+    await user.click(screen.getByRole('button', { name: /copy/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.addCloudTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          direction: 'expense',
+          category: 'custom-expense-pet-care',
+          source: 'manual',
+        }),
+      );
+    });
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('renders an existing custom category that is missing from local settings', async () => {
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({
+      category: 'custom-expense-child-care',
+      merchant: 'Child care',
+    }));
+
+    renderEdit();
+
+    expect(await screen.findByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Child Care', pressed: true })).toBeInTheDocument();
   });
 
   it('saves blank text with category fallback content', async () => {
