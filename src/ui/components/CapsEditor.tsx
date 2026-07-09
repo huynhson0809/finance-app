@@ -33,7 +33,7 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
         if (!Number.isNaN(v) && v > 0) finalCaps[c] = v;
       }
       const latestBudget = await getBudgetForMonth(month);
-      await upsertBudget(month, latestBudget?.total ?? total, finalCaps);
+      await upsertBudget(month, latestBudget?.total ?? total, finalCaps, latestBudget?.savingsTarget ?? 0);
       onSaved?.();
     }, 500);
   }

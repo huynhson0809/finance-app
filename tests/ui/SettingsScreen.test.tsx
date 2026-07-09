@@ -114,6 +114,21 @@ describe('SettingsScreen caps editor', () => {
     }, { timeout: 1500 });
   });
 
+  it('preserves savings target when a cap autosaves', async () => {
+    await upsertBudget(currentVietnamMonth(), 10000000, {}, 2000000);
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
+    const coffeeInput = await screen.findByLabelText(/coffee|cà phê/i);
+    fireEvent.change(coffeeInput, { target: { value: '500000' } });
+
+    await waitFor(async () => {
+      const budget = await getBudgetForMonth(currentVietnamMonth());
+      expect(budget?.caps?.['coffee-bubble-tea']).toBe(500000);
+      expect(budget?.savingsTarget).toBe(2000000);
+    }, { timeout: 1500 });
+  });
+
   it('clears a cap when input is emptied', async () => {
     await upsertBudget(currentVietnamMonth(), 5000000, { 'coffee-bubble-tea': 500000 });
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
