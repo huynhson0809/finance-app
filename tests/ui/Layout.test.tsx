@@ -84,6 +84,21 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: /calendar|lịch/i })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('keeps settings active for settings report subpages', () => {
+    render(
+      <MemoryRouter initialEntries={['/settings/reports/year-summary']}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/settings/reports/year-summary" element={<div>Yearly settings report</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: /settings|cài đặt/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: /reports|báo cáo/i })).not.toHaveAttribute('aria-current');
+  });
+
   it('uses current i18next plural keys for calendar transaction counts', async () => {
     await i18n.changeLanguage('en');
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useMonthCloudTransactions } from '../hooks/useCloudTransactions';
 import { monthOfVietnamDate, nextMonth, prevMonth, todayVietnamDate } from '../lib/date';
@@ -123,6 +124,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
   const { t } = useTranslation();
   const { data: transactions, loading, error, reload } = useMonthCloudTransactions(month);
   const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
   const [manualSelection, setManualSelection] = useState<string | null>(null);
 
   const daySummaries = useMemo(
@@ -223,7 +225,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
             ) : (
               <ul aria-label={t('calendar.selectedDate')} className="space-y-2">
                 {selectedRows.map(row => {
-                  const meta = getCategoryMeta(row.category, customCategories);
+                  const meta = getCategoryMeta(row.category, customCategories, categoryOverrides);
                   const Icon = meta.Icon;
 
                   return (
@@ -231,7 +233,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
                       key={`${row.direction}-${row.category}`}
                       as="li"
                       icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                      title={categoryLabel(row.category, customCategories, t)}
+                      title={categoryLabel(row.category, customCategories, t, categoryOverrides)}
                       subtitle={t('calendar.transactionCount', { count: row.count })}
                       amount={formatVND(row.direction === 'income' ? row.total : -row.total, locale)}
                       tone={row.direction}

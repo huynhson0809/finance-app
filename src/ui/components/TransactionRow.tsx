@@ -2,23 +2,29 @@ import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { formatVND } from '../../lib/money';
-import type { Transaction, UserCategory } from '../../types';
+import type { CategoryOverride, Transaction, UserCategory } from '../../types';
 import { categoryLabel, getCategoryMeta } from '../theme/categoryMeta';
 
 interface TransactionRowProps {
   t: Transaction;
   locale: 'vi' | 'en';
   customCategories?: readonly UserCategory[];
+  categoryOverrides?: readonly CategoryOverride[];
 }
 
-export function TransactionRow({ t: tx, locale, customCategories = [] }: TransactionRowProps) {
+export function TransactionRow({
+  t: tx,
+  locale,
+  customCategories = [],
+  categoryOverrides = [],
+}: TransactionRowProps) {
   const { t } = useTranslation();
-  const meta = getCategoryMeta(tx.category, customCategories);
+  const meta = getCategoryMeta(tx.category, customCategories, categoryOverrides);
   const Icon = meta.Icon;
   const signedAmount = tx.direction === 'income'
     ? `+${formatVND(tx.amount, locale)}`
     : formatVND(tx.amount, locale);
-  const label = categoryLabel(tx.category, customCategories, t);
+  const label = categoryLabel(tx.category, customCategories, t, categoryOverrides);
   const title = tx.merchant?.trim() || tx.note?.trim() || label;
   const subtitle = `${label} · ${formatTransactionDate(tx.occurredAt, locale)}`;
 

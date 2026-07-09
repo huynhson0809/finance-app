@@ -50,6 +50,9 @@ describe('AddScreen manual entry', () => {
     expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /direction|loại giao dịch/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /manage categories|quản lý danh mục/i })).toHaveAttribute('href', '/categories?direction=expense');
+    expect(screen.getByTestId('add-fixed-form')).toHaveClass('shrink-0');
+    expect(screen.getByTestId('add-category-scroll')).toHaveClass('overflow-hidden');
+    expect(screen.getByTestId('add-submit-footer')).toHaveClass('shrink-0');
     expect(screen.queryByText(/link email/i)).not.toBeInTheDocument();
   });
 

@@ -24,6 +24,7 @@ import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   type CategoryIconKey,
+  type CategoryOverride,
   type Category,
   type ExpenseCategory,
   type IncomeCategory,
@@ -184,6 +185,24 @@ const DEFAULT_INCOME_META: CategoryMeta = {
   surfaceClass: 'bg-emerald-400/20',
 };
 
+const BUILT_IN_ICON_KEYS: Partial<Record<Category, CategoryIconKey>> = {
+  'food-drinks': 'utensils',
+  'coffee-bubble-tea': 'coffee',
+  transportation: 'transportation',
+  shopping: 'shopping',
+  'bills-utilities': 'bills',
+  healthcare: 'health',
+  entertainment: 'entertainment',
+  'transfers-debt': 'transfer',
+  others: 'other',
+  salary: 'wallet',
+  allowance: 'piggy',
+  bonus: 'gift',
+  'side-income': 'coins',
+  investment: 'bank',
+  'temporary-income': 'coins',
+};
+
 function isBuiltInCategory(category: Category): category is typeof CATEGORIES[number] {
   return (CATEGORIES as readonly Category[]).includes(category);
 }
@@ -196,11 +215,30 @@ export function defaultIconKeyForDirection(direction: 'expense' | 'income'): Cat
   return direction === 'income' ? 'bank' : 'other';
 }
 
+export function iconKeyForCategory(category: Category): CategoryIconKey {
+  return BUILT_IN_ICON_KEYS[category] ?? (
+    category.startsWith('custom-income-') ? 'bank' : 'other'
+  );
+}
+
 export function getCategoryMeta(
   category: Category,
   customCategories: readonly UserCategory[] = [],
+  categoryOverrides: readonly CategoryOverride[] = [],
 ): CategoryMeta {
-  if (isBuiltInCategory(category)) return CATEGORY_META[category];
+  if (isBuiltInCategory(category)) {
+    const override = categoryOverrides.find(item => item.category === category);
+    const overrideOption = customIconOption(override?.iconKey);
+    if (overrideOption) {
+      return {
+        ...CATEGORY_META[category],
+        Icon: overrideOption.Icon,
+        accentClass: overrideOption.accentClass,
+        surfaceClass: overrideOption.surfaceClass,
+      };
+    }
+    return CATEGORY_META[category];
+  }
   const customCategory = customCategories.find(item => item.id === category);
   const customOption = customIconOption(customCategory?.iconKey);
   if (customOption) {
@@ -234,9 +272,13 @@ export function categoryLabel(
   category: Category,
   customCategories: readonly UserCategory[],
   t: (key: string) => string,
+  categoryOverrides: readonly CategoryOverride[] = [],
 ): string {
   const customCategory = customCategories.find(item => item.id === category);
   if (customCategory) return customCategory.name;
-  if (isBuiltInCategory(category)) return t(`category.${category}`);
+  if (isBuiltInCategory(category)) {
+    const override = categoryOverrides.find(item => item.category === category);
+    return override?.name ?? t(`category.${category}`);
+  }
   return humanizeCategoryId(category);
 }

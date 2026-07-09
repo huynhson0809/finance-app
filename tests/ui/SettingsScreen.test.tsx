@@ -91,12 +91,12 @@ describe('SettingsScreen caps editor', () => {
 
     const section = await screen.findByRole('region', { name: /reports/i });
     const reportLinks = [
-      ['Yearly report', '/reports?mode=year-summary'],
-      ['Yearly category report', '/reports?mode=year-category'],
-      ['All-time report', '/reports?mode=all-summary'],
-      ['All-time category report', '/reports?mode=all-category'],
-      ['Balance change report', '/reports?mode=balance-change'],
-      ['Search transactions', '/reports?mode=search'],
+      ['Yearly report', '/settings/reports/year-summary'],
+      ['Yearly category report', '/settings/reports/year-category'],
+      ['All-time report', '/settings/reports/all-summary'],
+      ['All-time category report', '/settings/reports/all-category'],
+      ['Balance change report', '/settings/reports/balance-change'],
+      ['Search transactions', '/settings/reports/search'],
     ] as const;
 
     for (const [name, href] of reportLinks) {

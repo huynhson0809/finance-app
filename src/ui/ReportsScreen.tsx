@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useReports } from '../hooks/useReports';
 import { useScopedReportTransactions, type ScopedReportKind } from '../hooks/useScopedReportTransactions';
@@ -189,6 +190,7 @@ export function ReportsScreen() {
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const scopedReport = useScopedReportTransactions(reportScope, month);
   const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
   const reportLoading = reportScope ? scopedReport.loading : loading;
   const reportError = reportScope ? scopedReport.error : error;
   const reportTransactions = reportScope ? scopedReport.transactions : transactions;
@@ -299,7 +301,7 @@ export function ReportsScreen() {
     if (!normalizedQuery) return newestFirst;
 
     return newestFirst.filter(transaction => {
-      const label = categoryLabel(transaction.category, customCategories, t);
+      const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
       const values = [
         transaction.merchant,
         transaction.note,
@@ -314,16 +316,16 @@ export function ReportsScreen() {
 
       return values.some(value => value?.toLowerCase().includes(normalizedQuery));
     });
-  }, [customCategories, locale, t, transactionSearch, reportTransactions]);
+  }, [categoryOverrides, customCategories, locale, t, transactionSearch, reportTransactions]);
 
   const pieData = useMemo(
     () => categoryRows.map(row => ({
       category: row.category,
       total: row.total,
-      label: categoryLabel(row.category, customCategories, t),
+      label: categoryLabel(row.category, customCategories, t, categoryOverrides),
       color: CATEGORY_COLORS[row.category] ?? FALLBACK_CATEGORY_COLOR,
     })),
-    [categoryRows, customCategories, t],
+    [categoryOverrides, categoryRows, customCategories, t],
   );
 
   const perCategoryOver = useMemo(
@@ -344,8 +346,8 @@ export function ReportsScreen() {
 
   function renderTransactionRow(transaction: Transaction) {
     const title = transactionTitle(transaction);
-    const label = categoryLabel(transaction.category, customCategories, t);
-    const meta = getCategoryMeta(transaction.category, customCategories);
+    const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
+    const meta = getCategoryMeta(transaction.category, customCategories, categoryOverrides);
     const Icon = meta.Icon;
     const direction = transactionDirection(transaction);
     const subtitle = [
@@ -421,7 +423,7 @@ export function ReportsScreen() {
             <BudgetAlert
               overall={bStatus.overall}
               perCategoryOver={perCategoryOver}
-              categoryLabel={c => categoryLabel(c, customCategories, t)}
+              categoryLabel={c => categoryLabel(c, customCategories, t, categoryOverrides)}
             />
           )}
 
@@ -530,7 +532,7 @@ export function ReportsScreen() {
               <GlassPanel className="p-4">
                 <h2 className="text-lg font-semibold text-white">
                   {t('reports.categoryDetailTitle', {
-                    category: categoryLabel(selectedCategory, customCategories, t),
+                    category: categoryLabel(selectedCategory, customCategories, t, categoryOverrides),
                     month,
                   })}
                 </h2>
@@ -579,7 +581,7 @@ export function ReportsScreen() {
                       {anomalyHints.map(h => (
                         <li key={h.category} className="text-sm text-slate-200">
                           {t('reports.anomalyLine', {
-                            category: categoryLabel(h.category, customCategories, t),
+                            category: categoryLabel(h.category, customCategories, t, categoryOverrides),
                             pct: Math.min(Math.round(h.deltaPct * 100), 999),
                           })}
                         </li>
@@ -599,9 +601,9 @@ export function ReportsScreen() {
                   ) : (
                     <ul className="mt-2 space-y-2">
                       {categoryRows.map(row => {
-                        const meta = getCategoryMeta(row.category, customCategories);
+                        const meta = getCategoryMeta(row.category, customCategories, categoryOverrides);
                         const Icon = meta.Icon;
-                        const label = categoryLabel(row.category, customCategories, t);
+                        const label = categoryLabel(row.category, customCategories, t, categoryOverrides);
 
                         return (
                           <li key={row.category}>

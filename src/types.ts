@@ -58,6 +58,13 @@ export interface UserCategory {
   updatedAt: string;
 }
 
+export interface CategoryOverride {
+  category: BuiltInCategory;
+  name?: string;
+  iconKey?: CategoryIconKey;
+  updatedAt: string;
+}
+
 export const EXPENSE_CATEGORIES: BuiltInCategoryList<BuiltInExpenseCategory> = [
   'food-drinks',
   'coffee-bubble-tea',

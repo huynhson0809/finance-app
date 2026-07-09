@@ -67,6 +67,19 @@ describe('categoryMeta', () => {
     expect(getCategoryMeta('custom-expense-pet-care', customCategories).accentClass).toContain('rose');
   });
 
+  it('uses built-in category display overrides when provided', () => {
+    const t = (key: string) => key === 'category.food-drinks' ? 'Food & Drinks' : key;
+    const overrides = [{
+      category: 'food-drinks' as const,
+      name: 'Eating out',
+      iconKey: 'coffee' as const,
+      updatedAt: '2099-06-04T14:48:00.000Z',
+    }];
+
+    expect(categoryLabel('food-drinks', [], t, overrides)).toBe('Eating out');
+    expect(getCategoryMeta('food-drinks', [], overrides).accentClass).toContain('sky');
+  });
+
   it('labels custom categories by saved name before falling back to built-in or humanized labels', () => {
     const customCategories: UserCategory[] = [{
       id: 'custom-expense-pet-care',

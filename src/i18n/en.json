@@ -86,7 +86,8 @@
     "icon": "Icon",
     "iconOption": "Choose {{icon}} icon",
     "save": "Save category",
-    "delete": "Delete category"
+    "delete": "Delete category",
+    "builtInHint": "Default categories keep their original code so existing data stays intact, while the display name and icon can be customized."
   },
   "settings": {
     "title": "Settings",
@@ -136,6 +137,13 @@
     "allCategory": "All-time category report",
     "balanceChange": "Balance change report",
     "search": "Search transactions",
+    "allTime": "All time",
+    "allTimeRange": "All transactions",
+    "yearRange": "{{year}} (01/01 – 12/31)",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "totals": "Report totals",
+    "direction": "Transaction direction",
     "searchPlaceholder": "Search merchant, note, category...",
     "noSearchResults": "No matching transactions",
     "noSpending": "No spending this month",

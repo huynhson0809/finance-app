@@ -8,6 +8,7 @@ import { ConfirmScreen } from './ui/ConfirmScreen';
 import { AuthGate } from './ui/AuthGate';
 import { TransactionEditScreen } from './ui/TransactionEditScreen';
 import { CategoryManagerScreen } from './ui/CategoryManagerScreen';
+import { SettingsReportScreen } from './ui/SettingsReportScreen';
 
 const CalendarScreen = lazy(() =>
   import('./ui/CalendarScreen').then(m => ({ default: m.CalendarScreen })),
@@ -48,6 +49,7 @@ export default function App() {
             }
           />
           <Route path="settings" element={<SettingsScreen />} />
+          <Route path="settings/reports/:mode" element={<SettingsReportScreen />} />
         </Route>
       </Routes>
     </AuthGate>

@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { builtInCategoriesForDirection, customCategoriesForDirection } from '../categories/catalog';
 import { errorMessage } from '../lib/error';
 import type {
+  BuiltInCategory,
   Category,
   CategoryIconKey,
   CustomExpenseCategory,
@@ -13,18 +14,21 @@ import type {
   UserCategory,
 } from '../types';
 import { useCustomCategories } from '../hooks/useCustomCategories';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { DarkField, GlassPanel, SegmentedControl } from './components/primitives';
 import {
   categoryLabel,
   CUSTOM_CATEGORY_ICON_OPTIONS,
   defaultIconKeyForDirection,
   getCategoryMeta,
+  iconKeyForCategory,
 } from './theme/categoryMeta';
 
 type CustomCategoryId = CustomExpenseCategory | CustomIncomeCategory;
 type EditingState =
   | { mode: 'new' }
-  | { mode: 'edit'; id: CustomCategoryId }
+  | { mode: 'custom'; id: CustomCategoryId }
+  | { mode: 'builtin'; category: BuiltInCategory }
   | null;
 
 function searchDirection(value: string | null): TransactionDirection {
@@ -53,6 +57,11 @@ export function CategoryManagerScreen() {
     updateCategoryIcon,
     deleteCategory,
   } = useCustomCategories();
+  const {
+    overrides: categoryOverrides,
+    error: categoryOverridesError,
+    saveOverride,
+  } = useCategoryOverrides();
 
   const builtInCategories = useMemo(
     () => builtInCategoriesForDirection(direction),
@@ -62,10 +71,11 @@ export function CategoryManagerScreen() {
     () => customCategoriesForDirection(customCategories, direction),
     [customCategories, direction],
   );
-  const editingCategory = editing?.mode === 'edit'
+  const editingCategory = editing?.mode === 'custom'
     ? visibleCustomCategories.find(category => category.id === editing.id)
     : undefined;
-  const managerError = localError ?? error;
+  const editingBuiltInCategory = editing?.mode === 'builtin' ? editing.category : undefined;
+  const managerError = localError ?? error ?? categoryOverridesError;
 
   function setDirection(next: TransactionDirection) {
     setDirectionState(next);
@@ -86,9 +96,17 @@ export function CategoryManagerScreen() {
   }
 
   function startEditCategory(category: UserCategory) {
-    setEditing({ mode: 'edit', id: category.id });
+    setEditing({ mode: 'custom', id: category.id });
     setDraftName(category.name);
     setDraftIconKey(category.iconKey ?? defaultIconKeyForDirection(category.direction));
+    setLocalError(null);
+  }
+
+  function startEditBuiltInCategory(category: BuiltInCategory) {
+    const override = categoryOverrides.find(item => item.category === category);
+    setEditing({ mode: 'builtin', category });
+    setDraftName(categoryLabel(category, customCategories, t, categoryOverrides));
+    setDraftIconKey(override?.iconKey ?? iconKeyForCategory(category));
     setLocalError(null);
   }
 
@@ -101,6 +119,8 @@ export function CategoryManagerScreen() {
     try {
       if (editing.mode === 'new') {
         await addCategory(direction, name, draftIconKey);
+      } else if (editing.mode === 'builtin') {
+        await saveOverride(editing.category, { name, iconKey: draftIconKey });
       } else if (editingCategory) {
         if (name !== editingCategory.name) {
           await renameCategory(editingCategory.id, name);
@@ -135,23 +155,26 @@ export function CategoryManagerScreen() {
   }
 
   function renderBuiltInCategoryRow(category: Category) {
-    const meta = getCategoryMeta(category, customCategories);
+    const meta = getCategoryMeta(category, customCategories, categoryOverrides);
     const Icon = meta.Icon;
-    const label = categoryLabel(category, customCategories, t);
+    const label = categoryLabel(category, customCategories, t, categoryOverrides);
 
     return (
-      <div
+      <button
         key={category}
-        className="grid min-h-14 grid-cols-[2.25rem_minmax(0,1fr)] items-center gap-3 border-b border-white/10 px-4 last:border-b-0"
+        type="button"
+        onClick={() => startEditBuiltInCategory(category as BuiltInCategory)}
+        className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035] last:border-b-0"
       >
         <Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
         <span className="truncate text-base font-semibold text-slate-100">{label}</span>
-      </div>
+        <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
+      </button>
     );
   }
 
   function renderCustomCategoryRow(category: UserCategory) {
-    const meta = getCategoryMeta(category.id, customCategories);
+    const meta = getCategoryMeta(category.id, customCategories, categoryOverrides);
     const Icon = meta.Icon;
     return (
       <button
@@ -192,28 +215,13 @@ export function CategoryManagerScreen() {
         ]}
       />
 
-      <GlassPanel className="overflow-hidden">
-        <button
-          type="button"
-          onClick={startNewCategory}
-          className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035]"
-        >
-          <Plus aria-hidden="true" className="h-6 w-6 text-sky-300" />
-          <span className="truncate text-base font-semibold text-white">{t('categories.add')}</span>
-          <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
-        </button>
-
-        {builtInCategories.map(renderBuiltInCategoryRow)}
-        {visibleCustomCategories.map(renderCustomCategoryRow)}
-      </GlassPanel>
-
       {editing && (
-        <GlassPanel className="space-y-4 p-4">
+        <GlassPanel className="space-y-4 p-4" data-testid="category-editor">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-white">
               {editing.mode === 'new' ? t('categories.add') : t('categories.edit')}
             </h2>
-            {editing.mode === 'edit' && (
+            {editing.mode === 'custom' && (
               <button
                 type="button"
                 onClick={removeCategory}
@@ -227,9 +235,16 @@ export function CategoryManagerScreen() {
             )}
           </div>
 
+          {editingBuiltInCategory && (
+            <p className="text-sm leading-relaxed text-slate-400">
+              {t('categories.builtInHint')}
+            </p>
+          )}
+
           <DarkField label={t('categories.name')}>
             <input
               value={draftName}
+              autoFocus
               onChange={event => setDraftName(event.target.value)}
               aria-label={t('categories.name')}
             />
@@ -279,6 +294,21 @@ export function CategoryManagerScreen() {
           </button>
         </GlassPanel>
       )}
+
+      <GlassPanel className="overflow-hidden">
+        <button
+          type="button"
+          onClick={startNewCategory}
+          className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035]"
+        >
+          <Plus aria-hidden="true" className="h-6 w-6 text-sky-300" />
+          <span className="truncate text-base font-semibold text-white">{t('categories.add')}</span>
+          <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
+        </button>
+
+        {builtInCategories.map(renderBuiltInCategoryRow)}
+        {visibleCustomCategories.map(renderCustomCategoryRow)}
+      </GlassPanel>
     </div>
   );
 }

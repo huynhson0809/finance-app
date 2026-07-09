@@ -20,12 +20,12 @@ import { useAuth } from '../hooks/useAuth';
 import { GlassPanel, DarkField } from './components/primitives';
 
 const reportLinks = [
-  { labelKey: 'settings.reports.yearlyReport', href: '/reports?mode=year-summary', Icon: CalendarDays },
-  { labelKey: 'settings.reports.yearlyCategoryReport', href: '/reports?mode=year-category', Icon: ChartPie },
-  { labelKey: 'settings.reports.allTimeReport', href: '/reports?mode=all-summary', Icon: History },
-  { labelKey: 'settings.reports.allTimeCategoryReport', href: '/reports?mode=all-category', Icon: ChartNoAxesCombined },
-  { labelKey: 'settings.reports.balanceChangeReport', href: '/reports?mode=balance-change', Icon: TrendingUp },
-  { labelKey: 'settings.reports.searchTransactions', href: '/reports?mode=search', Icon: Search },
+  { labelKey: 'settings.reports.yearlyReport', href: '/settings/reports/year-summary', Icon: CalendarDays },
+  { labelKey: 'settings.reports.yearlyCategoryReport', href: '/settings/reports/year-category', Icon: ChartPie },
+  { labelKey: 'settings.reports.allTimeReport', href: '/settings/reports/all-summary', Icon: History },
+  { labelKey: 'settings.reports.allTimeCategoryReport', href: '/settings/reports/all-category', Icon: ChartNoAxesCombined },
+  { labelKey: 'settings.reports.balanceChangeReport', href: '/settings/reports/balance-change', Icon: TrendingUp },
+  { labelKey: 'settings.reports.searchTransactions', href: '/settings/reports/search', Icon: Search },
 ] as const;
 
 export function SettingsScreen() {

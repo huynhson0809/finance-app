@@ -7,6 +7,7 @@ import { DarkField, SegmentedControl } from './components/primitives';
 import { categoriesForDirectionWithCustom } from '../categories/catalog';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { shouldLearn } from '../categorizer';
 import { parseVNDInput } from '../lib/money';
@@ -56,6 +57,7 @@ export function AddScreen() {
   const {
     categories: customCategories,
   } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
 
   // Track suggestion until the user explicitly picks a chip.
   useEffect(() => {
@@ -136,50 +138,52 @@ export function AddScreen() {
   }
 
   return (
-    <div className="space-y-4 px-4 py-5 pb-36">
-      <header className="flex items-center justify-between gap-3">
+    <div className="flex h-[calc(100dvh_-_env(safe-area-inset-bottom)_-_10.625rem)] min-h-0 flex-col overflow-hidden px-4 py-5">
+      <header className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">{t('add.title')}</h1>
         <AddImageButton variant="compact" />
       </header>
 
-      <SegmentedControl
-        ariaLabel="Direction"
-        value={direction}
-        onChange={handleDirection}
-        options={[
-          { value: 'expense', label: t('add.expense') },
-          { value: 'income', label: t('add.income') },
-        ]}
-      />
+      <div data-testid="add-fixed-form" className="shrink-0 space-y-4">
+        <SegmentedControl
+          ariaLabel="Direction"
+          value={direction}
+          onChange={handleDirection}
+          options={[
+            { value: 'expense', label: t('add.expense') },
+            { value: 'income', label: t('add.income') },
+          ]}
+        />
 
-      <div className="grid gap-3">
-        <DarkField label={t('add.date')}>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            aria-label={t('add.date')}
-          />
-        </DarkField>
-        <DarkField label={t('add.merchant')}>
-          <input
-            value={merchant}
-            onChange={e => setMerchant(e.target.value)}
-            aria-label={t('add.merchant')}
-          />
-        </DarkField>
-        <DarkField label={t('add.amount')}>
-          <input
-            value={raw}
-            onChange={e => handleAmountChange(e.target.value)}
-            aria-label={t('add.amount')}
-            inputMode="numeric"
-            pattern="[0-9]*"
-          />
-        </DarkField>
+        <div className="grid gap-3">
+          <DarkField label={t('add.date')}>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              aria-label={t('add.date')}
+            />
+          </DarkField>
+          <DarkField label={t('add.merchant')}>
+            <input
+              value={merchant}
+              onChange={e => setMerchant(e.target.value)}
+              aria-label={t('add.merchant')}
+            />
+          </DarkField>
+          <DarkField label={t('add.amount')}>
+            <input
+              value={raw}
+              onChange={e => handleAmountChange(e.target.value)}
+              aria-label={t('add.amount')}
+              inputMode="numeric"
+              pattern="[0-9]*"
+            />
+          </DarkField>
+        </div>
       </div>
 
-      <div className="space-y-2">
+      <section data-testid="add-category-scroll" className="mt-4 flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-200">{t('add.category')}</h2>
           <Link
@@ -194,18 +198,19 @@ export function AddScreen() {
           onSelect={handleChip}
           categories={categoryOptions}
           customCategories={customCategories}
+          categoryOverrides={categoryOverrides}
           density="compact"
+          className="min-h-0 overflow-y-auto overscroll-contain pb-4"
         />
-      </div>
+      </section>
 
-      {saveError && (
-        <div role="alert" className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
-          <div>{t('add.saveFailed')}</div>
-          <div>{saveError}</div>
-        </div>
-      )}
-
-      <div className="pt-2 pb-6">
+      <footer data-testid="add-submit-footer" className="shrink-0 border-t border-white/10 bg-slate-950/70 pt-3">
+        {saveError && (
+          <div role="alert" className="mb-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
+            <div>{t('add.saveFailed')}</div>
+            <div>{saveError}</div>
+          </div>
+        )}
         <button
           type="button"
           onClick={handleSave}
@@ -214,7 +219,7 @@ export function AddScreen() {
         >
           {saving ? t('add.saving') : t(direction === 'expense' ? 'add.submitExpense' : 'add.submitIncome')}
         </button>
-      </div>
+      </footer>
     </div>
   );
 }

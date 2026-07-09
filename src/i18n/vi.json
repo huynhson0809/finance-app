@@ -86,7 +86,8 @@
     "icon": "Biểu tượng",
     "iconOption": "Chọn biểu tượng {{icon}}",
     "save": "Lưu danh mục",
-    "delete": "Xoá danh mục"
+    "delete": "Xoá danh mục",
+    "builtInHint": "Danh mục mặc định sẽ giữ mã cũ để không ảnh hưởng dữ liệu, nhưng tên và biểu tượng có thể đổi theo ý bạn."
   },
   "settings": {
     "title": "Cài đặt",
@@ -136,6 +137,13 @@
     "allCategory": "Báo cáo danh mục tổng hợp",
     "balanceChange": "Báo cáo biến động số dư",
     "search": "Tìm kiếm giao dịch",
+    "allTime": "Toàn thời gian",
+    "allTimeRange": "Tất cả giao dịch",
+    "yearRange": "{{year}} (01/01 – 31/12)",
+    "previousYear": "Năm trước",
+    "nextYear": "Năm sau",
+    "totals": "Tổng quan báo cáo",
+    "direction": "Loại giao dịch",
     "searchPlaceholder": "Tìm cửa hàng, ghi chú, danh mục...",
     "noSearchResults": "Không có giao dịch phù hợp",
     "noSpending": "Chưa có chi tiêu",

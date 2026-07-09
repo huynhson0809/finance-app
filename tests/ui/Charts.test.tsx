@@ -44,6 +44,7 @@ it('shows and updates the selected category callout', async () => {
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('Food');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('₫1,000');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('67%');
+  expect(screen.getByTestId('category-pie-leader')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: /select shop/i }));
 

@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
 import { MemoryRouter } from 'react-router-dom';
 import { __resetDBForTests } from '../../src/db';
+import { getCategoryOverrides } from '../../src/db/category-overrides';
 import { createCustomCategory, getCustomCategories } from '../../src/db/custom-categories';
 import { initI18n, setLocale } from '../../src/i18n';
 import { CategoryManagerScreen } from '../../src/ui/CategoryManagerScreen';
@@ -53,6 +54,30 @@ describe('CategoryManagerScreen', () => {
           direction: 'expense',
           name: 'Snacks',
           iconKey: 'shopping',
+        }),
+      ]);
+    });
+  });
+
+  it('edits a built-in category display name and icon from the inline editor', async () => {
+    const user = userEvent.setup();
+    renderManager();
+
+    await user.click(await screen.findByRole('button', { name: 'Food & Drinks' }));
+    expect(screen.getByTestId('category-editor')).toBeInTheDocument();
+    const nameInput = screen.getByLabelText('Category name');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Eating out');
+    await user.click(screen.getByRole('button', { name: /coffee icon/i }));
+    await user.click(screen.getByRole('button', { name: 'Save category' }));
+
+    expect(await screen.findByRole('button', { name: 'Eating out' })).toBeInTheDocument();
+    await waitFor(async () => {
+      expect(await getCategoryOverrides()).toEqual([
+        expect.objectContaining({
+          category: 'food-drinks',
+          name: 'Eating out',
+          iconKey: 'coffee',
         }),
       ]);
     });

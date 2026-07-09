@@ -17,6 +17,7 @@ import {
   type Transaction,
 } from '../types';
 import { categoriesForDirectionWithCustom } from '../categories/catalog';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { errorMessage } from '../lib/error';
 import { DarkField, GlassPanel } from './components/primitives';
@@ -104,6 +105,7 @@ export function TransactionEditScreen() {
   const [text, setText] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
   const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
 
   const categoryOptions = useMemo(() => {
     if (!transaction) return [];
@@ -336,7 +338,7 @@ export function TransactionEditScreen() {
         <h2 className="text-sm font-semibold text-slate-200">{t('transactionEdit.category')}</h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {categoryOptions.map(option => {
-            const meta = getCategoryMeta(option, customCategories);
+            const meta = getCategoryMeta(option, customCategories, categoryOverrides);
             return (
               <button
                 key={option}
@@ -354,7 +356,7 @@ export function TransactionEditScreen() {
                   <meta.Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
                 </span>
                 <span className="mt-2 block text-xs font-medium leading-tight text-slate-100">
-                  {categoryLabel(option, customCategories, t)}
+                  {categoryLabel(option, customCategories, t, categoryOverrides)}
                 </span>
               </button>
             );
