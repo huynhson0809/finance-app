@@ -81,6 +81,7 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
       overall: 'ok',
       perCategory: okStatuses(),
       overallSpent: 0,
+      overallLimit: 0,
     },
     directionTotals: {
       expense: 0,
@@ -104,6 +105,7 @@ describe('ReportsScreen', () => {
         overall: 'over',
         perCategory: okStatuses(),
         overallSpent: 1500,
+        overallLimit: 1000,
       },
     });
 
@@ -420,6 +422,7 @@ function makeReportStateWithStaleContent(overrides: Partial<UseReportsResult> = 
       overall: 'over',
       perCategory: { ...okStatuses(), 'food-drinks': 'over' },
       overallSpent: 30_000,
+      overallLimit: 20_000,
     },
     ...overrides,
   });

@@ -9,6 +9,7 @@
     "todayIncome": "Today's income",
     "remaining": "Remaining this month",
     "budgetUsed": "Monthly budget used",
+    "protectedSavings": "Protected savings",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
     "empty": "No transactions yet"

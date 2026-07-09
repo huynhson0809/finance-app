@@ -135,6 +135,24 @@ describe('HomeScreen', () => {
     expect(within(rows[2]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-3');
   });
 
+  it('uses spendable budget and shows protected savings in the budget bar', async () => {
+    await upsertBudget(currentVietnamMonth(), 5_000_000, undefined, 1_000_000);
+    cloudHooks.monthState.data = [
+      tx({ id: 'month-expense', amount: 2_000_000, category: 'food-drinks' }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    expect(monthlyOverview).toHaveTextContent(/2[.,]000[.,]000\s*\/\s*[^0-9]*4[.,]000[.,]000/);
+    expect(monthlyOverview).toHaveTextContent('Protected savings');
+    expect(monthlyOverview).toHaveTextContent(/1[.,]000[.,]000/);
+  });
+
   it('shows today expense and today income separately', () => {
     cloudHooks.monthState.data = [
       tx({ id: 'expense-today', amount: 25_000, direction: 'expense', category: 'food-drinks' }),

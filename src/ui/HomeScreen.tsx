@@ -94,7 +94,15 @@ export function HomeScreen() {
             : monthError
             ? null
             : budget
-            ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
+            ? (
+                <BudgetBar
+                  spent={monthSpent}
+                  total={bStatus.overallLimit}
+                  locale={locale}
+                  status={bStatus.overall}
+                  savingsTarget={budget.savingsTarget ?? 0}
+                />
+              )
             : <div className="px-1 text-sm text-zinc-400">{t('home.noBudget')}</div>}
         </div>
       </section>
