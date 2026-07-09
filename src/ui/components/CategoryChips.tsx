@@ -28,7 +28,7 @@ export function CategoryChips({
       className,
     ].join(' ')}>
       {categories.map(c => {
-        const meta = getCategoryMeta(c);
+        const meta = getCategoryMeta(c, customCategories);
         return (
           <CategoryIconTile
             key={c}

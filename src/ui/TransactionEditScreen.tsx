@@ -336,7 +336,7 @@ export function TransactionEditScreen() {
         <h2 className="text-sm font-semibold text-slate-200">{t('transactionEdit.category')}</h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {categoryOptions.map(option => {
-            const meta = getCategoryMeta(option);
+            const meta = getCategoryMeta(option, customCategories);
             return (
               <button
                 key={option}

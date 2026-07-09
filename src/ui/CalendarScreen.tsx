@@ -223,7 +223,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
             ) : (
               <ul aria-label={t('calendar.selectedDate')} className="space-y-2">
                 {selectedRows.map(row => {
-                  const meta = getCategoryMeta(row.category);
+                  const meta = getCategoryMeta(row.category, customCategories);
                   const Icon = meta.Icon;
 
                   return (

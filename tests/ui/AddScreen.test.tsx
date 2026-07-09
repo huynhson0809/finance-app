@@ -7,6 +7,7 @@ import { HomeScreen } from '../../src/ui/HomeScreen';
 import { initI18n } from '../../src/i18n';
 import { __resetDBForTests } from '../../src/db';
 import { getAllRules } from '../../src/db/category-rules';
+import { createCustomCategory } from '../../src/db/custom-categories';
 import { vietnamDateInputToNoonISO } from '../../src/lib/date';
 
 const saveMocks = vi.hoisted(() => ({
@@ -48,7 +49,7 @@ describe('AddScreen manual entry', () => {
     expect(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' })).toBeInTheDocument();
     expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /direction|loại giao dịch/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /manage categories|quản lý danh mục/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /manage categories|quản lý danh mục/i })).toHaveAttribute('href', '/categories?direction=expense');
     expect(screen.queryByText(/link email/i)).not.toBeInTheDocument();
   });
 
@@ -117,16 +118,14 @@ describe('AddScreen manual entry', () => {
     expect(screen.getByRole('button', { name: /salary|lương/i })).toBeInTheDocument();
   });
 
-  it('adds a custom expense category from the manager and saves with it', async () => {
+  it('renders a saved custom expense category and saves with it', async () => {
+    const customCategory = await createCustomCategory('expense', 'Snacks', 'shopping');
     const user = userEvent.setup();
     renderAt('/add');
 
-    await user.click(screen.getByRole('button', { name: /manage categories|quản lý danh mục/i }));
-    await user.type(screen.getByLabelText(/new category name|tên danh mục mới/i), 'Snacks');
-    await user.click(screen.getByRole('button', { name: /add category|thêm danh mục/i }));
-
-    const customChip = await screen.findByRole('button', { name: 'Snacks', pressed: true });
+    const customChip = await screen.findByRole('button', { name: 'Snacks' });
     expect(customChip).toBeInTheDocument();
+    await user.click(customChip);
 
     await user.clear(screen.getByLabelText(/date|ngày/i));
     await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
@@ -136,23 +135,21 @@ describe('AddScreen manual entry', () => {
     expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
       amount: 35000,
       direction: 'expense',
-      category: expect.stringMatching(/^custom-expense-snacks-/),
+      category: customCategory.id,
       source: 'manual',
       occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
     }));
   });
 
-  it('adds a custom income category after switching direction and saves with it', async () => {
+  it('renders a saved custom income category after switching direction and saves with it', async () => {
+    const customCategory = await createCustomCategory('income', 'Gift', 'gift');
     const user = userEvent.setup();
     renderAt('/add');
 
     await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
-    await user.click(screen.getByRole('button', { name: /manage categories|quản lý danh mục/i }));
-    await user.type(screen.getByLabelText(/new category name|tên danh mục mới/i), 'Gift');
-    await user.click(screen.getByRole('button', { name: /add category|thêm danh mục/i }));
-
-    const customChip = await screen.findByRole('button', { name: 'Gift', pressed: true });
+    const customChip = await screen.findByRole('button', { name: 'Gift' });
     expect(customChip).toBeInTheDocument();
+    await user.click(customChip);
 
     await user.clear(screen.getByLabelText(/date|ngày/i));
     await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
@@ -162,33 +159,10 @@ describe('AddScreen manual entry', () => {
     expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
       amount: 120000,
       direction: 'income',
-      category: expect.stringMatching(/^custom-income-gift-/),
+      category: customCategory.id,
       source: 'manual',
       occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
     }));
-  });
-
-  it('renames and deletes a custom category from the manager', async () => {
-    const user = userEvent.setup();
-    renderAt('/add');
-
-    await user.click(screen.getByRole('button', { name: /manage categories|quản lý danh mục/i }));
-    await user.type(screen.getByLabelText(/new category name|tên danh mục mới/i), 'Snacks');
-    await user.click(screen.getByRole('button', { name: /add category|thêm danh mục/i }));
-    expect(await screen.findByRole('button', { name: 'Snacks' })).toBeInTheDocument();
-
-    const renameInput = await screen.findByLabelText(/rename Snacks|đổi tên Snacks/i);
-    await user.clear(renameInput);
-    await user.type(renameInput, 'Treats');
-    await user.click(screen.getByRole('button', { name: /save Snacks|lưu Snacks/i }));
-
-    expect(await screen.findByRole('button', { name: 'Treats' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Snacks' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /delete Treats|xoá Treats|xóa Treats/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Treats' })).not.toBeInTheDocument();
-    });
   });
 });
 

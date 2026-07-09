@@ -1,5 +1,6 @@
 {
   "app": { "title": "Finance" },
+  "common": { "back": "Back" },
   "nav": { "home": "Home", "add": "Add", "calendar": "Calendar", "reports": "Reports", "settings": "Settings" },
   "home": {
     "monthIncome": "Monthly income",
@@ -74,6 +75,19 @@
     "saving": "Saving...",
     "saveFailed": "Could not save transaction"
   },
+  "categories": {
+    "title": "Categories",
+    "direction": "Category direction",
+    "expense": "Expense",
+    "income": "Income",
+    "add": "Add category",
+    "edit": "Edit category",
+    "name": "Category name",
+    "icon": "Icon",
+    "iconOption": "Choose {{icon}} icon",
+    "save": "Save category",
+    "delete": "Delete category"
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",
@@ -82,7 +96,9 @@
       "description": "Bank-email transaction setup is manual and requires admin support.",
       "device": "Currently supports iPhone through iOS Shortcuts.",
       "banks": "Supported banks: MB and ACB.",
-      "contact": "Contact admin for setup support."
+      "contact": "Contact admin for setup support.",
+      "showDetails": "Show email automation details",
+      "hideDetails": "Hide email automation details"
     },
     "reports": {
       "title": "Reports",
@@ -132,6 +148,9 @@
     "expenseTab": "Expense",
     "incomeTab": "Income",
     "categoryShare": "{{pct}}%",
+    "total": "Total",
+    "average": "Average",
+    "monthName": "Month {{month}}",
     "noDirectionData": "No {{direction}} transactions this month",
     "categoryDetailTitle": "{{category}} in {{month}}",
     "noCategoryTransactions": "No transactions in this category",

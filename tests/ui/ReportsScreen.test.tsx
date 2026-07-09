@@ -11,6 +11,16 @@ const reportHooks = vi.hoisted(() => ({
   state: null as UseReportsResult | null,
 }));
 
+const scopedReportHooks = vi.hoisted(() => ({
+  reload: vi.fn(),
+  state: {
+    transactions: [] as Transaction[],
+    loading: false,
+    error: null as string | null,
+    reload: vi.fn(),
+  },
+}));
+
 const customCategoryHooks = vi.hoisted(() => ({
   categories: [] as UserCategory[],
 }));
@@ -23,6 +33,10 @@ const chartMocks = vi.hoisted(() => ({
 
 vi.mock('../../src/hooks/useReports', () => ({
   useReports: vi.fn(() => reportHooks.state),
+}));
+
+vi.mock('../../src/hooks/useScopedReportTransactions', () => ({
+  useScopedReportTransactions: vi.fn(() => scopedReportHooks.state),
 }));
 
 vi.mock('../../src/hooks/useCustomCategories', () => ({
@@ -73,11 +87,18 @@ beforeAll(async () => { await initI18n(); });
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   reportHooks.reload.mockReset();
+  scopedReportHooks.reload.mockReset();
   chartMocks.monthBarData = [];
   chartMocks.pieData = [];
   chartMocks.pieLocales = [];
   customCategoryHooks.categories = [];
   reportHooks.state = makeReportState();
+  scopedReportHooks.state = {
+    transactions: [],
+    loading: false,
+    error: null,
+    reload: scopedReportHooks.reload,
+  };
 });
 
 function zeroSums(): Record<Category, number> {
@@ -204,7 +225,7 @@ describe('ReportsScreen', () => {
 
   it('searches current report transactions by query', async () => {
     const user = userEvent.setup();
-    reportHooks.state = makeReportState({
+    scopedReportHooks.state = makeScopedReportState({
       transactions: [
         tx({
           id: 'coffee',
@@ -225,11 +246,6 @@ describe('ReportsScreen', () => {
           occurredAt: '2099-06-04T14:48:00.000Z',
         }),
       ],
-      directionTotals: {
-        expense: 165_000,
-        income: 0,
-        net: -165_000,
-      },
     });
 
     render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
@@ -303,7 +319,7 @@ describe('ReportsScreen', () => {
   });
 
   it('does not crash when search results include an unknown custom category', () => {
-    reportHooks.state = makeReportState({
+    scopedReportHooks.state = makeScopedReportState({
       transactions: [
         tx({
           id: 'child-care',
@@ -313,11 +329,6 @@ describe('ReportsScreen', () => {
           note: '',
         }),
       ],
-      directionTotals: {
-        expense: 25_000,
-        income: 0,
-        net: -25_000,
-      },
     });
 
     render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
@@ -588,4 +599,14 @@ function makeReportStateWithStaleContent(overrides: Partial<UseReportsResult> = 
 
 function makeUnavailableReportState(overrides: Partial<UseReportsResult>): UseReportsResult {
   return makeReportStateWithStaleContent(overrides);
+}
+
+function makeScopedReportState(overrides: Partial<typeof scopedReportHooks.state> = {}) {
+  return {
+    transactions: [] as Transaction[],
+    loading: false,
+    error: null as string | null,
+    reload: scopedReportHooks.reload,
+    ...overrides,
+  };
 }

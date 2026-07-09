@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   deleteCustomCategory: vi.fn(),
   getCustomCategories: vi.fn(),
   renameCustomCategory: vi.fn(),
+  updateCustomCategoryIcon: vi.fn(),
 }));
 
 vi.mock('../../src/db/custom-categories', () => mocks);
@@ -39,6 +40,7 @@ beforeEach(() => {
   mocks.deleteCustomCategory.mockReset();
   mocks.getCustomCategories.mockReset();
   mocks.renameCustomCategory.mockReset();
+  mocks.updateCustomCategoryIcon.mockReset();
 });
 
 describe('useCustomCategories', () => {

@@ -54,6 +54,19 @@ describe('categoryMeta', () => {
     expect(getCategoryMeta('custom-income-freelance').Icon).toBeDefined();
   });
 
+  it('uses saved custom category icons when provided', () => {
+    const customCategories: UserCategory[] = [{
+      id: 'custom-expense-pet-care',
+      direction: 'expense',
+      name: 'Pet Care',
+      iconKey: 'shopping',
+      createdAt: '2099-06-04T14:48:00.000Z',
+      updatedAt: '2099-06-04T14:48:00.000Z',
+    }];
+
+    expect(getCategoryMeta('custom-expense-pet-care', customCategories).accentClass).toContain('rose');
+  });
+
   it('labels custom categories by saved name before falling back to built-in or humanized labels', () => {
     const customCategories: UserCategory[] = [{
       id: 'custom-expense-pet-care',

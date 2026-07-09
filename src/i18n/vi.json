@@ -1,5 +1,6 @@
 {
   "app": { "title": "Quản lý chi tiêu" },
+  "common": { "back": "Quay lại" },
   "nav": { "home": "Trang chủ", "add": "Thêm", "calendar": "Lịch", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
     "monthIncome": "Thu tháng này",
@@ -74,6 +75,19 @@
     "saving": "Đang lưu...",
     "saveFailed": "Không thể lưu giao dịch"
   },
+  "categories": {
+    "title": "Danh mục",
+    "direction": "Loại danh mục",
+    "expense": "Chi tiêu",
+    "income": "Thu nhập",
+    "add": "Thêm danh mục",
+    "edit": "Chỉnh sửa danh mục",
+    "name": "Tên danh mục",
+    "icon": "Biểu tượng",
+    "iconOption": "Chọn biểu tượng {{icon}}",
+    "save": "Lưu danh mục",
+    "delete": "Xoá danh mục"
+  },
   "settings": {
     "title": "Cài đặt",
     "language": "Ngôn ngữ",
@@ -82,7 +96,9 @@
       "description": "Thiết lập nhận giao dịch qua email cần cấu hình thủ công với admin.",
       "device": "Hiện tại chỉ hỗ trợ iPhone thông qua iOS Shortcuts.",
       "banks": "Ngân hàng đang hỗ trợ: MB và ACB.",
-      "contact": "Liên hệ admin để được hỗ trợ cấu hình."
+      "contact": "Liên hệ admin để được hỗ trợ cấu hình.",
+      "showDetails": "Hiện chi tiết tự động email",
+      "hideDetails": "Ẩn chi tiết tự động email"
     },
     "reports": {
       "title": "Báo cáo",
@@ -132,6 +148,9 @@
     "expenseTab": "Chi tiêu",
     "incomeTab": "Thu nhập",
     "categoryShare": "{{pct}}%",
+    "total": "Tổng",
+    "average": "Trung bình",
+    "monthName": "Tháng {{month}}",
     "noDirectionData": "Chưa có giao dịch {{direction}} trong tháng này",
     "categoryDetailTitle": "{{category}} trong {{month}}",
     "noCategoryTransactions": "Chưa có giao dịch trong danh mục này",

@@ -4,8 +4,10 @@ import {
   deleteCustomCategory,
   getCustomCategories,
   renameCustomCategory,
+  updateCustomCategoryIcon,
 } from '../db/custom-categories';
 import type {
+  CategoryIconKey,
   CustomExpenseCategory,
   CustomIncomeCategory,
   TransactionDirection,
@@ -22,8 +24,13 @@ interface CustomCategoriesState {
 
 interface CustomCategoriesResult extends CustomCategoriesState {
   reload: () => Promise<void>;
-  addCategory: (direction: TransactionDirection, name: string) => Promise<UserCategory>;
+  addCategory: (
+    direction: TransactionDirection,
+    name: string,
+    iconKey?: CategoryIconKey,
+  ) => Promise<UserCategory>;
   renameCategory: (id: CustomCategoryId, name: string) => Promise<UserCategory>;
+  updateCategoryIcon: (id: CustomCategoryId, iconKey: CategoryIconKey) => Promise<UserCategory>;
   deleteCategory: (id: CustomCategoryId) => Promise<void>;
 }
 
@@ -69,11 +76,15 @@ export function useCustomCategories(): CustomCategoriesResult {
     };
   }, [reload]);
 
-  const addCategory = useCallback(async (direction: TransactionDirection, name: string) => {
+  const addCategory = useCallback(async (
+    direction: TransactionDirection,
+    name: string,
+    iconKey?: CategoryIconKey,
+  ) => {
     requestIdRef.current += 1;
     mutationVersionRef.current += 1;
     try {
-      const category = await createCustomCategory(direction, name);
+      const category = await createCustomCategory(direction, name, iconKey);
       mutationVersionRef.current += 1;
       setState(prev => ({
         categories: [...prev.categories, category],
@@ -93,6 +104,25 @@ export function useCustomCategories(): CustomCategoriesResult {
     mutationVersionRef.current += 1;
     try {
       const category = await renameCustomCategory(id, name);
+      mutationVersionRef.current += 1;
+      setState(prev => ({
+        categories: prev.categories.map(existing => existing.id === id ? category : existing),
+        loading: false,
+        error: null,
+      }));
+      return category;
+    } catch (error) {
+      mutationVersionRef.current += 1;
+      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      throw error;
+    }
+  }, []);
+
+  const updateCategoryIcon = useCallback(async (id: CustomCategoryId, iconKey: CategoryIconKey) => {
+    requestIdRef.current += 1;
+    mutationVersionRef.current += 1;
+    try {
+      const category = await updateCustomCategoryIcon(id, iconKey);
       mutationVersionRef.current += 1;
       setState(prev => ({
         categories: prev.categories.map(existing => existing.id === id ? category : existing),
@@ -130,6 +160,7 @@ export function useCustomCategories(): CustomCategoriesResult {
     reload,
     addCategory,
     renameCategory,
+    updateCategoryIcon,
     deleteCategory,
   };
 }

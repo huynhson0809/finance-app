@@ -33,10 +33,27 @@ type BuiltInCategoryList<T extends BuiltInCategory> = readonly T[] & {
 
 export type TransactionDirection = 'expense' | 'income';
 
+export type CategoryIconKey =
+  | 'utensils'
+  | 'coffee'
+  | 'transportation'
+  | 'shopping'
+  | 'bills'
+  | 'health'
+  | 'entertainment'
+  | 'transfer'
+  | 'wallet'
+  | 'piggy'
+  | 'gift'
+  | 'coins'
+  | 'bank'
+  | 'other';
+
 export interface UserCategory {
   id: CustomExpenseCategory | CustomIncomeCategory;
   direction: TransactionDirection;
   name: string;
+  iconKey?: CategoryIconKey;
   createdAt: string;
   updatedAt: string;
 }

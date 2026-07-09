@@ -6,6 +6,7 @@ import {
   ChartNoAxesCombined,
   ChartPie,
   History,
+  Info,
   Search,
   TrendingUp,
 } from 'lucide-react';
@@ -38,8 +39,10 @@ export function SettingsScreen() {
   const [savingsTarget, setSavingsTarget] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [emailAutomationDetailsOpen, setEmailAutomationDetailsOpen] = useState(false);
   const locale = i18n.language === 'en' ? 'en' : 'vi';
   const spendableBudget = Math.max(0, total - savingsTarget);
+  const emailAutomationDetailsId = 'settings-email-automation-details';
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
@@ -102,13 +105,39 @@ export function SettingsScreen() {
       </GlassPanel>
 
       <GlassPanel aria-label={t('settings.emailAutomation.title')} className="p-4">
-        <h2 className="font-semibold text-white">{t('settings.emailAutomation.title')}</h2>
-        <div className="mt-3 space-y-2 text-sm leading-relaxed text-slate-300">
-          <p>{t('settings.emailAutomation.description')}</p>
-          <p>{t('settings.emailAutomation.device')}</p>
-          <p>{t('settings.emailAutomation.banks')}</p>
-          <p className="font-semibold text-sky-300">{t('settings.emailAutomation.contact')}</p>
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <h2 className="font-semibold text-white">{t('settings.emailAutomation.title')}</h2>
+          <button
+            type="button"
+            aria-expanded={emailAutomationDetailsOpen}
+            aria-controls={emailAutomationDetailsId}
+            aria-label={t(
+              emailAutomationDetailsOpen
+                ? 'settings.emailAutomation.hideDetails'
+                : 'settings.emailAutomation.showDetails',
+            )}
+            title={t(
+              emailAutomationDetailsOpen
+                ? 'settings.emailAutomation.hideDetails'
+                : 'settings.emailAutomation.showDetails',
+            )}
+            onClick={() => setEmailAutomationDetailsOpen(open => !open)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-sky-300 transition hover:border-sky-300/40 hover:bg-sky-300/10 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+          >
+            <Info aria-hidden="true" className="h-5 w-5" />
+          </button>
         </div>
+        {emailAutomationDetailsOpen && (
+          <div
+            id={emailAutomationDetailsId}
+            className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm leading-relaxed text-slate-300"
+          >
+            <p>{t('settings.emailAutomation.description')}</p>
+            <p>{t('settings.emailAutomation.device')}</p>
+            <p>{t('settings.emailAutomation.banks')}</p>
+            <p className="font-semibold text-sky-300">{t('settings.emailAutomation.contact')}</p>
+          </div>
+        )}
       </GlassPanel>
 
       <GlassPanel aria-label={t('settings.reports.title')} className="p-4">

@@ -61,10 +61,24 @@ describe('SettingsScreen caps editor', () => {
     });
   });
 
-  it('shows email automation support details in settings', async () => {
+  it('reveals email automation support details from a compact disclosure', async () => {
+    await setLocale('en');
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
 
-    const section = await screen.findByRole('region', { name: /email automation|tự động email/i });
+    const section = await screen.findByRole('region', { name: /email automation/i });
+    const infoButton = within(section).getByRole('button', { name: /show email automation details/i });
+    const detailId = infoButton.getAttribute('aria-controls');
+    expect(detailId).toBeTruthy();
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false');
+    expect(within(section).queryByText(/iphone/i)).not.toBeInTheDocument();
+    expect(within(section).queryByText(/MB/)).not.toBeInTheDocument();
+    expect(within(section).queryByText(/admin/i)).not.toBeInTheDocument();
+
+    await user.click(infoButton);
+
+    expect(infoButton).toHaveAttribute('aria-expanded', 'true');
+    expect(section.querySelector(`#${detailId}`)).toBeInTheDocument();
     expect(section).toHaveTextContent(/iphone/i);
     expect(section).toHaveTextContent(/MB/);
     expect(section).toHaveTextContent(/ACB/);

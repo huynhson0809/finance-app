@@ -1,5 +1,6 @@
 import { getSetting, setSetting } from './settings';
 import type {
+  CategoryIconKey,
   CustomExpenseCategory,
   CustomIncomeCategory,
   TransactionDirection,
@@ -69,6 +70,7 @@ function mutateCustomCategories<T>(
 export async function createCustomCategory(
   direction: TransactionDirection,
   name: string,
+  iconKey?: CategoryIconKey,
 ): Promise<UserCategory> {
   const normalizedName = normalizeName(name);
   const now = new Date().toISOString();
@@ -76,6 +78,7 @@ export async function createCustomCategory(
     id: makeCustomCategoryId(direction, normalizedName),
     direction,
     name: normalizedName,
+    iconKey,
     createdAt: now,
     updatedAt: now,
   };
@@ -111,6 +114,37 @@ export async function renameCustomCategory(id: CustomCategoryId, name: string): 
     return {
       categories: next,
       result: renamed,
+    };
+  });
+}
+
+export async function updateCustomCategoryIcon(
+  id: CustomCategoryId,
+  iconKey: CategoryIconKey,
+): Promise<UserCategory> {
+  return mutateCustomCategories(categories => {
+    const index = categories.findIndex(category => category.id === id);
+    if (index === -1) {
+      throw new Error(`Custom category not found: ${id}`);
+    }
+
+    const previous = categories[index];
+    const now = new Date();
+    const previousUpdatedAt = Date.parse(previous.updatedAt);
+    const updatedAt = Number.isFinite(previousUpdatedAt) && now.getTime() <= previousUpdatedAt
+      ? new Date(previousUpdatedAt + 1).toISOString()
+      : now.toISOString();
+    const updated: UserCategory = {
+      ...previous,
+      iconKey,
+      updatedAt,
+    };
+
+    const next = [...categories];
+    next[index] = updated;
+    return {
+      categories: next,
+      result: updated,
     };
   });
 }

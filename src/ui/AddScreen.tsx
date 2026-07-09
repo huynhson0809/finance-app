@@ -1,11 +1,10 @@
-import { Check, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AddImageButton } from './AddImageButton';
 import { CategoryChips } from './components/CategoryChips';
 import { DarkField, SegmentedControl } from './components/primitives';
-import { categoriesForDirectionWithCustom, customCategoriesForDirection } from '../categories/catalog';
+import { categoriesForDirectionWithCustom } from '../categories/catalog';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { useCustomCategories } from '../hooks/useCustomCategories';
@@ -17,14 +16,10 @@ import { dateInputValueForVietnam, vietnamDateInputToNoonISO } from '../lib/date
 import {
   categoryBelongsToDirection,
   type Category,
-  type CustomExpenseCategory,
-  type CustomIncomeCategory,
   type ExpenseCategory,
   type IncomeCategory,
   type TransactionDirection,
 } from '../types';
-
-type CustomCategoryId = CustomExpenseCategory | CustomIncomeCategory;
 
 function isExpenseCategory(category: Category): category is ExpenseCategory {
   return categoryBelongsToDirection(category, 'expense');
@@ -56,19 +51,10 @@ export function AddScreen() {
   const [userPickedChip, setUserPickedChip] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [managerOpen, setManagerOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [categoryBusy, setCategoryBusy] = useState<CustomCategoryId | 'new' | null>(null);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
 
   const { suggestion, refresh } = useCategorySuggestion(merchant);
   const {
     categories: customCategories,
-    error: customCategoryError,
-    addCategory,
-    renameCategory,
-    deleteCategory,
   } = useCustomCategories();
 
   // Track suggestion until the user explicitly picks a chip.
@@ -82,21 +68,6 @@ export function AddScreen() {
       setChosen(null);
     }
   }, [chosen, direction]);
-
-  useEffect(() => {
-    setNewCategoryName('');
-    setCategoryError(null);
-  }, [direction]);
-
-  useEffect(() => {
-    setRenameDrafts(current => {
-      const next: Record<string, string> = {};
-      for (const category of customCategories) {
-        next[category.id] = current[category.id] ?? category.name;
-      }
-      return next;
-    });
-  }, [customCategories]);
 
   function handleAmountChange(value: string) {
     setRaw(value.replace(/[^\d]/g, '').slice(0, 12));
@@ -117,61 +88,8 @@ export function AddScreen() {
 
   const parsedAmount = parseVNDInput(raw);
   const amount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
-  const visibleCustomCategories = customCategoriesForDirection(customCategories, direction);
   const categoryOptions = categoriesForDirectionWithCustom(direction, customCategories);
   const canSave = Boolean(amount && chosen && isValidDateInput(date) && !saving);
-  const categoryManagerError = categoryError ?? customCategoryError;
-
-  async function handleAddCategory() {
-    const name = newCategoryName.trim();
-    if (!name || categoryBusy) return;
-    setCategoryBusy('new');
-    setCategoryError(null);
-    try {
-      const category = await addCategory(direction, name);
-      setNewCategoryName('');
-      setUserPickedChip(true);
-      setChosen(category.id);
-    } catch (err) {
-      setCategoryError(errorMessage(err));
-    } finally {
-      setCategoryBusy(null);
-    }
-  }
-
-  async function handleRenameCategory(id: CustomCategoryId, currentName: string) {
-    const name = (renameDrafts[id] ?? '').trim();
-    if (!name || name === currentName || categoryBusy) return;
-    setCategoryBusy(id);
-    setCategoryError(null);
-    try {
-      const category = await renameCategory(id, name);
-      setRenameDrafts(current => ({ ...current, [id]: category.name }));
-    } catch (err) {
-      setCategoryError(errorMessage(err));
-    } finally {
-      setCategoryBusy(null);
-    }
-  }
-
-  async function handleDeleteCategory(id: CustomCategoryId) {
-    if (categoryBusy) return;
-    setCategoryBusy(id);
-    setCategoryError(null);
-    try {
-      await deleteCategory(id);
-      setRenameDrafts(current => {
-        const next = { ...current };
-        delete next[id];
-        return next;
-      });
-      setChosen(current => current === id ? null : current);
-    } catch (err) {
-      setCategoryError(errorMessage(err));
-    } finally {
-      setCategoryBusy(null);
-    }
-  }
 
   async function handleSave() {
     if (!canSave || !chosen) return;
@@ -218,7 +136,7 @@ export function AddScreen() {
   }
 
   return (
-    <div className="space-y-4 px-4 py-5">
+    <div className="space-y-4 px-4 py-5 pb-36">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">{t('add.title')}</h1>
         <AddImageButton variant="compact" />
@@ -264,91 +182,13 @@ export function AddScreen() {
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-200">{t('add.category')}</h2>
-          <button
-            type="button"
-            onClick={() => setManagerOpen(open => !open)}
-            aria-expanded={managerOpen}
+          <Link
+            to={`/categories?direction=${direction}`}
             className="rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm font-semibold text-sky-300"
           >
             {t('add.manageCategories')}
-          </button>
+          </Link>
         </div>
-        {managerOpen && (
-          <section
-            aria-label={t('add.categoryManagerTitle')}
-            className="space-y-3 rounded-2xl border border-white/10 bg-black/25 p-3"
-          >
-            <div className="flex gap-2">
-              <input
-                value={newCategoryName}
-                onChange={e => setNewCategoryName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') void handleAddCategory();
-                }}
-                aria-label={t('add.newCategoryName')}
-                placeholder={t('add.newCategoryName')}
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300/70"
-              />
-              <button
-                type="button"
-                onClick={handleAddCategory}
-                disabled={!newCategoryName.trim() || categoryBusy != null}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-400 text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
-                aria-label={t('add.addCategory')}
-                title={t('add.addCategory')}
-              >
-                <Plus aria-hidden="true" className="h-4 w-4" />
-              </button>
-            </div>
-
-            {visibleCustomCategories.length > 0 && (
-              <div className="space-y-2">
-                {visibleCustomCategories.map(category => {
-                  const draft = renameDrafts[category.id] ?? category.name;
-                  return (
-                    <div key={category.id} className="flex items-center gap-2">
-                      <input
-                        value={draft}
-                        onChange={e => {
-                          const value = e.target.value;
-                          setRenameDrafts(current => ({ ...current, [category.id]: value }));
-                        }}
-                        aria-label={t('add.renameCategoryName', { name: category.name })}
-                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white outline-none focus:border-sky-300/70"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRenameCategory(category.id, category.name)}
-                        disabled={!draft.trim() || draft.trim() === category.name || categoryBusy != null}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.07] text-emerald-300 disabled:text-slate-600"
-                        aria-label={t('add.renameCategory', { name: category.name })}
-                        title={t('add.renameCategory', { name: category.name })}
-                      >
-                        <Check aria-hidden="true" className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCategory(category.id)}
-                        disabled={categoryBusy != null}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.07] text-rose-300 disabled:text-slate-600"
-                        aria-label={t('add.deleteCategory', { name: category.name })}
-                        title={t('add.deleteCategory', { name: category.name })}
-                      >
-                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {categoryManagerError && (
-              <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-2 text-xs text-rose-100">
-                {categoryManagerError}
-              </div>
-            )}
-          </section>
-        )}
         <CategoryChips
           value={chosen}
           onSelect={handleChip}
@@ -365,14 +205,16 @@ export function AddScreen() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={!canSave}
-        className="min-h-14 w-full rounded-2xl bg-sky-400 px-4 text-base font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
-      >
-        {saving ? t('add.saving') : t(direction === 'expense' ? 'add.submitExpense' : 'add.submitIncome')}
-      </button>
+      <div className="pt-2 pb-6">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!canSave}
+          className="min-h-14 w-full rounded-2xl bg-zinc-600 px-4 text-base font-bold text-white shadow-sm disabled:bg-slate-700 disabled:text-slate-400"
+        >
+          {saving ? t('add.saving') : t(direction === 'expense' ? 'add.submitExpense' : 'add.submitIncome')}
+        </button>
+      </div>
     </div>
   );
 }

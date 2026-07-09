@@ -13,7 +13,7 @@ interface TransactionRowProps {
 
 export function TransactionRow({ t: tx, locale, customCategories = [] }: TransactionRowProps) {
   const { t } = useTranslation();
-  const meta = getCategoryMeta(tx.category);
+  const meta = getCategoryMeta(tx.category, customCategories);
   const Icon = meta.Icon;
   const signedAmount = tx.direction === 'income'
     ? `+${formatVND(tx.amount, locale)}`

@@ -6,6 +6,7 @@ import {
   deleteCustomCategory,
   getCustomCategories,
   renameCustomCategory,
+  updateCustomCategoryIcon,
 } from '../../src/db/custom-categories';
 
 async function deleteFinanceDB(): Promise<void> {
@@ -26,13 +27,14 @@ describe('custom categories db', () => {
   });
 
   it('creates trimmed custom categories with direction-specific ids and persists them', async () => {
-    const expense = await createCustomCategory('expense', '  Pet care  ');
+    const expense = await createCustomCategory('expense', '  Pet care  ', 'shopping');
     const income = await createCustomCategory('income', '  Freelance  ');
 
     expect(expense).toMatchObject({
       id: expect.stringMatching(/^custom-expense-pet-care-/),
       direction: 'expense',
       name: 'Pet care',
+      iconKey: 'shopping',
     });
     expect(income).toMatchObject({
       id: expect.stringMatching(/^custom-income-freelance-/),
@@ -71,5 +73,19 @@ describe('custom categories db', () => {
 
     await deleteCustomCategory(category.id);
     await expect(getCustomCategories()).resolves.toEqual([]);
+  });
+
+  it('updates a custom category icon', async () => {
+    const category = await createCustomCategory('expense', 'Subscriptions');
+
+    const updated = await updateCustomCategoryIcon(category.id, 'bills');
+
+    expect(updated).toMatchObject({
+      ...category,
+      iconKey: 'bills',
+      updatedAt: expect.any(String),
+    });
+    expect(updated.updatedAt).not.toBe(category.updatedAt);
+    await expect(getCustomCategories()).resolves.toEqual([updated]);
   });
 });

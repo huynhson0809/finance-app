@@ -57,6 +57,12 @@ export function monthRangeVietnamISO(monthISO: string): { sinceISO: string; unti
   return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
 }
 
+export function yearRangeVietnamISO(year: number): { sinceISO: string; untilISO: string } {
+  const since = Date.UTC(year, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  const until = Date.UTC(year + 1, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
+}
+
 function vietnamDateString(input: string | Date): string {
   const date = input instanceof Date ? input : new Date(input);
   const shifted = new Date(date.getTime() + VIETNAM_UTC_OFFSET_MS);
