@@ -78,6 +78,15 @@
       "banks": "Ngân hàng đang hỗ trợ: MB và ACB.",
       "contact": "Liên hệ admin để được hỗ trợ cấu hình."
     },
+    "reports": {
+      "title": "Báo cáo",
+      "yearlyReport": "Báo cáo năm",
+      "yearlyCategoryReport": "Báo cáo danh mục theo năm",
+      "allTimeReport": "Báo cáo tổng hợp",
+      "allTimeCategoryReport": "Báo cáo danh mục tổng hợp",
+      "balanceChangeReport": "Báo cáo biến động số dư",
+      "searchTransactions": "Tìm kiếm giao dịch"
+    },
     "monthlyBudget": "Ngân sách hàng tháng",
     "savingsTarget": "Mục tiêu tiết kiệm",
     "spendableBudget": "Ngân sách có thể chi",

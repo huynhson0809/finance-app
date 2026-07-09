@@ -78,6 +78,15 @@
       "banks": "Supported banks: MB and ACB.",
       "contact": "Contact admin for setup support."
     },
+    "reports": {
+      "title": "Reports",
+      "yearlyReport": "Yearly report",
+      "yearlyCategoryReport": "Yearly category report",
+      "allTimeReport": "All-time report",
+      "allTimeCategoryReport": "All-time category report",
+      "balanceChangeReport": "Balance change report",
+      "searchTransactions": "Search transactions"
+    },
     "monthlyBudget": "Monthly budget",
     "savingsTarget": "Savings target",
     "spendableBudget": "Spendable budget",

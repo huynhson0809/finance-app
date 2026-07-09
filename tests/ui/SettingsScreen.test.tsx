@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import 'fake-indexeddb/auto';
@@ -69,6 +69,25 @@ describe('SettingsScreen caps editor', () => {
     expect(section).toHaveTextContent(/MB/);
     expect(section).toHaveTextContent(/ACB/);
     expect(section).toHaveTextContent(/admin|quản trị/i);
+  });
+
+  it('links to the report entry points from settings', async () => {
+    await setLocale('en');
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    const section = await screen.findByRole('region', { name: /reports/i });
+    const reportLinks = [
+      ['Yearly report', '/reports?mode=year-summary'],
+      ['Yearly category report', '/reports?mode=year-category'],
+      ['All-time report', '/reports?mode=all-summary'],
+      ['All-time category report', '/reports?mode=all-category'],
+      ['Balance change report', '/reports?mode=balance-change'],
+      ['Search transactions', '/reports?mode=search'],
+    ] as const;
+
+    for (const [name, href] of reportLinks) {
+      expect(within(section).getByRole('link', { name })).toHaveAttribute('href', href);
+    }
   });
 
   it('saves the monthly budget total', async () => {

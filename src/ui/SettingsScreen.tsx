@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  ChartPie,
+  History,
+  Search,
+  TrendingUp,
+} from 'lucide-react';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../lib/date';
@@ -8,6 +17,15 @@ import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { GlassPanel, DarkField } from './components/primitives';
+
+const reportLinks = [
+  { labelKey: 'settings.reports.yearlyReport', href: '/reports?mode=year-summary', Icon: CalendarDays },
+  { labelKey: 'settings.reports.yearlyCategoryReport', href: '/reports?mode=year-category', Icon: ChartPie },
+  { labelKey: 'settings.reports.allTimeReport', href: '/reports?mode=all-summary', Icon: History },
+  { labelKey: 'settings.reports.allTimeCategoryReport', href: '/reports?mode=all-category', Icon: ChartNoAxesCombined },
+  { labelKey: 'settings.reports.balanceChangeReport', href: '/reports?mode=balance-change', Icon: TrendingUp },
+  { labelKey: 'settings.reports.searchTransactions', href: '/reports?mode=search', Icon: Search },
+] as const;
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -90,6 +108,22 @@ export function SettingsScreen() {
           <p>{t('settings.emailAutomation.device')}</p>
           <p>{t('settings.emailAutomation.banks')}</p>
           <p className="font-semibold text-sky-300">{t('settings.emailAutomation.contact')}</p>
+        </div>
+      </GlassPanel>
+
+      <GlassPanel aria-label={t('settings.reports.title')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.reports.title')}</h2>
+        <div className="mt-3 space-y-2">
+          {reportLinks.map(({ labelKey, href, Icon }) => (
+            <Link
+              key={href}
+              to={href}
+              className="flex min-h-12 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.055] px-3 font-semibold text-slate-100 transition hover:border-sky-300/40 hover:bg-sky-300/10 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+            >
+              <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-sky-300" />
+              <span>{t(labelKey)}</span>
+            </Link>
+          ))}
         </div>
       </GlassPanel>
 
