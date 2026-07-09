@@ -107,6 +107,15 @@
     "dismiss": "Đóng"
   },
   "reports": {
+    "monthlyReport": "Báo cáo tháng",
+    "yearSummary": "Báo cáo năm",
+    "yearCategory": "Báo cáo danh mục theo năm",
+    "allSummary": "Báo cáo tổng hợp",
+    "allCategory": "Báo cáo danh mục tổng hợp",
+    "balanceChange": "Báo cáo biến động số dư",
+    "search": "Tìm kiếm giao dịch",
+    "searchPlaceholder": "Tìm cửa hàng, ghi chú, danh mục...",
+    "noSearchResults": "Không có giao dịch phù hợp",
     "noSpending": "Chưa có chi tiêu",
     "byCategory": "Theo danh mục",
     "anomalies": "Bất thường",

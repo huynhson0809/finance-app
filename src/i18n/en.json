@@ -107,6 +107,15 @@
     "dismiss": "Dismiss"
   },
   "reports": {
+    "monthlyReport": "Monthly report",
+    "yearSummary": "Yearly report",
+    "yearCategory": "Yearly category report",
+    "allSummary": "All-time report",
+    "allCategory": "All-time category report",
+    "balanceChange": "Balance change report",
+    "search": "Search transactions",
+    "searchPlaceholder": "Search merchant, note, category...",
+    "noSearchResults": "No matching transactions",
     "noSpending": "No spending this month",
     "byCategory": "By category",
     "anomalies": "Anomalies",

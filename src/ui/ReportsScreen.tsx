@@ -41,6 +41,21 @@ function safeMonth(value: string | null): string {
   return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(todayVietnamDate());
 }
 
+const REPORT_MODE_LABELS = {
+  'year-summary': 'reports.yearSummary',
+  'year-category': 'reports.yearCategory',
+  'all-summary': 'reports.allSummary',
+  'all-category': 'reports.allCategory',
+  'balance-change': 'reports.balanceChange',
+  search: 'reports.search',
+} as const;
+
+type ReportMode = keyof typeof REPORT_MODE_LABELS;
+
+function isReportMode(value: string | null): value is ReportMode {
+  return value !== null && value in REPORT_MODE_LABELS;
+}
+
 function transactionTitle(transaction: Transaction): string {
   return transaction.merchant?.trim() || transaction.note?.trim() || transaction.category;
 }
@@ -80,7 +95,11 @@ export function ReportsScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [direction, setDirection] = useState<TransactionDirection>('expense');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [transactionSearch, setTransactionSearch] = useState('');
   const month = safeMonth(searchParams.get('month'));
+  const rawReportMode = searchParams.get('mode');
+  const reportMode = isReportMode(rawReportMode) ? rawReportMode : null;
+  const reportModeLabel = reportMode ? t(REPORT_MODE_LABELS[reportMode]) : null;
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
   const reportAvailable = !loading && !error;
   const selectedDirectionLabel = t(`direction.${direction}`).toLowerCase();
@@ -128,6 +147,31 @@ export function ReportsScreen() {
     [transactions, month, direction, selectedCategory],
   );
 
+  const searchTransactions = useMemo(() => {
+    const normalizedQuery = transactionSearch.trim().toLowerCase();
+    const newestFirst = [...transactions]
+      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+
+    if (!normalizedQuery) return newestFirst;
+
+    return newestFirst.filter(transaction => {
+      const categoryLabel = t(`category.${transaction.category}`);
+      const values = [
+        transaction.merchant,
+        transaction.note,
+        transaction.bankHint,
+        transaction.bank,
+        String(transaction.amount),
+        formatVND(transaction.amount, locale),
+        formatVND(signedAmount(transaction), locale),
+        transaction.category,
+        categoryLabel,
+      ];
+
+      return values.some(value => value?.toLowerCase().includes(normalizedQuery));
+    });
+  }, [locale, t, transactionSearch, transactions]);
+
   const pieData = useMemo(
     () => categoryRows.map(row => ({
       category: row.category,
@@ -145,11 +189,36 @@ export function ReportsScreen() {
 
   function step(direction: -1 | 1) {
     const next = direction === -1 ? prevMonth(month) : nextMonth(month);
-    setSearchParams({ month: next });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('month', next);
+    setSearchParams(nextParams);
   }
 
   function retryReports() {
     void reload();
+  }
+
+  function renderTransactionRow(transaction: Transaction) {
+    const title = transactionTitle(transaction);
+    const meta = CATEGORY_META[transaction.category];
+    const Icon = meta.Icon;
+    const direction = transactionDirection(transaction);
+    const subtitle = [
+      todayVietnamDate(new Date(transaction.occurredAt)),
+      transaction.bankHint?.toUpperCase() ?? transaction.bank,
+    ].filter(Boolean).join(' · ');
+
+    return (
+      <MoneyRow
+        key={transaction.id}
+        as="li"
+        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+        title={title === transaction.category ? t(`category.${transaction.category}`) : title}
+        subtitle={subtitle}
+        amount={formatVND(signedAmount(transaction), locale)}
+        tone={direction}
+      />
+    );
   }
 
   return (
@@ -173,6 +242,14 @@ export function ReportsScreen() {
           ›
         </button>
       </header>
+
+      {reportModeLabel && (
+        <div className="px-4">
+          <div className="inline-flex min-h-8 items-center rounded-full border border-sky-300/30 bg-sky-400/10 px-3 text-sm font-semibold text-sky-100">
+            {reportModeLabel}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
@@ -231,6 +308,31 @@ export function ReportsScreen() {
             />
           </section>
 
+          {reportMode === 'search' && (
+            <section className="px-4">
+              <GlassPanel className="space-y-3 p-4">
+                <input
+                  type="search"
+                  value={transactionSearch}
+                  onChange={event => setTransactionSearch(event.target.value)}
+                  placeholder={t('reports.searchPlaceholder')}
+                  aria-label={t('reports.search')}
+                  className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300/50"
+                />
+
+                {searchTransactions.length === 0 ? (
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-sm text-slate-400">
+                    {t('reports.noSearchResults')}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {searchTransactions.map(renderTransactionRow)}
+                  </ul>
+                )}
+              </GlassPanel>
+            </section>
+          )}
+
           {selectedCategory ? (
             <section className="space-y-4 px-4">
               <button
@@ -263,28 +365,7 @@ export function ReportsScreen() {
                 </GlassPanel>
               ) : (
                 <ul className="space-y-2">
-                  {detailTransactions.map(transaction => {
-                    const title = transactionTitle(transaction);
-                    const meta = CATEGORY_META[transaction.category];
-                    const Icon = meta.Icon;
-                    const direction = transactionDirection(transaction);
-                    const subtitle = [
-                      todayVietnamDate(new Date(transaction.occurredAt)),
-                      transaction.bankHint?.toUpperCase(),
-                    ].filter(Boolean).join(' · ');
-
-                    return (
-                      <MoneyRow
-                        key={transaction.id}
-                        as="li"
-                        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                        title={title === transaction.category ? t(`category.${transaction.category}`) : title}
-                        subtitle={subtitle}
-                        amount={formatVND(signedAmount(transaction), locale)}
-                        tone={direction}
-                      />
-                    );
-                  })}
+                  {detailTransactions.map(renderTransactionRow)}
                 </ul>
               )}
             </section>
@@ -294,6 +375,7 @@ export function ReportsScreen() {
                 <CategoryPie
                   data={pieData}
                   emptyLabel={noDirectionDataLabel}
+                  locale={locale}
                 />
               </GlassPanel>
 

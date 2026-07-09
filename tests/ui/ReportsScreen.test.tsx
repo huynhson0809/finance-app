@@ -13,6 +13,7 @@ const reportHooks = vi.hoisted(() => ({
 
 const chartMocks = vi.hoisted(() => ({
   monthBarData: [] as Array<Array<{ date: string; total: number }>>,
+  pieLocales: [] as Array<'vi' | 'en' | undefined>,
 }));
 
 vi.mock('../../src/hooks/useReports', () => ({
@@ -27,6 +28,26 @@ vi.mock('../../src/ui/components/Charts/MonthBar', () => ({
   },
 }));
 
+vi.mock('../../src/ui/components/Charts/CategoryPie', () => ({
+  CategoryPie: ({
+    data,
+    emptyLabel,
+    locale,
+  }: {
+    data: Array<{ label: string; total: number }>;
+    emptyLabel?: string;
+    locale?: 'vi' | 'en';
+  }) => {
+    chartMocks.pieLocales.push(locale);
+
+    if (data.every(datum => datum.total === 0)) {
+      return <div role="status">{emptyLabel}</div>;
+    }
+
+    return <div data-testid="category-pie" />;
+  },
+}));
+
 import { ReportsScreen } from '../../src/ui/ReportsScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -35,6 +56,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en');
   reportHooks.reload.mockReset();
   chartMocks.monthBarData = [];
+  chartMocks.pieLocales = [];
   reportHooks.state = makeReportState();
 });
 
@@ -141,6 +163,60 @@ describe('ReportsScreen', () => {
     render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
 
     expect(screen.getByRole('region', { name: /report totals/i })).toBeInTheDocument();
+  });
+
+  it('shows the yearly report mode label from the query param', () => {
+    render(<MemoryRouter initialEntries={['/reports?mode=year-summary&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Yearly report')).toBeInTheDocument();
+  });
+
+  it('searches current report transactions by query', async () => {
+    const user = userEvent.setup();
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'coffee',
+          amount: 45_000,
+          category: 'coffee-bubble-tea',
+          merchant: 'Highlands Coffee',
+          note: 'Morning latte',
+          bankHint: 'mb',
+          occurredAt: '2099-06-05T14:48:00.000Z',
+        }),
+        tx({
+          id: 'grocery',
+          amount: 120_000,
+          category: 'food-drinks',
+          merchant: 'Big C',
+          note: 'Groceries',
+          bankHint: 'acb',
+          occurredAt: '2099-06-04T14:48:00.000Z',
+        }),
+      ],
+      directionTotals: {
+        expense: 165_000,
+        income: 0,
+        net: -165_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    const searchInput = screen.getByPlaceholderText('Search merchant, note, category...');
+    expect(searchInput).toBeInTheDocument();
+    expect(screen.getByText('Highlands Coffee')).toBeInTheDocument();
+    expect(screen.getByText('Big C')).toBeInTheDocument();
+
+    await user.type(searchInput, 'coffee');
+
+    expect(screen.getByText('Highlands Coffee')).toBeInTheDocument();
+    expect(screen.queryByText('Big C')).not.toBeInTheDocument();
+
+    await user.clear(searchInput);
+    await user.type(searchInput, 'nomatch');
+
+    expect(screen.getByText('No matching transactions')).toBeInTheDocument();
   });
 
   it('renders expense category rows with percentages by default', () => {
