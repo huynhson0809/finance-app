@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Spendly mark">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="36" x2="440" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172b3a"/>
+      <stop offset="0.55" stop-color="#07111c"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="135" y1="130" x2="377" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="0.46" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+    <filter id="glow" x="72" y="70" width="368" height="372" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#38bdf8" flood-opacity="0.38"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <path fill="none" stroke="#32495a" stroke-width="3" d="M134 117h244c10 0 18 8 18 18v242c0 10-8 18-18 18H134c-10 0-18-8-18-18V135c0-10 8-18 18-18Z" opacity="0.55"/>
+  <path
+    d="M343 150c-33-30-111-31-153-4-45 29-51 80-17 108 30 25 78 23 115 43 28 15 28 43 2 58-30 17-91 10-126-20"
+    fill="none"
+    stroke="url(#flow)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="48"
+    filter="url(#glow)"
+  />
+  <path
+    d="M343 150c-33-30-111-31-153-4-45 29-51 80-17 108 30 25 78 23 115 43 28 15 28 43 2 58-30 17-91 10-126-20"
+    fill="none"
+    stroke="#e0f2fe"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="12"
+    opacity="0.42"
+  />
+  <circle cx="365" cy="145" r="24" fill="#86efac"/>
+  <circle cx="365" cy="145" r="10" fill="#052e16" opacity="0.42"/>
+  <path d="M378 344l30 30 30-30" fill="none" stroke="#7dd3fc" stroke-linecap="round" stroke-linejoin="round" stroke-width="18" opacity="0.88"/>
+</svg>

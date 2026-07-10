@@ -1,27 +1,59 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  ChartPie,
+  History,
+  Info,
+  Search,
+  TrendingUp,
+} from 'lucide-react';
 import { setLocale, type Locale } from '../i18n';
 import { upsertBudget, getBudgetForMonth } from '../db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../lib/date';
-import { parseVNDInput } from '../lib/money';
+import { formatVND, parseVNDInput } from '../lib/money';
 import { CapsEditor } from './components/CapsEditor';
 import type { Category } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { GlassPanel, DarkField } from './components/primitives';
+
+const reportLinks = [
+  { labelKey: 'settings.reports.yearlyReport', href: '/settings/reports/year-summary', Icon: CalendarDays },
+  { labelKey: 'settings.reports.yearlyCategoryReport', href: '/settings/reports/year-category', Icon: ChartPie },
+  { labelKey: 'settings.reports.allTimeReport', href: '/settings/reports/all-summary', Icon: History },
+  { labelKey: 'settings.reports.allTimeCategoryReport', href: '/settings/reports/all-category', Icon: ChartNoAxesCombined },
+  { labelKey: 'settings.reports.balanceChangeReport', href: '/settings/reports/balance-change', Icon: TrendingUp },
+  { labelKey: 'settings.reports.searchTransactions', href: '/settings/reports/search', Icon: Search },
+] as const;
 
 export function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
   const month = monthOfVietnamDate(todayVietnamDate());
   const [raw, setRaw] = useState('');
+  const [savingsRaw, setSavingsRaw] = useState('');
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);
+  const [savingsTarget, setSavingsTarget] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [emailAutomationDetailsOpen, setEmailAutomationDetailsOpen] = useState(false);
+  const locale = i18n.language === 'en' ? 'en' : 'vi';
+  const spendableBudget = Math.max(0, total - savingsTarget);
+  const emailAutomationDetailsId = 'settings-email-automation-details';
 
   useEffect(() => {
     getBudgetForMonth(month).then(b => {
-      if (b) { setRaw(String(b.total)); setTotal(b.total); setCaps(b.caps ?? {}); }
+      if (b) {
+        const loadedSavingsTarget = b.savingsTarget ?? 0;
+        setRaw(String(b.total));
+        setSavingsRaw(loadedSavingsTarget > 0 ? String(loadedSavingsTarget) : '');
+        setTotal(b.total);
+        setSavingsTarget(loadedSavingsTarget);
+        setCaps(b.caps ?? {});
+      }
     });
   }, [month]);
 
@@ -29,9 +61,12 @@ export function SettingsScreen() {
 
   async function handleSaveBudget() {
     const parsed = parseVNDInput(raw);
+    const parsedSavings = savingsRaw.trim() === '' ? 0 : parseVNDInput(savingsRaw);
     if (Number.isNaN(parsed) || parsed <= 0) return;
-    await upsertBudget(month, parsed, caps);
+    if (savingsRaw.includes('-') || Number.isNaN(parsedSavings) || parsedSavings < 0) return;
+    await upsertBudget(month, parsed, caps, parsedSavings);
     setTotal(parsed);
+    setSavingsTarget(parsedSavings);
   }
 
   async function handleSignOut() {
@@ -69,6 +104,58 @@ export function SettingsScreen() {
         </div>
       </GlassPanel>
 
+      <GlassPanel aria-label={t('settings.emailAutomation.title')} className="p-4">
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <h2 className="font-semibold text-white">{t('settings.emailAutomation.title')}</h2>
+          <button
+            type="button"
+            aria-expanded={emailAutomationDetailsOpen}
+            aria-controls={emailAutomationDetailsId}
+            aria-label={t(
+              emailAutomationDetailsOpen
+                ? 'settings.emailAutomation.hideDetails'
+                : 'settings.emailAutomation.showDetails',
+            )}
+            title={t(
+              emailAutomationDetailsOpen
+                ? 'settings.emailAutomation.hideDetails'
+                : 'settings.emailAutomation.showDetails',
+            )}
+            onClick={() => setEmailAutomationDetailsOpen(open => !open)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.055] text-sky-300 transition hover:border-sky-300/40 hover:bg-sky-300/10 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+          >
+            <Info aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+        {emailAutomationDetailsOpen && (
+          <div
+            id={emailAutomationDetailsId}
+            className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm leading-relaxed text-slate-300"
+          >
+            <p>{t('settings.emailAutomation.description')}</p>
+            <p>{t('settings.emailAutomation.device')}</p>
+            <p>{t('settings.emailAutomation.banks')}</p>
+            <p className="font-semibold text-sky-300">{t('settings.emailAutomation.contact')}</p>
+          </div>
+        )}
+      </GlassPanel>
+
+      <GlassPanel aria-label={t('settings.reports.title')} className="p-4">
+        <h2 className="font-semibold text-white">{t('settings.reports.title')}</h2>
+        <div className="mt-3 space-y-2">
+          {reportLinks.map(({ labelKey, href, Icon }) => (
+            <Link
+              key={href}
+              to={href}
+              className="flex min-h-12 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.055] px-3 font-semibold text-slate-100 transition hover:border-sky-300/40 hover:bg-sky-300/10 focus:outline-none focus:ring-2 focus:ring-sky-300/60"
+            >
+              <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-sky-300" />
+              <span>{t(labelKey)}</span>
+            </Link>
+          ))}
+        </div>
+      </GlassPanel>
+
       <GlassPanel aria-label={t('settings.monthlyBudget')} className="p-4">
         <h2 className="font-semibold text-white">{t('settings.monthlyBudget')}</h2>
         <div className="mt-3">
@@ -80,6 +167,15 @@ export function SettingsScreen() {
             />
           </DarkField>
         </div>
+        <div className="mt-3">
+          <DarkField label={t('settings.savingsTarget')}>
+            <input
+              inputMode="numeric"
+              value={savingsRaw}
+              onChange={e => setSavingsRaw(e.target.value)}
+            />
+          </DarkField>
+        </div>
         <button
           type="button"
           onClick={handleSaveBudget}
@@ -87,6 +183,16 @@ export function SettingsScreen() {
         >
           {t('settings.save')}
         </button>
+        {total > 0 && (
+          <div
+            role="status"
+            aria-label={t('settings.spendableBudget')}
+            className="mt-3 rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3"
+          >
+            <p className="text-sm text-slate-400">{t('settings.spendableBudget')}</p>
+            <p className="mt-1 text-lg font-bold text-white">{formatVND(spendableBudget, locale)}</p>
+          </div>
+        )}
 
         {total > 0 && (
           <div className="mt-4">

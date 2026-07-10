@@ -27,7 +27,7 @@ describe('Layout', () => {
     );
 
     expect(screen.getByTestId('app-shell')).toHaveClass('min-h-screen');
-    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
+    expect(screen.getByTestId('app-main')).toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10.625rem)]');
     expect(screen.getByRole('link', { name: /add|thêm/i })).toHaveAttribute('href', '/add');
   });
 
@@ -43,9 +43,9 @@ describe('Layout', () => {
     );
 
     expect(screen.getByRole('navigation', { name: /primary/i }))
-      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+0.875rem)]');
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+1.5rem)]');
     expect(screen.getByTestId('app-main'))
-      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10rem)]');
+      .toHaveClass('pb-[calc(env(safe-area-inset-bottom)+10.625rem)]');
   });
 
   it('orders bottom navigation like a mobile finance app', () => {
@@ -82,6 +82,21 @@ describe('Layout', () => {
 
     expect(screen.getByRole('navigation', { name: /primary/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /calendar|lịch/i })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps settings active for settings report subpages', () => {
+    render(
+      <MemoryRouter initialEntries={['/settings/reports/year-summary']}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/settings/reports/year-summary" element={<div>Yearly settings report</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link', { name: /settings|cài đặt/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: /reports|báo cáo/i })).not.toHaveAttribute('aria-current');
   });
 
   it('uses current i18next plural keys for calendar transaction counts', async () => {

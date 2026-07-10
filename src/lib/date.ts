@@ -35,10 +35,24 @@ export function dateInputValueForVietnam(now = new Date()): string {
   return vietnamDateString(now);
 }
 
+export function datetimeInputValueForVietnam(now = new Date()): string {
+  const shifted = new Date(now.getTime() + VIETNAM_UTC_OFFSET_MS);
+  const year = shifted.getUTCFullYear();
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(shifted.getUTCDate()).padStart(2, '0');
+  const hour = String(shifted.getUTCHours()).padStart(2, '0');
+  const minute = String(shifted.getUTCMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
 export function vietnamDateInputToNoonISO(dateInput: string): string {
   const [year, month, day] = dateInput.split('-').map(Number);
   const utc = Date.UTC(year, month - 1, day, 12, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   return new Date(utc).toISOString();
+}
+
+export function vietnamDatetimeInputToISO(datetimeInput: string): string {
+  return new Date(`${datetimeInput}:00+07:00`).toISOString();
 }
 
 export function monthOfVietnamDate(input: string | Date): string {
@@ -54,6 +68,12 @@ export function monthRangeVietnamISO(monthISO: string): { sinceISO: string; unti
   const [y, m] = monthISO.split('-').map(Number);
   const since = Date.UTC(y, m - 1, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   const until = Date.UTC(y, m, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
+}
+
+export function yearRangeVietnamISO(year: number): { sinceISO: string; untilISO: string } {
+  const since = Date.UTC(year, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  const until = Date.UTC(year + 1, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
 }
 

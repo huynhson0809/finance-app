@@ -1,4 +1,7 @@
-export type ExpenseCategory =
+export type CustomExpenseCategory = `custom-expense-${string}`;
+export type CustomIncomeCategory = `custom-income-${string}`;
+
+export type BuiltInExpenseCategory =
   | 'food-drinks'
   | 'coffee-bubble-tea'
   | 'transportation'
@@ -9,7 +12,7 @@ export type ExpenseCategory =
   | 'transfers-debt'
   | 'others';
 
-export type IncomeCategory =
+export type BuiltInIncomeCategory =
   | 'salary'
   | 'allowance'
   | 'bonus'
@@ -17,11 +20,52 @@ export type IncomeCategory =
   | 'investment'
   | 'temporary-income';
 
+export type ExpenseCategory = BuiltInExpenseCategory | CustomExpenseCategory;
+
+export type IncomeCategory = BuiltInIncomeCategory | CustomIncomeCategory;
+
 export type Category = ExpenseCategory | IncomeCategory;
+export type BuiltInCategory = BuiltInExpenseCategory | BuiltInIncomeCategory;
+
+type BuiltInCategoryList<T extends BuiltInCategory> = readonly T[] & {
+  includes(category: Category): boolean;
+};
 
 export type TransactionDirection = 'expense' | 'income';
 
-export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
+export type CategoryIconKey =
+  | 'utensils'
+  | 'coffee'
+  | 'transportation'
+  | 'shopping'
+  | 'bills'
+  | 'health'
+  | 'entertainment'
+  | 'transfer'
+  | 'wallet'
+  | 'piggy'
+  | 'gift'
+  | 'coins'
+  | 'bank'
+  | 'other';
+
+export interface UserCategory {
+  id: CustomExpenseCategory | CustomIncomeCategory;
+  direction: TransactionDirection;
+  name: string;
+  iconKey?: CategoryIconKey;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryOverride {
+  category: BuiltInCategory;
+  name?: string;
+  iconKey?: CategoryIconKey;
+  updatedAt: string;
+}
+
+export const EXPENSE_CATEGORIES: BuiltInCategoryList<BuiltInExpenseCategory> = [
   'food-drinks',
   'coffee-bubble-tea',
   'transportation',
@@ -33,7 +77,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'others',
 ];
 
-export const INCOME_CATEGORIES: readonly IncomeCategory[] = [
+export const INCOME_CATEGORIES: BuiltInCategoryList<BuiltInIncomeCategory> = [
   'salary',
   'allowance',
   'bonus',
@@ -42,7 +86,7 @@ export const INCOME_CATEGORIES: readonly IncomeCategory[] = [
   'temporary-income',
 ];
 
-export const CATEGORIES: readonly Category[] = [
+export const CATEGORIES: BuiltInCategoryList<BuiltInCategory> = [
   ...EXPENSE_CATEGORIES,
   ...INCOME_CATEGORIES,
 ];
@@ -55,6 +99,8 @@ export function categoryBelongsToDirection(
   category: Category,
   direction: TransactionDirection,
 ): boolean {
+  if (category.startsWith('custom-expense-')) return direction === 'expense';
+  if (category.startsWith('custom-income-')) return direction === 'income';
   return categoriesForDirection(direction).includes(category);
 }
 
@@ -95,6 +141,7 @@ export interface Budget {
   id: string;
   month: string;          // 'YYYY-MM'
   total: number;          // integer VND
+  savingsTarget?: number; // integer VND
   caps: Partial<Record<ExpenseCategory, number>>;
 }
 

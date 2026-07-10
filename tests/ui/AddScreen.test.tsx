@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -7,7 +7,8 @@ import { HomeScreen } from '../../src/ui/HomeScreen';
 import { initI18n } from '../../src/i18n';
 import { __resetDBForTests } from '../../src/db';
 import { getAllRules } from '../../src/db/category-rules';
-import { vietnamDateInputToNoonISO } from '../../src/lib/date';
+import { createCustomCategory } from '../../src/db/custom-categories';
+import { vietnamDatetimeInputToISO } from '../../src/lib/date';
 
 const saveMocks = vi.hoisted(() => ({
   saveUserTransaction: vi.fn(),
@@ -29,6 +30,10 @@ beforeEach(async () => {
   });
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -41,33 +46,61 @@ function renderAt(path: string) {
 }
 
 describe('AddScreen manual entry', () => {
-  it('renders the fast-entry amount panel and add methods', () => {
+  it('defaults a new manual transaction to the current Vietnam time', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-07-10T14:34:00.000Z'));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    renderAt('/add');
+
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '500000');
+    await user.click(screen.getByRole('button', { name: /transport|đi lại/i }));
+    await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
+
+    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 500000,
+      direction: 'expense',
+      category: 'transportation',
+      source: 'manual',
+      occurredAt: '2026-07-10T14:34:00.000Z',
+    }));
+
+  });
+
+  it('renders the compact manual-entry screen without the email setup tile', () => {
     render(<MemoryRouter><AddScreen /></MemoryRouter>);
 
     expect(screen.getByRole('heading', { name: /add transaction|thêm giao dịch/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/amount|số tiền/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' })).toBeInTheDocument();
     expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /direction|loại giao dịch/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /manage categories|quản lý danh mục/i })).toHaveAttribute('href', '/categories?direction=expense');
+    expect(screen.getByTestId('add-fixed-form')).toHaveClass('shrink-0');
+    expect(screen.getByTestId('add-category-scroll')).toHaveClass('overflow-hidden');
+    expect(screen.getByTestId('add-submit-footer')).toHaveClass('fixed');
+    expect(screen.queryByText(/link email/i)).not.toBeInTheDocument();
   });
 
   it('saves a transaction with the entered amount and selected category', async () => {
     const user = userEvent.setup();
     renderAt('/add');
-    // Three taps: digit 4, digit 5, then three zeros via the "000" key, pick chip, save
     await user.clear(screen.getByLabelText(/date|ngày/i));
-    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
-    await user.click(screen.getByRole('button', { name: '4' }));
-    await user.click(screen.getByRole('button', { name: '5' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07T09:15');
+    await user.type(screen.getByLabelText(/note|ghi chú/i), 'Ăn uống trưa');
+    await user.clear(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }));
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '45000');
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
     await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
-    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+    const saved = saveMocks.saveUserTransaction.mock.calls[0]?.[0];
+    expect(saved).toEqual(expect.objectContaining({
       amount: 45000,
       direction: 'expense',
       category: 'coffee-bubble-tea',
+      note: 'Ăn uống trưa',
       source: 'manual',
-      occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
+      occurredAt: vietnamDatetimeInputToISO('2026-07-07T09:15'),
     }));
+    expect(saved).not.toHaveProperty('merchant');
   });
 
   it('does not save when the date is cleared', async () => {
@@ -75,8 +108,7 @@ describe('AddScreen manual entry', () => {
     renderAt('/add');
 
     await user.clear(screen.getByLabelText(/date|ngày/i));
-    await user.click(screen.getByRole('button', { name: '4' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '4000');
     await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
 
     const saveButton = screen.getByRole('button', { name: /add expense|thêm tiền chi/i });
@@ -91,9 +123,8 @@ describe('AddScreen manual entry', () => {
 
     await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
     await user.clear(screen.getByLabelText(/date|ngày/i));
-    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07');
-    await user.click(screen.getByRole('button', { name: '5' }));
-    await user.click(screen.getByRole('button', { name: '000' }));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07T08:30');
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '5000');
     await user.click(screen.getByRole('button', { name: /salary|lương/i }));
     await user.click(screen.getByRole('button', { name: /add income|thêm tiền thu/i }));
 
@@ -102,7 +133,7 @@ describe('AddScreen manual entry', () => {
       direction: 'income',
       category: 'salary',
       source: 'manual',
-      occurredAt: vietnamDateInputToNoonISO('2026-07-07'),
+      occurredAt: vietnamDatetimeInputToISO('2026-07-07T08:30'),
     }));
   });
 
@@ -118,6 +149,53 @@ describe('AddScreen manual entry', () => {
     expect(screen.queryByRole('button', { name: /food|ăn uống/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /salary|lương/i })).toBeInTheDocument();
   });
+
+  it('renders a saved custom expense category and saves with it', async () => {
+    const customCategory = await createCustomCategory('expense', 'Snacks', 'shopping');
+    const user = userEvent.setup();
+    renderAt('/add');
+
+    const customChip = await screen.findByRole('button', { name: 'Snacks' });
+    expect(customChip).toBeInTheDocument();
+    await user.click(customChip);
+
+    await user.clear(screen.getByLabelText(/date|ngày/i));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07T15:45');
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '35000');
+    await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
+
+    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 35000,
+      direction: 'expense',
+      category: customCategory.id,
+      source: 'manual',
+      occurredAt: vietnamDatetimeInputToISO('2026-07-07T15:45'),
+    }));
+  });
+
+  it('renders a saved custom income category after switching direction and saves with it', async () => {
+    const customCategory = await createCustomCategory('income', 'Gift', 'gift');
+    const user = userEvent.setup();
+    renderAt('/add');
+
+    await user.click(screen.getByRole('button', { name: /tiền thu|income/i }));
+    const customChip = await screen.findByRole('button', { name: 'Gift' });
+    expect(customChip).toBeInTheDocument();
+    await user.click(customChip);
+
+    await user.clear(screen.getByLabelText(/date|ngày/i));
+    await user.type(screen.getByLabelText(/date|ngày/i), '2026-07-07T18:05');
+    await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '120000');
+    await user.click(screen.getByRole('button', { name: /add income|thêm tiền thu/i }));
+
+    expect(saveMocks.saveUserTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 120000,
+      direction: 'income',
+      category: customCategory.id,
+      source: 'manual',
+      occurredAt: vietnamDatetimeInputToISO('2026-07-07T18:05'),
+    }));
+  });
 });
 
 it('shows a visible error when saving a manual transaction fails', async () => {
@@ -126,9 +204,7 @@ it('shows a visible error when saving a manual transaction fails', async () => {
 
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
 
-  await user.click(screen.getByRole('button', { name: '4' }));
-  await user.click(screen.getByRole('button', { name: '5' }));
-  await user.click(screen.getByRole('button', { name: '000' }));
+  await user.type(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), '45000');
   await user.click(screen.getByRole('button', { name: /Cà phê|Coffee/ }));
   await user.click(screen.getByRole('button', { name: /add expense|thêm tiền chi/i }));
 
@@ -136,9 +212,9 @@ it('shows a visible error when saving a manual transaction fails', async () => {
   expect(screen.getByRole('alert')).toHaveTextContent('new row violates row-level security policy');
 });
 
-it('auto-highlights category chip when merchant matches seed', async () => {
+it('auto-highlights category chip when note matches seed', async () => {
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
-  const input = screen.getByLabelText(/merchant|cửa hàng/i);
+  const input = screen.getByLabelText(/note|ghi chú/i);
   fireEvent.change(input, { target: { value: 'Highlands Coffee' } });
   await waitFor(() => {
     const chip = screen.getByRole('button', { name: /coffee|cà phê/i, pressed: true });
@@ -146,16 +222,27 @@ it('auto-highlights category chip when merchant matches seed', async () => {
   });
 });
 
+it('auto-highlights food when note contains the Vietnamese category label', async () => {
+  render(<MemoryRouter><AddScreen /></MemoryRouter>);
+
+  fireEvent.change(screen.getByLabelText(/note|ghi chú/i), {
+    target: { value: 'chuyển khoản ăn uống' },
+  });
+
+  await waitFor(() => {
+    const chip = screen.getByRole('button', { name: /food|ăn uống/i, pressed: true });
+    expect(chip).toBeInTheDocument();
+  });
+});
+
 it('learns when user overrides the suggested chip on save', async () => {
   render(<MemoryRouter><AddScreen /></MemoryRouter>);
   // enter amount
-  fireEvent.click(screen.getByText('1'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
-  fireEvent.click(screen.getByText('0'));
+  fireEvent.change(screen.getByLabelText(/amount|số tiền/i, { selector: 'input' }), {
+    target: { value: '10000' },
+  });
   // merchant -> triggers suggestion 'coffee-bubble-tea'
-  fireEvent.change(screen.getByLabelText(/merchant|cửa hàng/i), {
+  fireEvent.change(screen.getByLabelText(/note|ghi chú/i), {
     target: { value: 'Highlands Coffee' },
   });
   // wait for chip selected

@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { formatVND } from '../../lib/money';
 import type { BudgetStatus } from '../../reports';
 
-export function BudgetBar({ spent, total, locale, status = 'ok' }: {
-  spent: number; total: number; locale: 'vi' | 'en'; status?: BudgetStatus;
+export function BudgetBar({ spent, total, locale, status = 'ok', savingsTarget = 0 }: {
+  spent: number; total: number; locale: 'vi' | 'en'; status?: BudgetStatus; savingsTarget?: number;
 }) {
   const { t } = useTranslation();
   const ratio = total > 0 ? Math.min(spent / total, 1.2) : 0;
@@ -27,6 +27,12 @@ export function BudgetBar({ spent, total, locale, status = 'ok' }: {
           aria-valuemax={100}
         />
       </div>
+      {savingsTarget > 0 && (
+        <div className="mt-2 flex justify-between gap-3 text-xs text-slate-400">
+          <span className="truncate">{t('home.protectedSavings')}</span>
+          <span className="shrink-0">{formatVND(savingsTarget, locale)}</span>
+        </div>
+      )}
     </div>
   );
 }

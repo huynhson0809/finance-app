@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calendarDaySummaries,
+  categoryTotalsByDate,
   categoryTotalsForDate,
   initialSelectedDate,
   mondayWeekdayIndex,
@@ -92,6 +93,38 @@ describe('calendar report helpers', () => {
     expect(rows).toEqual([
       { category: 'food-drinks', direction: 'expense', total: 10_000, count: 1 },
       { category: 'transportation', direction: 'expense', total: 10_000, count: 1 },
+    ]);
+  });
+
+  it('builds Money Note-style date groups sorted newest first', () => {
+    const groups = categoryTotalsByDate([
+      tx({ amount: 20_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T05:00:00.000Z' }),
+      tx({ amount: 30_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T06:00:00.000Z' }),
+      tx({ amount: 90_000, direction: 'income', category: 'allowance', occurredAt: '2026-07-08T05:00:00.000Z' }),
+      tx({ amount: 12_000, direction: 'expense', category: 'healthcare', occurredAt: '2026-07-08T06:00:00.000Z' }),
+      tx({ amount: 999_000, direction: 'expense', category: 'shopping', occurredAt: '2026-08-01T05:00:00.000Z' }),
+    ], '2026-07');
+
+    expect(groups).toEqual([
+      {
+        date: '2026-07-08',
+        expenseTotal: 12_000,
+        incomeTotal: 90_000,
+        netTotal: 78_000,
+        rows: [
+          { category: 'allowance', direction: 'income', total: 90_000, count: 1 },
+          { category: 'healthcare', direction: 'expense', total: 12_000, count: 1 },
+        ],
+      },
+      {
+        date: '2026-07-07',
+        expenseTotal: 50_000,
+        incomeTotal: 0,
+        netTotal: -50_000,
+        rows: [
+          { category: 'food-drinks', direction: 'expense', total: 50_000, count: 2 },
+        ],
+      },
     ]);
   });
 

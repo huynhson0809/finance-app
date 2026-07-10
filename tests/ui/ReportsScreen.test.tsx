@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { initI18n, i18n } from '../../src/i18n';
-import { CATEGORIES, type Category, type Transaction } from '../../src/types';
+import { CATEGORIES, type Category, type Transaction, type UserCategory } from '../../src/types';
 import type { UseReportsResult } from '../../src/hooks/useReports';
 
 const reportHooks = vi.hoisted(() => ({
@@ -11,12 +11,44 @@ const reportHooks = vi.hoisted(() => ({
   state: null as UseReportsResult | null,
 }));
 
+const scopedReportHooks = vi.hoisted(() => ({
+  reload: vi.fn(),
+  state: {
+    transactions: [] as Transaction[],
+    loading: false,
+    error: null as string | null,
+    reload: vi.fn(),
+  },
+}));
+
+const customCategoryHooks = vi.hoisted(() => ({
+  categories: [] as UserCategory[],
+}));
+
 const chartMocks = vi.hoisted(() => ({
   monthBarData: [] as Array<Array<{ date: string; total: number }>>,
+  pieData: [] as Array<Array<{ label: string; total: number; color: string }>>,
+  pieLocales: [] as Array<'vi' | 'en' | undefined>,
 }));
 
 vi.mock('../../src/hooks/useReports', () => ({
   useReports: vi.fn(() => reportHooks.state),
+}));
+
+vi.mock('../../src/hooks/useScopedReportTransactions', () => ({
+  useScopedReportTransactions: vi.fn(() => scopedReportHooks.state),
+}));
+
+vi.mock('../../src/hooks/useCustomCategories', () => ({
+  useCustomCategories: vi.fn(() => ({
+    categories: customCategoryHooks.categories,
+    loading: false,
+    error: null,
+    reload: vi.fn(),
+    addCategory: vi.fn(),
+    renameCategory: vi.fn(),
+    deleteCategory: vi.fn(),
+  })),
 }));
 
 vi.mock('../../src/ui/components/Charts/MonthBar', () => ({
@@ -27,6 +59,27 @@ vi.mock('../../src/ui/components/Charts/MonthBar', () => ({
   },
 }));
 
+vi.mock('../../src/ui/components/Charts/CategoryPie', () => ({
+  CategoryPie: ({
+    data,
+    emptyLabel,
+    locale,
+  }: {
+    data: Array<{ label: string; total: number; color: string }>;
+    emptyLabel?: string;
+    locale?: 'vi' | 'en';
+  }) => {
+    chartMocks.pieData.push(data);
+    chartMocks.pieLocales.push(locale);
+
+    if (data.every(datum => datum.total === 0)) {
+      return <div role="status">{emptyLabel}</div>;
+    }
+
+    return <div data-testid="category-pie" />;
+  },
+}));
+
 import { ReportsScreen } from '../../src/ui/ReportsScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -34,8 +87,18 @@ beforeAll(async () => { await initI18n(); });
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   reportHooks.reload.mockReset();
+  scopedReportHooks.reload.mockReset();
   chartMocks.monthBarData = [];
+  chartMocks.pieData = [];
+  chartMocks.pieLocales = [];
+  customCategoryHooks.categories = [];
   reportHooks.state = makeReportState();
+  scopedReportHooks.state = {
+    transactions: [],
+    loading: false,
+    error: null,
+    reload: scopedReportHooks.reload,
+  };
 });
 
 function zeroSums(): Record<Category, number> {
@@ -67,6 +130,17 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
   } as Transaction;
 }
 
+function customCategory(overrides: Partial<UserCategory> = {}): UserCategory {
+  return {
+    id: 'custom-expense-pet-care',
+    direction: 'expense',
+    name: 'Pet Care',
+    createdAt: '2099-06-04T14:48:00.000Z',
+    updatedAt: '2099-06-04T14:48:00.000Z',
+    ...overrides,
+  } as UserCategory;
+}
+
 function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsResult {
   return {
     loading: false,
@@ -81,6 +155,7 @@ function makeReportState(overrides: Partial<UseReportsResult> = {}): UseReportsR
       overall: 'ok',
       perCategory: okStatuses(),
       overallSpent: 0,
+      overallLimit: 0,
     },
     directionTotals: {
       expense: 0,
@@ -104,6 +179,7 @@ describe('ReportsScreen', () => {
         overall: 'over',
         perCategory: okStatuses(),
         overallSpent: 1500,
+        overallLimit: 1000,
       },
     });
 
@@ -141,6 +217,55 @@ describe('ReportsScreen', () => {
     expect(screen.getByRole('region', { name: /report totals/i })).toBeInTheDocument();
   });
 
+  it('shows the yearly report mode label from the query param', () => {
+    render(<MemoryRouter initialEntries={['/reports?mode=year-summary&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Yearly report')).toBeInTheDocument();
+  });
+
+  it('searches current report transactions by query', async () => {
+    const user = userEvent.setup();
+    scopedReportHooks.state = makeScopedReportState({
+      transactions: [
+        tx({
+          id: 'coffee',
+          amount: 45_000,
+          category: 'coffee-bubble-tea',
+          merchant: 'Highlands Coffee',
+          note: 'Morning latte',
+          bankHint: 'mb',
+          occurredAt: '2099-06-05T14:48:00.000Z',
+        }),
+        tx({
+          id: 'grocery',
+          amount: 120_000,
+          category: 'food-drinks',
+          merchant: 'Big C',
+          note: 'Groceries',
+          bankHint: 'acb',
+          occurredAt: '2099-06-04T14:48:00.000Z',
+        }),
+      ],
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    const searchInput = screen.getByPlaceholderText('Search merchant, note, category...');
+    expect(searchInput).toBeInTheDocument();
+    expect(screen.getByText('Highlands Coffee')).toBeInTheDocument();
+    expect(screen.getByText('Big C')).toBeInTheDocument();
+
+    await user.type(searchInput, 'coffee');
+
+    expect(screen.getByText('Highlands Coffee')).toBeInTheDocument();
+    expect(screen.queryByText('Big C')).not.toBeInTheDocument();
+
+    await user.clear(searchInput);
+    await user.type(searchInput, 'nomatch');
+
+    expect(screen.getByText('No matching transactions')).toBeInTheDocument();
+  });
+
   it('renders expense category rows with percentages by default', () => {
     reportHooks.state = makeReportState({
       transactions: [
@@ -163,6 +288,52 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Healthcare')).toBeInTheDocument();
     expect(screen.queryByText('Salary')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /food & drinks/i })).toBeInTheDocument();
+  });
+
+  it('renders custom expense categories with saved labels and fallback pie colors', () => {
+    customCategoryHooks.categories = [customCategory()];
+    reportHooks.state = makeReportState({
+      transactions: [
+        tx({
+          id: 'pet-care',
+          amount: 25_000,
+          category: 'custom-expense-pet-care',
+          merchant: 'Vet',
+        }),
+      ],
+      directionTotals: {
+        expense: 25_000,
+        income: 0,
+        net: -25_000,
+      },
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getByText('Pet Care')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pet care/i })).toBeInTheDocument();
+    expect(chartMocks.pieData.at(-1)).toContainEqual(expect.objectContaining({
+      label: 'Pet Care',
+      color: '#94a3b8',
+    }));
+  });
+
+  it('does not crash when search results include an unknown custom category', () => {
+    scopedReportHooks.state = makeScopedReportState({
+      transactions: [
+        tx({
+          id: 'child-care',
+          amount: 25_000,
+          category: 'custom-expense-child-care',
+          merchant: '',
+          note: '',
+        }),
+      ],
+    });
+
+    render(<MemoryRouter initialEntries={['/reports?mode=search&month=2099-06']}><ReportsScreen /></MemoryRouter>);
+
+    expect(screen.getAllByText('Child Care').length).toBeGreaterThan(0);
   });
 
   it('opens a category detail view with matching transactions', async () => {
@@ -420,6 +591,7 @@ function makeReportStateWithStaleContent(overrides: Partial<UseReportsResult> = 
       overall: 'over',
       perCategory: { ...okStatuses(), 'food-drinks': 'over' },
       overallSpent: 30_000,
+      overallLimit: 20_000,
     },
     ...overrides,
   });
@@ -427,4 +599,14 @@ function makeReportStateWithStaleContent(overrides: Partial<UseReportsResult> = 
 
 function makeUnavailableReportState(overrides: Partial<UseReportsResult>): UseReportsResult {
   return makeReportStateWithStaleContent(overrides);
+}
+
+function makeScopedReportState(overrides: Partial<typeof scopedReportHooks.state> = {}) {
+  return {
+    transactions: [] as Transaction[],
+    loading: false,
+    error: null as string | null,
+    reload: scopedReportHooks.reload,
+    ...overrides,
+  };
 }

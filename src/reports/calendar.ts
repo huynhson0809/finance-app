@@ -17,6 +17,14 @@ export interface CategoryDayTotal {
   count: number;
 }
 
+export interface CalendarDateGroup {
+  date: string;
+  expenseTotal: number;
+  incomeTotal: number;
+  netTotal: number;
+  rows: CategoryDayTotal[];
+}
+
 function transactionDirection(transaction: Transaction): TransactionDirection {
   return transaction.direction === 'income' ? 'income' : 'expense';
 }
@@ -92,6 +100,34 @@ export function categoryTotalsForDate(
     if (a.total !== b.total) return b.total - a.total;
     return a.category.localeCompare(b.category);
   });
+}
+
+export function categoryTotalsByDate(
+  transactions: Transaction[],
+  monthISO: string,
+): CalendarDateGroup[] {
+  const byDate = new Map<string, Transaction[]>();
+
+  for (const transaction of transactions) {
+    const date = todayVietnamDate(new Date(transaction.occurredAt));
+    if (date.slice(0, 7) !== monthISO) continue;
+    const rows = byDate.get(date) ?? [];
+    rows.push(transaction);
+    byDate.set(date, rows);
+  }
+
+  return Array.from(byDate.entries())
+    .map(([date, rows]) => {
+      const totals = totalsByDirection(rows);
+      return {
+        date,
+        expenseTotal: totals.expense,
+        incomeTotal: totals.income,
+        netTotal: totals.net,
+        rows: categoryTotalsForDate(rows, date),
+      };
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function initialSelectedDate(

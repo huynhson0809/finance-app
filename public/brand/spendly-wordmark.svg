@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-label="Spendly">
+  <defs>
+    <linearGradient id="mark-bg" x1="18" y1="8" x2="210" y2="226" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172b3a"/>
+      <stop offset="0.56" stop-color="#07111c"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="mark-flow" x1="52" y1="54" x2="188" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7dd3fc"/>
+      <stop offset="0.48" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="204" height="204" rx="52" fill="url(#mark-bg)"/>
+  <path
+    d="M166 73c-18-16-58-17-79-3-23 15-26 41-9 56 16 13 41 12 60 22 15 8 15 22 1 30-15 9-47 5-65-10"
+    fill="none"
+    stroke="url(#mark-flow)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="25"
+  />
+  <path
+    d="M166 73c-18-16-58-17-79-3-23 15-26 41-9 56 16 13 41 12 60 22 15 8 15 22 1 30-15 9-47 5-65-10"
+    fill="none"
+    stroke="#e0f2fe"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="6"
+    opacity="0.42"
+  />
+  <circle cx="177" cy="72" r="12" fill="#86efac"/>
+  <path d="M184 172l15 15 15-15" fill="none" stroke="#7dd3fc" stroke-linecap="round" stroke-linejoin="round" stroke-width="9"/>
+  <text x="262" y="152" fill="#f8fafc" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="92" font-weight="800" letter-spacing="0">Spendly</text>
+  <text x="266" y="191" fill="#94a3b8" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="600" letter-spacing="0">Track smarter. Spend clearer.</text>
+</svg>

@@ -87,6 +87,24 @@ describe('mapTransactionRow', () => {
     expect(tx.category).toBe('others');
   });
 
+  it('classifies legacy email rows from category labels in transfer content', () => {
+    const tx = mapTransactionRow(row({
+      category: null,
+      content: 'HUYNH NGOC SON chuyen tien an uong',
+    }));
+
+    expect(tx.category).toBe('food-drinks');
+  });
+
+  it('reclassifies generic others email rows when content matches a category label', () => {
+    const tx = mapTransactionRow(row({
+      category: 'others',
+      content: 'HUYNH NGOC SON chuyen tien an uong',
+    }));
+
+    expect(tx.category).toBe('food-drinks');
+  });
+
   it('falls back to others when content has no category match', () => {
     const tx = mapTransactionRow(row({
       id: 'tx-2',

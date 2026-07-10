@@ -140,20 +140,22 @@ describe('CalendarScreen', () => {
     renderCalendar();
 
     expect(cloudHooks.useMonthCloudTransactions).toHaveBeenCalledWith('2026-07');
-    expect(screen.getByRole('heading', { name: '07/2026' })).toBeInTheDocument();
-    expect(screen.getByText('Expense')).toBeInTheDocument();
-    expect(screen.getByText('Income')).toBeInTheDocument();
-    expect(screen.getByText('Net')).toBeInTheDocument();
-    expect(screen.getByText(/32[.,]000/)).toBeInTheDocument();
-    expect(screen.getAllByText(/100[.,]000/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/68[.,]000/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Calendar' })).toBeInTheDocument();
+    expect(screen.getByText('07/2026')).toBeInTheDocument();
+    const summary = screen.getByRole('region', { name: /month summary/i });
+    expect(within(summary).getByText('Expense')).toBeInTheDocument();
+    expect(within(summary).getByText('Income')).toBeInTheDocument();
+    expect(within(summary).getByText('Total')).toBeInTheDocument();
+    expect(within(summary).getByText(/32[.,]000/)).toBeInTheDocument();
+    expect(within(summary).getByText(/100[.,]000/)).toBeInTheDocument();
+    expect(within(summary).getByText(/\+.*68[.,]000/)).toBeInTheDocument();
     const selectedDay = screen.getByRole('button', { name: /Select 2026-07-07/ });
-    expect(selectedDay).toHaveTextContent('-20k');
-    expect(selectedDay).toHaveTextContent('+100k');
+    expect(selectedDay).toHaveTextContent('20,000');
+    expect(selectedDay).toHaveTextContent('+100,000');
     expect(selectedDay).toHaveAttribute('aria-pressed', 'true');
     expect(selectedDay).toHaveAttribute('aria-current', 'date');
     expect(screen.getByRole('button', { name: /Select 2026-07-08/ })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByText(/100[.,]000/, { selector: 'button *' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /transactions by date/i })).toBeInTheDocument();
   });
 
   it('renders compact day totals without truncating large amounts', () => {
@@ -164,7 +166,7 @@ describe('CalendarScreen', () => {
     renderCalendar();
 
     const day = screen.getByRole('button', { name: /Select 2026-07-08/ });
-    expect(day).toHaveTextContent('-1.65M');
+    expect(day).toHaveTextContent('1.65M');
     expect(day).not.toHaveTextContent('...');
   });
 
@@ -201,33 +203,81 @@ describe('CalendarScreen', () => {
     );
 
     const staleEmptyCommit = snapshots.find(snapshot => (
-      snapshot.includes('Selected date: 2026-06-01') &&
-      snapshot.includes('No transactions on this day')
+      snapshot.includes('No transactions this month') &&
+      !snapshot.includes('15/06/2026')
     ));
     expect(staleEmptyCommit).toBeUndefined();
-    expect(screen.getByText('Selected date: 2026-06-15')).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: /Selected date/ })).getByText('Food & Drinks')).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: '15/06/2026 (Mon)' })).toBeInTheDocument();
+    expect(within(screen.getByRole('article', { name: '15/06/2026 (Mon)' })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
-  it('groups the selected day by category', async () => {
+  it('renders only selected-day transactions as chronological tag links', async () => {
     const user = setupUser();
     cloudHooks.state.data = [
-      tx({ amount: 20_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T05:00:00.000Z' }),
-      tx({ amount: 30_000, direction: 'expense', category: 'food-drinks', occurredAt: '2026-07-07T06:00:00.000Z' }),
-      tx({ amount: 12_000, direction: 'expense', category: 'transportation', occurredAt: '2026-07-07T07:00:00.000Z' }),
-      tx({ amount: 1_000_000, direction: 'income', category: 'salary', occurredAt: '2026-07-07T08:00:00.000Z' }),
+      tx({
+        id: 'tx-other-day',
+        amount: 99_000,
+        direction: 'expense',
+        category: 'shopping',
+        occurredAt: '2026-07-07T05:00:00.000Z',
+      }),
+      tx({
+        id: 'tx-food-early',
+        amount: 20_000,
+        direction: 'expense',
+        category: 'food-drinks',
+        merchant: 'Ăn sáng',
+        occurredAt: '2026-07-08T05:00:00.000Z',
+      }),
+      tx({
+        id: 'tx-transport',
+        amount: 12_000,
+        direction: 'expense',
+        category: 'transportation',
+        merchant: 'Bus',
+        occurredAt: '2026-07-08T06:00:00.000Z',
+      }),
+      tx({
+        id: 'tx-food-late',
+        amount: 30_000,
+        direction: 'expense',
+        category: 'food-drinks',
+        merchant: 'Cà phê chiều',
+        occurredAt: '2026-07-08T07:00:00.000Z',
+      }),
+      tx({
+        id: 'tx-salary',
+        amount: 1_000_000,
+        direction: 'income',
+        category: 'salary',
+        note: 'Lương',
+        occurredAt: '2026-07-08T08:00:00.000Z',
+      }),
     ];
 
     renderCalendar();
-    await user.click(screen.getByRole('button', { name: /Select 2026-07-07/ }));
+    await user.click(screen.getByRole('button', { name: /Select 2026-07-08/ }));
 
-    const list = screen.getByRole('list', { name: /Selected date/ });
-    expect(within(list).getByText('Salary')).toBeInTheDocument();
-    expect(within(list).getByText(/1[.,]000[.,]000/)).toBeInTheDocument();
-    expect(within(list).getByText('Food & Drinks')).toBeInTheDocument();
-    expect(within(list).getByText(/50[.,]000/)).toBeInTheDocument();
-    expect(within(list).getByText('Transportation')).toBeInTheDocument();
-    expect(within(list).getByText(/12[.,]000/)).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: '07/07/2026 (Tue)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Transactions' })).not.toBeInTheDocument();
+
+    const group = screen.getByRole('article', { name: '08/07/2026 (Wed)' });
+    const links = within(group).getAllByRole('link');
+
+    expect(links).toHaveLength(4);
+    expect(links[0]).toHaveTextContent('Food & Drinks');
+    expect(links[0]).toHaveTextContent(/20[.,]000/);
+    expect(links[0]).toHaveAttribute('href', '/transactions/tx-food-early');
+    expect(links[1]).toHaveTextContent('Transportation');
+    expect(links[1]).toHaveAttribute('href', '/transactions/tx-transport');
+    expect(links[2]).toHaveTextContent('Food & Drinks');
+    expect(links[2]).toHaveTextContent(/30[.,]000/);
+    expect(links[2]).toHaveAttribute('href', '/transactions/tx-food-late');
+    expect(links[3]).toHaveTextContent('Salary');
+    expect(links[3]).toHaveTextContent(/\+.*1[.,]000[.,]000/);
+    expect(links[3]).toHaveAttribute('href', '/transactions/tx-salary');
+    expect(within(group).getAllByText('Food & Drinks')).toHaveLength(2);
+    expect(within(group).queryByText(/50[.,]000/)).not.toBeInTheDocument();
   });
 
   it('steps between months', async () => {
@@ -254,18 +304,18 @@ describe('CalendarScreen', () => {
 
     renderCalendarWithProbe('/calendar?month=2026-07', snapshots);
     await user.click(screen.getByRole('button', { name: /Select 2026-07-20/ }));
-    expect(screen.getByText('Selected date: 2026-07-20')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select 2026-07-20/ })).toHaveAttribute('aria-pressed', 'true');
 
     snapshots.length = 0;
     await user.click(screen.getByRole('button', { name: 'Next month' }));
 
     const staleManualCommit = snapshots.find(snapshot => (
       snapshot.includes('08/2026') &&
-      snapshot.includes('Selected date: 2026-07-20')
+      snapshot.includes('Select 2026-07-20')
     ));
     expect(staleManualCommit).toBeUndefined();
-    expect(screen.getByText('Selected date: 2026-08-12')).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: /Selected date/ })).getByText('Food & Drinks')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select 2026-08-12/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(screen.getByRole('article', { name: '12/08/2026 (Wed)' })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
   it('does not commit an empty target month from the previous hook state while the target month starts loading', async () => {
@@ -288,8 +338,8 @@ describe('CalendarScreen', () => {
     };
 
     renderCalendarWithProbe('/calendar?month=2026-07', snapshots);
-    expect(screen.getByRole('heading', { name: '07/2026' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Select 2026-07-10/ })).toHaveTextContent('-25k');
+    expect(screen.getByText('07/2026')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select 2026-07-10/ })).toHaveTextContent('25,000');
 
     snapshots.length = 0;
     await user.click(screen.getByRole('button', { name: 'Next month' }));
@@ -299,7 +349,7 @@ describe('CalendarScreen', () => {
       snapshot.includes('No transactions this month')
     ));
     expect(staleEmptyTargetMonth).toBeUndefined();
-    expect(screen.getByRole('heading', { name: '08/2026' })).toBeInTheDocument();
+    expect(screen.getByText('08/2026')).toBeInTheDocument();
     expect(screen.queryByText('No transactions this month')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading transactions...');
   });

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import 'fake-indexeddb/auto';
@@ -61,6 +61,49 @@ describe('SettingsScreen caps editor', () => {
     });
   });
 
+  it('reveals email automation support details from a compact disclosure', async () => {
+    await setLocale('en');
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    const section = await screen.findByRole('region', { name: /email automation/i });
+    const infoButton = within(section).getByRole('button', { name: /show email automation details/i });
+    const detailId = infoButton.getAttribute('aria-controls');
+    expect(detailId).toBeTruthy();
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false');
+    expect(within(section).queryByText(/iphone/i)).not.toBeInTheDocument();
+    expect(within(section).queryByText(/MB/)).not.toBeInTheDocument();
+    expect(within(section).queryByText(/admin/i)).not.toBeInTheDocument();
+
+    await user.click(infoButton);
+
+    expect(infoButton).toHaveAttribute('aria-expanded', 'true');
+    expect(section.querySelector(`#${detailId}`)).toBeInTheDocument();
+    expect(section).toHaveTextContent(/iphone/i);
+    expect(section).toHaveTextContent(/MB/);
+    expect(section).toHaveTextContent(/ACB/);
+    expect(section).toHaveTextContent(/admin|quản trị/i);
+  });
+
+  it('links to the report entry points from settings', async () => {
+    await setLocale('en');
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    const section = await screen.findByRole('region', { name: /reports/i });
+    const reportLinks = [
+      ['Yearly report', '/settings/reports/year-summary'],
+      ['Yearly category report', '/settings/reports/year-category'],
+      ['All-time report', '/settings/reports/all-summary'],
+      ['All-time category report', '/settings/reports/all-category'],
+      ['Balance change report', '/settings/reports/balance-change'],
+      ['Search transactions', '/settings/reports/search'],
+    ] as const;
+
+    for (const [name, href] of reportLinks) {
+      expect(within(section).getByRole('link', { name })).toHaveAttribute('href', href);
+    }
+  });
+
   it('saves the monthly budget total', async () => {
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
     const user = userEvent.setup();
@@ -74,6 +117,23 @@ describe('SettingsScreen caps editor', () => {
     });
   });
 
+  it('saves a savings target and shows the spendable budget', async () => {
+    await setLocale('en');
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/monthly budget/i, { selector: 'input' }), '10000000');
+    await user.type(screen.getByLabelText(/savings target/i, { selector: 'input' }), '2000000');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(async () => {
+      const budget = await getBudgetForMonth(currentVietnamMonth());
+      expect(budget?.total).toBe(10000000);
+      expect(budget?.savingsTarget).toBe(2000000);
+    });
+    expect(screen.getByRole('status', { name: /spendable budget/i })).toHaveTextContent(/8,000,000/);
+  });
+
   it('saves a per-category cap after debounce', async () => {
     await upsertBudget(currentVietnamMonth(), 5000000);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
@@ -84,6 +144,21 @@ describe('SettingsScreen caps editor', () => {
     await waitFor(async () => {
       const b = await getBudgetForMonth(currentVietnamMonth());
       expect(b?.caps?.['coffee-bubble-tea']).toBe(500000);
+    }, { timeout: 1500 });
+  });
+
+  it('preserves savings target when a cap autosaves', async () => {
+    await upsertBudget(currentVietnamMonth(), 10000000, {}, 2000000);
+    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
+    const coffeeInput = await screen.findByLabelText(/coffee|cà phê/i);
+    fireEvent.change(coffeeInput, { target: { value: '500000' } });
+
+    await waitFor(async () => {
+      const budget = await getBudgetForMonth(currentVietnamMonth());
+      expect(budget?.caps?.['coffee-bubble-tea']).toBe(500000);
+      expect(budget?.savingsTarget).toBe(2000000);
     }, { timeout: 1500 });
   });
 

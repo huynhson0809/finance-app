@@ -58,12 +58,15 @@ function isIncomeCategory(category: Category | null | undefined): category is In
 }
 
 function expenseCategoryForEmail(row: CloudTransactionRow): ExpenseCategory {
-  if (isExpenseCategory(row.category)) {
+  if (isExpenseCategory(row.category) && row.category !== 'others') {
     return row.category;
   }
 
   const classifiedCategory = classify(row.content, CLOUD_CLASSIFICATION_RULES)?.category;
-  return isExpenseCategory(classifiedCategory) ? classifiedCategory : 'others';
+  if (isExpenseCategory(classifiedCategory)) {
+    return classifiedCategory;
+  }
+  return isExpenseCategory(row.category) ? row.category : 'others';
 }
 
 function categoryForDirection(row: CloudTransactionRow, transactionDirection: 'expense'): ExpenseCategory;

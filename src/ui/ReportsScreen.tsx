@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useReports } from '../hooks/useReports';
-import { categoryDayTotals, categorySummaries, transactionDirection } from '../reports';
+import { useScopedReportTransactions, type ScopedReportKind } from '../hooks/useScopedReportTransactions';
+import {
+  categoryDayTotals,
+  categorySummaries,
+  totalsByDirection,
+  transactionDirection,
+  type CategorySummary,
+} from '../reports';
 import { CategoryPie } from './components/Charts/CategoryPie';
 import { MonthBar, type DailyDatum } from './components/Charts/MonthBar';
+import { PeriodBar, type PeriodDatum } from './components/Charts/PeriodBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { monthOfVietnamDate, todayVietnamDate, prevMonth, nextMonth } from '../lib/date';
 import {
@@ -16,7 +26,7 @@ import {
 } from '../types';
 import { formatVND } from '../lib/money';
 import { GlassPanel, MetricCard, MoneyRow, SegmentedControl } from './components/primitives';
-import { CATEGORY_META } from './theme/categoryMeta';
+import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
 const CATEGORY_COLORS: Record<Category, string> = {
   'food-drinks': '#ef4444',
@@ -35,10 +45,27 @@ const CATEGORY_COLORS: Record<Category, string> = {
   investment: '#8b5cf6',
   'temporary-income': '#f472b6',
 };
+const FALLBACK_CATEGORY_COLOR = '#94a3b8';
 
 const VALID_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 function safeMonth(value: string | null): string {
   return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(todayVietnamDate());
+}
+
+const REPORT_MODE_LABELS = {
+  'year-summary': 'reports.yearSummary',
+  'year-category': 'reports.yearCategory',
+  'all-summary': 'reports.allSummary',
+  'all-category': 'reports.allCategory',
+  'balance-change': 'reports.balanceChange',
+  search: 'reports.search',
+} as const;
+
+type ReportMode = keyof typeof REPORT_MODE_LABELS;
+type PeriodMetric = TransactionDirection | 'net';
+
+function isReportMode(value: string | null): value is ReportMode {
+  return value !== null && value in REPORT_MODE_LABELS;
 }
 
 function transactionTitle(transaction: Transaction): string {
@@ -47,6 +74,80 @@ function transactionTitle(transaction: Transaction): string {
 
 function signedAmount(transaction: Transaction): number {
   return transactionDirection(transaction) === 'income' ? transaction.amount : -transaction.amount;
+}
+
+function scopeForReportMode(mode: ReportMode | null): ScopedReportKind {
+  if (mode === null) return null;
+  if (mode === 'all-summary' || mode === 'all-category' || mode === 'search') return 'all';
+  return 'year';
+}
+
+function amountForMetric(transaction: Transaction, metric: PeriodMetric): number {
+  if (metric === 'net') return signedAmount(transaction);
+  return transactionDirection(transaction) === metric ? transaction.amount : 0;
+}
+
+function monthRowsForYear(
+  transactions: Transaction[],
+  year: number,
+  metric: PeriodMetric,
+): Array<PeriodDatum & { value: number }> {
+  const totals = new Array<number>(12).fill(0);
+
+  for (const transaction of transactions) {
+    const date = todayVietnamDate(new Date(transaction.occurredAt));
+    if (Number(date.slice(0, 4)) !== year) continue;
+    const monthIndex = Number(date.slice(5, 7)) - 1;
+    totals[monthIndex] += amountForMetric(transaction, metric);
+  }
+
+  return totals.map((value, index) => ({
+    label: `T${index + 1}`,
+    value,
+    total: Math.abs(value),
+  }));
+}
+
+function yearRowsForAllTime(
+  transactions: Transaction[],
+  metric: PeriodMetric,
+): Array<PeriodDatum & { value: number }> {
+  const totals = new Map<number, number>();
+
+  for (const transaction of transactions) {
+    const year = Number(todayVietnamDate(new Date(transaction.occurredAt)).slice(0, 4));
+    totals.set(year, (totals.get(year) ?? 0) + amountForMetric(transaction, metric));
+  }
+
+  return Array.from(totals, ([year, value]) => ({
+    label: String(year),
+    value,
+    total: Math.abs(value),
+  })).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function monthRowsForCategory(
+  transactions: Transaction[],
+  year: number,
+  direction: TransactionDirection,
+  category: Category,
+): Array<PeriodDatum & { value: number }> {
+  const totals = new Array<number>(12).fill(0);
+
+  for (const transaction of transactions) {
+    if (transactionDirection(transaction) !== direction) continue;
+    if (transaction.category !== category) continue;
+    const date = todayVietnamDate(new Date(transaction.occurredAt));
+    if (Number(date.slice(0, 4)) !== year) continue;
+    const monthIndex = Number(date.slice(5, 7)) - 1;
+    totals[monthIndex] += transaction.amount;
+  }
+
+  return totals.map((value, index) => ({
+    label: `T${index + 1}`,
+    value,
+    total: value,
+  }));
 }
 
 function directionDailyTotals(
@@ -80,23 +181,80 @@ export function ReportsScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [direction, setDirection] = useState<TransactionDirection>('expense');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [transactionSearch, setTransactionSearch] = useState('');
   const month = safeMonth(searchParams.get('month'));
+  const rawReportMode = searchParams.get('mode');
+  const reportMode = isReportMode(rawReportMode) ? rawReportMode : null;
+  const reportModeLabel = reportMode ? t(REPORT_MODE_LABELS[reportMode]) : null;
+  const reportScope = scopeForReportMode(reportMode);
   const { loading, error, reload, transactions, daily, directionTotals, anomalyHints, bStatus } = useReports(month);
-  const reportAvailable = !loading && !error;
+  const scopedReport = useScopedReportTransactions(reportScope, month);
+  const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
+  const reportLoading = reportScope ? scopedReport.loading : loading;
+  const reportError = reportScope ? scopedReport.error : error;
+  const reportTransactions = reportScope ? scopedReport.transactions : transactions;
+  const reportDirectionTotals = useMemo(
+    () => reportScope ? totalsByDirection(reportTransactions) : directionTotals,
+    [directionTotals, reportScope, reportTransactions],
+  );
+  const reportAvailable = !reportLoading && !reportError;
+  const year = Number(month.slice(0, 4));
+  const isPeriodSummaryReport = reportMode === 'year-summary' || reportMode === 'balance-change';
+  const isAllSummaryReport = reportMode === 'all-summary';
+  const isSummaryReport = isPeriodSummaryReport || isAllSummaryReport;
   const selectedDirectionLabel = t(`direction.${direction}`).toLowerCase();
   const noDirectionDataLabel = t('reports.noDirectionData', { direction: selectedDirectionLabel });
 
   const categoryRows = useMemo(
-    () => categorySummaries(transactions, direction),
-    [transactions, direction],
+    () => {
+      const rows = categorySummaries(reportTransactions, direction);
+      const existingCategories = new Set(rows.map(row => row.category));
+      const customTotals = new Map<Category, number>();
+
+      for (const transaction of reportTransactions) {
+        if (transactionDirection(transaction) !== direction) continue;
+        if (!categoryBelongsToDirection(transaction.category, direction)) continue;
+        if (existingCategories.has(transaction.category)) continue;
+
+        customTotals.set(
+          transaction.category,
+          (customTotals.get(transaction.category) ?? 0) + transaction.amount,
+        );
+      }
+
+      if (customTotals.size === 0) return rows;
+
+      const directionTotal = rows.reduce((total, row) => total + row.total, 0)
+        + Array.from(customTotals.values()).reduce((total, value) => total + value, 0);
+      const customRows: CategorySummary[] = Array.from(customTotals, ([category, total]) => ({
+        category,
+        direction,
+        total,
+        percentage: directionTotal > 0 ? total / directionTotal : 0,
+      }));
+
+      return [...rows, ...customRows];
+    },
+    [reportTransactions, direction],
   );
 
   const overviewDaily = useMemo(
     () => direction === 'expense'
       ? daily
-      : directionDailyTotals(transactions, month, direction),
-    [daily, direction, transactions, month],
+      : directionDailyTotals(reportTransactions, month, direction),
+    [daily, direction, reportTransactions, month],
   );
+
+  const periodMetric: PeriodMetric = reportMode === 'balance-change' ? 'net' : direction;
+  const periodRows = useMemo(
+    () => reportScope === 'all'
+      ? yearRowsForAllTime(reportTransactions, periodMetric)
+      : monthRowsForYear(reportTransactions, year, periodMetric),
+    [periodMetric, reportScope, reportTransactions, year],
+  );
+  const periodTotal = periodRows.reduce((sum, row) => sum + row.value, 0);
+  const periodAverage = periodRows.length > 0 ? Math.round(periodTotal / periodRows.length) : 0;
 
   useEffect(() => {
     if (selectedCategory && !categoryBelongsToDirection(selectedCategory, direction)) {
@@ -110,32 +268,64 @@ export function ReportsScreen() {
 
   const detailDaily = useMemo(
     () => selectedCategory
-      ? categoryDayTotals(transactions, month, direction, selectedCategory)
+      ? categoryDayTotals(reportTransactions, month, direction, selectedCategory)
       : [],
-    [transactions, month, direction, selectedCategory],
+    [reportTransactions, month, direction, selectedCategory],
+  );
+
+  const detailPeriodRows = useMemo(
+    () => selectedCategory && reportScope === 'year'
+      ? monthRowsForCategory(reportTransactions, year, direction, selectedCategory)
+      : [],
+    [direction, reportScope, reportTransactions, selectedCategory, year],
   );
 
   const detailTransactions = useMemo(
     () => selectedCategory
-      ? transactions
+      ? reportTransactions
         .filter(transaction => (
           transactionDirection(transaction) === direction &&
           transaction.category === selectedCategory &&
-          monthOfVietnamDate(transaction.occurredAt) === month
+          (reportScope ? true : monthOfVietnamDate(transaction.occurredAt) === month)
         ))
         .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
       : [],
-    [transactions, month, direction, selectedCategory],
+    [reportTransactions, reportScope, month, direction, selectedCategory],
   );
+
+  const searchTransactions = useMemo(() => {
+    const normalizedQuery = transactionSearch.trim().toLowerCase();
+    const newestFirst = [...reportTransactions]
+      .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+
+    if (!normalizedQuery) return newestFirst;
+
+    return newestFirst.filter(transaction => {
+      const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
+      const values = [
+        transaction.merchant,
+        transaction.note,
+        transaction.bankHint,
+        transaction.bank,
+        String(transaction.amount),
+        formatVND(transaction.amount, locale),
+        formatVND(signedAmount(transaction), locale),
+        transaction.category,
+        label,
+      ];
+
+      return values.some(value => value?.toLowerCase().includes(normalizedQuery));
+    });
+  }, [categoryOverrides, customCategories, locale, t, transactionSearch, reportTransactions]);
 
   const pieData = useMemo(
     () => categoryRows.map(row => ({
       category: row.category,
       total: row.total,
-      label: t(`category.${row.category}`),
-      color: CATEGORY_COLORS[row.category],
+      label: categoryLabel(row.category, customCategories, t, categoryOverrides),
+      color: CATEGORY_COLORS[row.category] ?? FALLBACK_CATEGORY_COLOR,
     })),
-    [categoryRows, t],
+    [categoryOverrides, categoryRows, customCategories, t],
   );
 
   const perCategoryOver = useMemo(
@@ -145,11 +335,37 @@ export function ReportsScreen() {
 
   function step(direction: -1 | 1) {
     const next = direction === -1 ? prevMonth(month) : nextMonth(month);
-    setSearchParams({ month: next });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('month', next);
+    setSearchParams(nextParams);
   }
 
   function retryReports() {
-    void reload();
+    void (reportScope ? scopedReport.reload() : reload());
+  }
+
+  function renderTransactionRow(transaction: Transaction) {
+    const title = transactionTitle(transaction);
+    const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
+    const meta = getCategoryMeta(transaction.category, customCategories, categoryOverrides);
+    const Icon = meta.Icon;
+    const direction = transactionDirection(transaction);
+    const subtitle = [
+      todayVietnamDate(new Date(transaction.occurredAt)),
+      transaction.bankHint?.toUpperCase() ?? transaction.bank,
+    ].filter(Boolean).join(' · ');
+
+    return (
+      <MoneyRow
+        key={transaction.id}
+        as="li"
+        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+        title={title === transaction.category ? label : title}
+        subtitle={subtitle}
+        amount={formatVND(signedAmount(transaction), locale)}
+        tone={direction}
+      />
+    );
   }
 
   return (
@@ -174,9 +390,17 @@ export function ReportsScreen() {
         </button>
       </header>
 
-      {error && (
+      {reportModeLabel && (
+        <div className="px-4">
+          <div className="inline-flex min-h-8 items-center rounded-full border border-sky-300/30 bg-sky-400/10 px-3 text-sm font-semibold text-sky-100">
+            {reportModeLabel}
+          </div>
+        </div>
+      )}
+
+      {reportError && (
         <div role="alert" className="mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
-          <div>{error}</div>
+          <div>{reportError}</div>
           <button
             type="button"
             className="mt-2 rounded-xl bg-rose-400 px-3 py-1 font-semibold text-slate-950"
@@ -187,7 +411,7 @@ export function ReportsScreen() {
         </div>
       )}
 
-      {loading && (
+      {reportLoading && (
         <div className="px-4 text-sm text-slate-400" role="status">
           {t('cloud.loading')}
         </div>
@@ -195,30 +419,33 @@ export function ReportsScreen() {
 
       {reportAvailable && (
         <>
-          <BudgetAlert
-            overall={bStatus.overall}
-            perCategoryOver={perCategoryOver}
-            categoryLabel={c => t(`category.${c}`)}
-          />
+          {!reportScope && (
+            <BudgetAlert
+              overall={bStatus.overall}
+              perCategoryOver={perCategoryOver}
+              categoryLabel={c => categoryLabel(c, customCategories, t, categoryOverrides)}
+            />
+          )}
 
           <section aria-label="Report totals" className="grid grid-cols-3 gap-2 px-4">
             <MetricCard
               label={t('reports.expenseTotal')}
-              value={formatVND(directionTotals.expense, locale)}
+              value={formatVND(reportDirectionTotals.expense, locale)}
               tone="expense"
             />
             <MetricCard
               label={t('reports.incomeTotal')}
-              value={formatVND(directionTotals.income, locale)}
+              value={formatVND(reportDirectionTotals.income, locale)}
               tone="income"
             />
             <MetricCard
               label={t('reports.netTotal')}
-              value={formatVND(directionTotals.net, locale)}
+              value={formatVND(reportDirectionTotals.net, locale)}
               tone="neutral"
             />
           </section>
 
+          {reportMode !== 'balance-change' && (
           <section className="px-4">
             <SegmentedControl<TransactionDirection>
               ariaLabel="Report direction"
@@ -230,8 +457,69 @@ export function ReportsScreen() {
               ]}
             />
           </section>
+          )}
 
-          {selectedCategory ? (
+          {isSummaryReport && (
+            <section className="space-y-3 px-4">
+              <GlassPanel className="p-3">
+                <PeriodBar
+                  data={periodRows}
+                  color={periodMetric === 'income' ? '#34d399' : periodMetric === 'net' ? '#38bdf8' : '#fb7185'}
+                />
+              </GlassPanel>
+
+              <GlassPanel className="overflow-hidden">
+                <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 px-4">
+                  <span className="text-base font-bold text-white">{t('reports.total')}</span>
+                  <span className="text-lg font-bold text-sky-300">{formatVND(periodTotal, locale)}</span>
+                </div>
+                {reportMode !== 'balance-change' && (
+                  <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 px-4">
+                    <span className="text-base font-bold text-white">{t('reports.average')}</span>
+                    <span className="text-lg font-bold text-sky-300">{formatVND(periodAverage, locale)}</span>
+                  </div>
+                )}
+                {periodRows.map(row => (
+                  <div
+                    key={row.label}
+                    className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 px-4 last:border-b-0"
+                  >
+                    <span className="text-base font-semibold text-white">
+                      {reportScope === 'all' ? row.label : t('reports.monthName', { month: row.label.slice(1) })}
+                    </span>
+                    <span className="text-base font-bold text-slate-100">{formatVND(row.value, locale)}</span>
+                  </div>
+                ))}
+              </GlassPanel>
+            </section>
+          )}
+
+          {!isSummaryReport && reportMode === 'search' && (
+            <section className="px-4">
+              <GlassPanel className="space-y-3 p-4">
+                <input
+                  type="search"
+                  value={transactionSearch}
+                  onChange={event => setTransactionSearch(event.target.value)}
+                  placeholder={t('reports.searchPlaceholder')}
+                  aria-label={t('reports.search')}
+                  className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300/50"
+                />
+
+                {searchTransactions.length === 0 ? (
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-sm text-slate-400">
+                    {t('reports.noSearchResults')}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {searchTransactions.map(renderTransactionRow)}
+                  </ul>
+                )}
+              </GlassPanel>
+            </section>
+          )}
+
+          {!isSummaryReport && selectedCategory ? (
             <section className="space-y-4 px-4">
               <button
                 type="button"
@@ -244,7 +532,7 @@ export function ReportsScreen() {
               <GlassPanel className="p-4">
                 <h2 className="text-lg font-semibold text-white">
                   {t('reports.categoryDetailTitle', {
-                    category: t(`category.${selectedCategory}`),
+                    category: categoryLabel(selectedCategory, customCategories, t, categoryOverrides),
                     month,
                   })}
                 </h2>
@@ -254,7 +542,9 @@ export function ReportsScreen() {
               </GlassPanel>
 
               <GlassPanel className="p-3">
-                <MonthBar data={detailDaily} />
+                {reportScope === 'year'
+                  ? <PeriodBar data={detailPeriodRows} color={direction === 'income' ? '#34d399' : '#fb7185'} />
+                  : <MonthBar data={detailDaily} />}
               </GlassPanel>
 
               {detailTransactions.length === 0 ? (
@@ -263,42 +553,24 @@ export function ReportsScreen() {
                 </GlassPanel>
               ) : (
                 <ul className="space-y-2">
-                  {detailTransactions.map(transaction => {
-                    const title = transactionTitle(transaction);
-                    const meta = CATEGORY_META[transaction.category];
-                    const Icon = meta.Icon;
-                    const direction = transactionDirection(transaction);
-                    const subtitle = [
-                      todayVietnamDate(new Date(transaction.occurredAt)),
-                      transaction.bankHint?.toUpperCase(),
-                    ].filter(Boolean).join(' · ');
-
-                    return (
-                      <MoneyRow
-                        key={transaction.id}
-                        as="li"
-                        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                        title={title === transaction.category ? t(`category.${transaction.category}`) : title}
-                        subtitle={subtitle}
-                        amount={formatVND(signedAmount(transaction), locale)}
-                        tone={direction}
-                      />
-                    );
-                  })}
+                  {detailTransactions.map(renderTransactionRow)}
                 </ul>
               )}
             </section>
-          ) : (
+          ) : !isSummaryReport && reportMode !== 'search' ? (
             <>
               <GlassPanel className="mx-4 p-3">
                 <CategoryPie
                   data={pieData}
                   emptyLabel={noDirectionDataLabel}
+                  locale={locale}
                 />
               </GlassPanel>
 
               <GlassPanel className="mx-4 p-3">
-                <MonthBar data={overviewDaily} />
+                {reportScope === 'year'
+                  ? <PeriodBar data={periodRows} color={direction === 'income' ? '#34d399' : '#fb7185'} />
+                  : <MonthBar data={overviewDaily} />}
               </GlassPanel>
 
               {anomalyHints.length > 0 && (
@@ -309,7 +581,7 @@ export function ReportsScreen() {
                       {anomalyHints.map(h => (
                         <li key={h.category} className="text-sm text-slate-200">
                           {t('reports.anomalyLine', {
-                            category: t(`category.${h.category}`),
+                            category: categoryLabel(h.category, customCategories, t, categoryOverrides),
                             pct: Math.min(Math.round(h.deltaPct * 100), 999),
                           })}
                         </li>
@@ -329,8 +601,9 @@ export function ReportsScreen() {
                   ) : (
                     <ul className="mt-2 space-y-2">
                       {categoryRows.map(row => {
-                        const meta = CATEGORY_META[row.category];
+                        const meta = getCategoryMeta(row.category, customCategories, categoryOverrides);
                         const Icon = meta.Icon;
+                        const label = categoryLabel(row.category, customCategories, t, categoryOverrides);
 
                         return (
                           <li key={row.category}>
@@ -341,7 +614,7 @@ export function ReportsScreen() {
                             >
                               <MoneyRow
                                 icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-                                title={t(`category.${row.category}`)}
+                                title={label}
                                 subtitle={`${Math.round(row.percentage * 100)}%`}
                                 amount={formatVND(row.total, locale)}
                                 tone={direction}
@@ -355,7 +628,7 @@ export function ReportsScreen() {
                 </GlassPanel>
               </section>
             </>
-          )}
+          ) : null}
         </>
       )}
     </div>

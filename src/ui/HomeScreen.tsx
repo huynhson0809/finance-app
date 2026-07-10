@@ -7,6 +7,8 @@ import {
 } from '../hooks/useCloudTransactions';
 import { AddImageButton } from './AddImageButton';
 import { useBudget } from '../hooks/useBudget';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
@@ -14,6 +16,7 @@ import { sumByCategory, status as budgetStatus, totalsByDirection } from '../rep
 import { formatVND } from '../lib/money';
 import { isSameVietnamDay, monthOfVietnamDate, todayVietnamDate } from '../lib/date';
 import { EXPENSE_CATEGORIES, type Category } from '../types';
+import { categoryLabel as displayCategoryLabel } from './theme/categoryMeta';
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -21,6 +24,8 @@ export function HomeScreen() {
   const today = todayVietnamDate();
   const month = monthOfVietnamDate(today);
   const { data: budget } = useBudget(month);
+  const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
   const {
     data: recent,
     loading: recentLoading,
@@ -56,7 +61,7 @@ export function HomeScreen() {
     () => EXPENSE_CATEGORIES.filter(c => bStatus.perCategory[c] === 'over'),
     [bStatus],
   );
-  const categoryLabel = (c: Category) => t(`category.${c}`);
+  const categoryLabel = (c: Category) => displayCategoryLabel(c, customCategories, t, categoryOverrides);
   const cloudErrors = Array.from(new Set(
     [recentError, monthError].filter((error): error is string => Boolean(error)),
   ));
@@ -94,7 +99,15 @@ export function HomeScreen() {
             : monthError
             ? null
             : budget
-            ? <BudgetBar spent={monthSpent} total={budget.total} locale={locale} status={bStatus.overall} />
+            ? (
+                <BudgetBar
+                  spent={monthSpent}
+                  total={bStatus.overallLimit}
+                  locale={locale}
+                  status={bStatus.overall}
+                  savingsTarget={budget.savingsTarget ?? 0}
+                />
+              )
             : <div className="px-1 text-sm text-zinc-400">{t('home.noBudget')}</div>}
         </div>
       </section>
@@ -138,7 +151,13 @@ export function HomeScreen() {
           ? <div className="px-3 py-3 text-sm text-zinc-400">{t('home.empty')}</div>
           : <ul className="bg-black">
               {recent.map(tx => (
-                <TransactionRow key={tx.id} t={tx} locale={locale} />
+                <TransactionRow
+                  key={tx.id}
+                  t={tx}
+                  locale={locale}
+                  customCategories={customCategories}
+                  categoryOverrides={categoryOverrides}
+                />
               ))}
             </ul>}
       </section>

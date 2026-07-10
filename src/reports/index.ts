@@ -9,9 +9,11 @@ export { categorySummaries, type CategorySummary } from './category-summary';
 export { categoryDayTotals, type CategoryDayTotal } from './category-day-totals';
 export {
   calendarDaySummaries,
+  categoryTotalsByDate,
   categoryTotalsForDate,
   initialSelectedDate,
   mondayWeekdayIndex,
   type CalendarDaySummary,
+  type CalendarDateGroup,
   type CategoryDayTotal as CalendarCategoryDayTotal,
 } from './calendar';

@@ -1,25 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, Copy, Save, Trash2 } from 'lucide-react';
+import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import { supabase } from '../supabase/client';
 import {
-  addCloudTransaction,
   deleteCloudTransaction,
   getCloudTransaction,
   updateCloudTransaction,
 } from '../supabase/transactions';
 import {
-  categoriesForDirection,
   categoryBelongsToDirection,
   type Category,
   type ExpenseCategory,
   type IncomeCategory,
   type Transaction,
 } from '../types';
+import { categoriesForDirectionWithCustom } from '../categories/catalog';
+import { shouldLearn } from '../categorizer';
+import { upsertLearnedRule } from '../db/category-rules';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { errorMessage } from '../lib/error';
 import { DarkField, GlassPanel } from './components/primitives';
-import { CATEGORY_META } from './theme/categoryMeta';
+import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
 function isExpenseCategory(category: Category): category is ExpenseCategory {
   return categoryBelongsToDirection(category, 'expense');
@@ -52,6 +55,14 @@ function visibleText(transaction: Transaction): string {
     return transaction.merchant ?? transaction.note ?? '';
   }
   return transaction.note ?? transaction.merchant ?? '';
+}
+
+function canLearnCategoryCorrection(transaction: Transaction): boolean {
+  return (
+    transaction.source === 'bank-email' ||
+    transaction.source === 'receipt' ||
+    transaction.source === 'bank-screenshot'
+  );
 }
 
 function typeLabelKey(transaction: Transaction): string {
@@ -92,6 +103,7 @@ function MetadataItem({ label, value }: { label: string; value: string }) {
 export function TransactionEditScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +114,27 @@ export function TransactionEditScreen() {
   const [date, setDate] = useState('');
   const [text, setText] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
+  const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
+  const backTo = typeof (location.state as { backTo?: unknown } | null)?.backTo === 'string' &&
+    ((location.state as { backTo: string }).backTo.startsWith('/'))
+    ? (location.state as { backTo: string }).backTo
+    : '/';
+
+  const categoryOptions = useMemo(() => {
+    if (!transaction) return [];
+
+    const options = categoriesForDirectionWithCustom(transaction.direction, customCategories);
+    if (
+      category &&
+      categoryBelongsToDirection(category, transaction.direction) &&
+      !options.includes(category)
+    ) {
+      return [...options, category];
+    }
+
+    return options;
+  }, [category, customCategories, transaction]);
 
   useEffect(() => {
     let ignore = false;
@@ -151,7 +184,7 @@ export function TransactionEditScreen() {
       <div className="space-y-4 px-4 py-5">
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(backTo)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-slate-200"
           aria-label="Back"
         >
@@ -164,7 +197,6 @@ export function TransactionEditScreen() {
     );
   }
 
-  const categoryOptions = categoriesForDirection(transaction.direction);
   const amountLabel = t(
     transaction.direction === 'expense'
       ? 'transactionEdit.expenseAmount'
@@ -194,6 +226,12 @@ export function TransactionEditScreen() {
           note: null,
           category,
         });
+        if (category !== transaction.category && canLearnCategoryCorrection(transaction)) {
+          const learnedRule = shouldLearn(transaction.category, category, trimmedText);
+          if (learnedRule) {
+            await upsertLearnedRule(learnedRule);
+          }
+        }
       } else {
         if (!isIncomeCategory(category)) return;
         await updateCloudTransaction(client, id, {
@@ -205,50 +243,9 @@ export function TransactionEditScreen() {
           category,
         });
       }
-      navigate('/');
+      navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.saveFailed')}: ${errorMessage(err)}`);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleCopy() {
-    if (!transaction || !category) return;
-    setSaving(true);
-    setActionError(null);
-    const content = text.trim() || undefined;
-    try {
-      const client = supabase;
-      if (!client) {
-        throw new Error(t('auth.setupError'));
-      }
-      if (transaction.direction === 'expense') {
-        if (!isExpenseCategory(category)) return;
-        await addCloudTransaction(client, {
-          amount: parsedAmount,
-          currency: 'VND',
-          occurredAt: vietnamDatetimeInputToISO(date),
-          direction: 'expense',
-          category,
-          source: 'manual',
-          merchant: content,
-        });
-      } else {
-        if (!isIncomeCategory(category)) return;
-        await addCloudTransaction(client, {
-          amount: parsedAmount,
-          currency: 'VND',
-          occurredAt: vietnamDatetimeInputToISO(date),
-          direction: 'income',
-          category,
-          source: 'manual',
-          note: content,
-        });
-      }
-      navigate('/');
-    } catch (err) {
-      setActionError(`${t('transactionEdit.copyFailed')}: ${errorMessage(err)}`);
     } finally {
       setSaving(false);
     }
@@ -264,7 +261,7 @@ export function TransactionEditScreen() {
         throw new Error(t('auth.setupError'));
       }
       await deleteCloudTransaction(client, id);
-      navigate('/');
+      navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.deleteFailed')}: ${errorMessage(err)}`);
     } finally {
@@ -277,7 +274,7 @@ export function TransactionEditScreen() {
       <header className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(backTo)}
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-slate-200"
           aria-label="Back"
         >
@@ -320,7 +317,7 @@ export function TransactionEditScreen() {
         <h2 className="text-sm font-semibold text-slate-200">{t('transactionEdit.category')}</h2>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {categoryOptions.map(option => {
-            const meta = CATEGORY_META[option];
+            const meta = getCategoryMeta(option, customCategories, categoryOverrides);
             return (
               <button
                 key={option}
@@ -338,7 +335,7 @@ export function TransactionEditScreen() {
                   <meta.Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
                 </span>
                 <span className="mt-2 block text-xs font-medium leading-tight text-slate-100">
-                  {t(meta.labelKey)}
+                  {categoryLabel(option, customCategories, t, categoryOverrides)}
                 </span>
               </button>
             );
@@ -370,26 +367,15 @@ export function TransactionEditScreen() {
           <Save aria-hidden="true" className="h-5 w-5" />
           {t('transactionEdit.save')}
         </button>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={handleCopy}
-            disabled={!canSubmit}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] px-3 text-sm font-bold text-slate-100 disabled:text-slate-500"
-          >
-            <Copy aria-hidden="true" className="h-4 w-4" />
-            {t('transactionEdit.copy')}
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={saving}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-3 text-sm font-bold text-rose-100 disabled:text-rose-300/50"
-          >
-            <Trash2 aria-hidden="true" className="h-4 w-4" />
-            {t('transactionEdit.delete')}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={saving}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-3 text-sm font-bold text-rose-100 disabled:text-rose-300/50"
+        >
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
+          {t('transactionEdit.delete')}
+        </button>
       </div>
     </div>
   );

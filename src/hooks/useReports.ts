@@ -3,9 +3,9 @@ import { getBudgetForMonth } from '../db/budgets';
 import {
   sumByCategory, dailyTotals, monthOverMonth, hints, status,
   totalsByDirection,
-  type BudgetStatus,
   type DirectionTotals,
 } from '../reports';
+import type { BudgetStatusReport } from '../reports/over-budget';
 import { monthRangeVietnamISO, prevMonth } from '../lib/date';
 import { supabase } from '../supabase/client';
 import { listCloudTransactionsForRange } from '../supabase/transactions';
@@ -23,7 +23,7 @@ export interface UseReportsResult {
   deltas: ReturnType<typeof monthOverMonth>;
   directionTotals: DirectionTotals;
   anomalyHints: ReturnType<typeof hints>;
-  bStatus: { overall: BudgetStatus; perCategory: Record<Category, BudgetStatus>; overallSpent: number };
+  bStatus: BudgetStatusReport;
   reload: () => Promise<void>;
 }
 
