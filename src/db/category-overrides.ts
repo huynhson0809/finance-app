@@ -32,6 +32,10 @@ export async function getCategoryOverrides(): Promise<CategoryOverride[]> {
   return normalizeOverrides(await getSetting(CATEGORY_OVERRIDES_KEY));
 }
 
+export async function replaceCategoryOverrides(overrides: CategoryOverride[]): Promise<void> {
+  await setSetting(CATEGORY_OVERRIDES_KEY, normalizeOverrides(overrides));
+}
+
 export async function upsertCategoryOverride(
   category: BuiltInCategory,
   values: { name?: string; iconKey?: CategoryIconKey },
@@ -55,4 +59,3 @@ export async function upsertCategoryOverride(
 
   return next;
 }
-

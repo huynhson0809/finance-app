@@ -8,6 +8,7 @@ describe('classifyEmailContent', () => {
     expect(classifyEmailContent('Grab* BWCFLJMBDWRJ-G-1')).toBe('transportation');
     expect(classifyEmailContent('Thanh toan Shopee 12345')).toBe('shopping');
     expect(classifyEmailContent('Highlands Coffee Pasteur')).toBe('coffee-bubble-tea');
+    expect(classifyEmailContent('HUYNH NGOC SON chuyen tien an uong trua')).toBe('food-drinks');
   });
 
   it('does not classify generic bank transfer wording as debt', () => {

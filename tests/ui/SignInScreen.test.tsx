@@ -10,7 +10,7 @@ describe('SignInScreen', () => {
   it('renders the Google sign-in action in the dark auth panel', () => {
     render(<SignInScreen setupError={false} onSignIn={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: /finance|quản lý chi tiêu/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /spendly/i })).toBeInTheDocument();
     const button = screen.getByRole('button', { name: /continue with google|tiếp tục với google/i });
     expect(button).toBeEnabled();
     expect(button).toHaveClass('bg-sky-400');

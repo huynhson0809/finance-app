@@ -7,6 +7,20 @@ function seed(pattern: string, category: Category): Omit<CategoryRule, 'id'> {
 }
 
 const ENTRIES: Array<Omit<CategoryRule, 'id'>> = [
+  // category-label aliases
+  seed('an uong', 'food-drinks'),
+  seed('food drinks', 'food-drinks'),
+  seed('ca phe tra sua', 'coffee-bubble-tea'),
+  seed('coffee bubble tea', 'coffee-bubble-tea'),
+  seed('di lai', 'transportation'),
+  seed('mua sam', 'shopping'),
+  seed('hoa don tien ich', 'bills-utilities'),
+  seed('hoa don', 'bills-utilities'),
+  seed('tien ich', 'bills-utilities'),
+  seed('suc khoe', 'healthcare'),
+  seed('y te', 'healthcare'),
+  seed('giai tri', 'entertainment'),
+  seed('chuyen khoan tra no', 'transfers-debt'),
   // coffee-bubble-tea
   seed('coffee', 'coffee-bubble-tea'),
   seed('cafe', 'coffee-bubble-tea'),

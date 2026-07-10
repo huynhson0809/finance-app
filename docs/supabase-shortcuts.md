@@ -164,7 +164,8 @@ Allowed request fields:
   "amount": "297,000.00",
   "datetime": "04-07-2026 21:48:49",
   "content": "159287 1PEV8",
-  "raw_source": "email"
+  "raw_source": "email",
+  "direction": "expense"
 }
 ```
 
@@ -173,22 +174,23 @@ Notes:
 - `bank` is `MB` or `ACB`.
 - `type` is `transfer`, `card`, or `balance_alert`.
 - `raw_source` is optional and defaults to `email`.
+- `direction` is optional and defaults to `expense`. Send `income` for ACB `Ghi có` emails. The Edge Function also infers ACB income when `amount` starts with `+`.
 - Datetimes are interpreted as Vietnam local time before storage.
 
 ## iOS Shortcuts Guidance
 
 iOS does not let the PWA or app read Mail, push notifications, or notification content directly. The Shortcut automation is the bridge: Mail triggers it, Shortcuts extracts the fields, and Shortcuts posts the JSON to the Edge Function.
 
-Current data limitation: the bank emails in this phase cover debit and spending only. Income push notifications are not readable by the PWA/app or by this ingestion flow in this phase.
+Current data limitation: MB emails in this phase cover debit and spending only. ACB `mailalert@acb.com.vn` can cover both `Ghi nợ` spending and `Ghi có` income when those emails are enabled.
 
 Create one Mail automation per sender. For each automation:
 
 1. Trigger: Mail -> Email received.
 2. Sender: use the exact sender address from the matching section below.
-3. Action: Get Details of Emails -> Message.
-4. Action: Match Text against Message with each regex.
-5. Action: From each Match Text result, use the first match and Group 1 / first capture group for the field value. Do not send the full regex match.
-6. Action: Build a Dictionary with `bank`, `type`, `amount`, `datetime`, `content`, and `raw_source`.
+3. Action: Receive emails as input.
+4. Action: Match Text against Shortcut Input with each regex.
+5. Action: From each Match Text result, use First Item, then Group 1 / first capture group for the field value. Do not send the full regex match or the whole Matches list.
+6. Action: Build a Dictionary with `bank`, `type`, `amount`, `datetime`, `content`, `raw_source`, and optional `direction`.
 7. Action: Get Contents of URL.
 8. URL: `https://<project-ref>.supabase.co/functions/v1/ingest-transaction`.
 9. Method: `POST`.
@@ -214,9 +216,9 @@ mbebanking@mbbank.com.vn
 Regex set:
 
 ```text
-amount: Số tiền giao dịch\s*\(VND\)\s*([\d,]+\.\d{2})
-content: Nội dung chuyển tiền\s*\n?\s*(.+)
-datetime: Ngày, giờ giao dịch:\s*(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})
+amount: Số tiền giao dịch\s*:?\s*\(VND\)\s*([\d,]+\.\d{2})
+content: Nội dung chuyển tiền\s*:?\s*\n?\s*(.+)
+datetime: Ngày,\s*giờ giao dịch\s*:?\s*(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})
 ```
 
 Use Group 1 / the first capture group from the first match for each field.
@@ -246,8 +248,8 @@ Regex set:
 
 ```text
 amount: Giao dịch gần nhất\s*(-?[\d,]+)\s*VND
-content: Nội dung\s*Giao dịch chi tiêu tại\s*(.+)
-datetime: Ngày, giờ giao dịch:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})
+content: Nội dung\s*:?\s*([^\r\n]+)
+datetime: Ngày,\s*giờ giao dịch\s*:?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})
 ```
 
 Use Group 1 / the first capture group from the first match for each field. Keep the leading minus sign if the email includes it; the Edge Function normalizes spending amounts to positive VND.
@@ -265,7 +267,7 @@ Sample POST JSON:
 }
 ```
 
-## Shortcut 3: ACB Balance Alert
+## Shortcut 3: ACB Debit Balance Alert
 
 Sender:
 
@@ -295,6 +297,40 @@ Sample POST JSON:
   "datetime": "060726-14:47:32",
   "content": "HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA",
   "raw_source": "email"
+}
+```
+
+## Shortcut 4: ACB Credit Balance Alert
+
+Sender:
+
+```text
+mailalert@acb.com.vn
+```
+
+Regex set:
+
+```text
+amount: Ghi có\s*(\+?[\d,\.]+)\s*VND
+content: Nội dung giao dịch:\s*(.+?)\.
+datetime: (\d{6}-\d{2}:\d{2}:\d{2})
+```
+
+Use the first Vietnamese match only. ACB includes Vietnamese and English sections in the same email, and later English matches can duplicate or distort the transaction fields.
+
+Use First Item from Matches, then Group 1 / the first capture group from that first match for each field. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly by the Edge Function.
+
+Sample POST JSON:
+
+```json
+{
+  "bank": "ACB",
+  "type": "balance_alert",
+  "amount": "+6,666.00",
+  "datetime": "080726-13:14:07",
+  "content": "HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07",
+  "raw_source": "email",
+  "direction": "income"
 }
 ```
 

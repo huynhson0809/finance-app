@@ -1,5 +1,5 @@
 {
-  "app": { "title": "Finance" },
+  "app": { "title": "Spendly" },
   "common": { "back": "Back" },
   "nav": { "home": "Home", "add": "Add", "calendar": "Calendar", "reports": "Reports", "settings": "Settings" },
   "home": {
@@ -57,7 +57,7 @@
     "expense": "Expense",
     "income": "Income",
     "note": "Note (optional)",
-    "merchant": "Merchant (optional)",
+    "merchant": "Note (optional)",
     "save": "Save",
     "submitExpense": "Add expense",
     "submitIncome": "Add income",
@@ -145,6 +145,7 @@
     "totals": "Report totals",
     "direction": "Transaction direction",
     "searchPlaceholder": "Search merchant, note, category...",
+    "searchStart": "Enter a keyword to search transactions",
     "noSearchResults": "No matching transactions",
     "noSpending": "No spending this month",
     "byCategory": "By category",
@@ -170,12 +171,16 @@
     "income": "Income",
     "expense": "Expense",
     "net": "Net",
+    "total": "Total",
+    "monthSummary": "Month summary",
+    "dateGroups": "Transactions by date",
     "selectedDate": "Selected date",
     "emptyDay": "No transactions on this day",
     "emptyMonth": "No transactions this month",
     "selectDate": "Select {{date}}",
     "transactionCount_one": "{{count}} transaction",
-    "transactionCount_other": "{{count}} transactions"
+    "transactionCount_other": "{{count}} transactions",
+    "transactionsForDate": "Transactions"
   },
   "direction": {
     "expense": "Expense",
@@ -219,8 +224,8 @@
     "dismiss": "Dismiss"
   },
   "auth": {
-    "title": "Finance",
-    "subtitle": "Sign in to view bank-email spending from Supabase.",
+    "title": "Spendly",
+    "subtitle": "Sign in to sync spending from bank emails, receipts, and manual entries.",
     "loading": "Checking sign-in...",
     "signInWithGoogle": "Continue with Google",
     "signInFailed": "Sign in failed",

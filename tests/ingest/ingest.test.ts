@@ -86,6 +86,20 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.category).toBe('transportation');
   });
 
+  it('classifies transfer memos that contain a category label', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: '88,000.00',
+      datetime: '08-07-2026 12:59:46',
+      content: 'HUYNH NGOC SON chuyen tien an uong',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.category).toBe('food-drinks');
+  });
+
   it('accepts ACB dotted amount', () => {
     const result = normalizeIngestPayload({
       bank: 'ACB',

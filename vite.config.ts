@@ -17,11 +17,11 @@ export default defineConfig({
         'tesseract/vie.traineddata.gz',
       ],
       manifest: {
-        name: 'Finance App',
-        short_name: 'Finance',
-        description: 'Quản lý chi tiêu cá nhân — offline-first',
-        theme_color: '#2563eb',
-        background_color: '#ffffff',
+        name: 'Spendly',
+        short_name: 'Spendly',
+        description: 'Track spending from bank emails, receipts, and manual entries.',
+        theme_color: '#38bdf8',
+        background_color: '#020617',
         display: 'standalone',
         start_url: '/',
         icons: [

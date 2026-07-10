@@ -22,6 +22,8 @@ describe('SEED_RULES', () => {
   });
   it('classifies common VN merchants correctly', () => {
     expect(classify('Highlands Coffee Hà Nội', SEED_RULES)?.category).toBe('coffee-bubble-tea');
+    expect(classify('ăn uống trưa', SEED_RULES)?.category).toBe('food-drinks');
+    expect(classify('ghi chú: ăn uống shopee', SEED_RULES)?.category).toBe('food-drinks');
     expect(classify('Grab Bike', SEED_RULES)?.category).toBe('transportation');
     expect(classify('MoMo transfer', SEED_RULES)?.category).toBe('transfers-debt');
     expect(classify('Shopee', SEED_RULES)?.category).toBe('shopping');

@@ -22,15 +22,16 @@ it('uses a custom empty label when provided', () => {
   expect(screen.getByText('No income this month')).toBeInTheDocument();
 });
 
-it('renders an svg when there is data', () => {
+it('renders the category donut with Recharts when there is data', () => {
   const { container } = render(<CategoryPie data={[
     { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },
     { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
   ]} />);
+  expect(container.querySelector('.recharts-wrapper')).toBeInTheDocument();
   expect(container.querySelector('svg')).toBeInTheDocument();
 });
 
-it('shows and updates the selected category callout', async () => {
+it('shows and updates the selected category callout with a small arrow', async () => {
   const user = userEvent.setup();
 
   render(<CategoryPie
@@ -44,13 +45,31 @@ it('shows and updates the selected category callout', async () => {
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('Food');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('₫1,000');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('67%');
-  expect(screen.getByTestId('category-pie-leader')).toBeInTheDocument();
+  expect(screen.getByTestId('category-pie-tooltip-arrow')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: /select shop/i }));
 
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('Shop');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('₫500');
   expect(screen.getByTestId('category-pie-callout')).toHaveTextContent('33%');
+  const callout = screen.getByTestId('category-pie-callout');
+  expect(callout).toHaveClass('rounded-xl');
+});
+
+it('keeps the selected category callout outside the donut plot area', () => {
+  render(<CategoryPie
+    locale="en"
+    data={[
+      { category: 'food-drinks', total: 1000, label: 'Food', color: '#888' },
+      { category: 'shopping',    total:  500, label: 'Shop', color: '#aaa' },
+    ]}
+  />);
+
+  const plot = screen.getByTestId('category-pie-plot');
+  const callout = screen.getByTestId('category-pie-callout');
+
+  expect(plot).not.toContainElement(callout);
+  expect(callout).toHaveAttribute('data-placement', 'above-chart');
 });
 
 it('renders MonthBar svg with provided data', () => {

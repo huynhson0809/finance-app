@@ -1,4 +1,10 @@
 import { buildExternalHash, normalizeIngestPayload } from './ingest.ts';
+import {
+  builtInCategoryOptionsForDirection,
+  type GeminiCategoryDirection,
+  type GeminiCategoryOption,
+  suggestCategoryWithGemini,
+} from './gemini-category.ts';
 
 interface InsertError {
   code?: string;
@@ -12,8 +18,29 @@ interface InsertBuilder {
   insert(row: Record<string, unknown>): Promise<InsertResult>;
 }
 
+interface SelectResult<T> {
+  data: T[] | null;
+  error: unknown | null;
+}
+
+interface UserCategoriesQueryBuilder<T> extends PromiseLike<SelectResult<T>> {
+  eq(column: string, value: string): UserCategoriesQueryBuilder<T>;
+  order(column: string, options: { ascending: boolean }): Promise<SelectResult<T>>;
+}
+
+interface UserCategoriesBuilder<T> {
+  select(columns: string): UserCategoriesQueryBuilder<T>;
+}
+
+interface UserCategoryRow {
+  id: string;
+  direction: string;
+  name: string;
+}
+
 export interface IngestSupabaseClient {
   from(table: 'transactions'): InsertBuilder;
+  from(table: 'user_categories'): UserCategoriesBuilder<UserCategoryRow>;
 }
 
 export interface IngestHandlerDependencies {
@@ -23,6 +50,7 @@ export interface IngestHandlerDependencies {
     serviceRoleKey: string,
     options: { auth: { persistSession: false } },
   ): IngestSupabaseClient;
+  fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 }
 
 const corsHeaders = {
@@ -80,9 +108,28 @@ export function createIngestTransactionHandler(
     const supabase = dependencies.createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     });
-    const external_hash = await buildExternalHash(normalized.value);
+
+    const categories = await categoryOptionsForDefaultUser(
+      supabase,
+      defaultUserId,
+      normalized.value.direction,
+    );
+
+    const aiCategory = await suggestCategoryWithGemini({
+      text: normalized.value.content,
+      direction: normalized.value.direction,
+      categories,
+      apiKey: dependencies.getEnv('GEMINI_API_KEY'),
+      model: dependencies.getEnv('GEMINI_MODEL'),
+    }, {
+      fetch: dependencies.fetch,
+    });
+    const transaction = aiCategory
+      ? { ...normalized.value, category: aiCategory }
+      : normalized.value;
+    const external_hash = await buildExternalHash(transaction);
     const { error } = await supabase.from('transactions').insert({
-      ...normalized.value,
+      ...transaction,
       user_id: defaultUserId,
       external_hash,
     });
@@ -97,4 +144,47 @@ export function createIngestTransactionHandler(
 
     return json({ ok: true, status: 'inserted' }, 201);
   };
+}
+
+async function categoryOptionsForDefaultUser(
+  supabase: IngestSupabaseClient,
+  defaultUserId: string,
+  direction: GeminiCategoryDirection,
+): Promise<GeminiCategoryOption[]> {
+  const builtIn = builtInCategoryOptionsForDirection(direction);
+
+  try {
+    const result = await supabase
+      .from('user_categories')
+      .select('id,direction,name')
+      .eq('user_id', defaultUserId)
+      .eq('direction', direction)
+      .order('created_at', { ascending: true });
+
+    if (result.error) {
+      console.warn('list custom categories for ingest failed', result.error);
+      return builtIn;
+    }
+
+    const custom = (result.data ?? [])
+      .map(row => customCategoryOption(row, direction))
+      .filter((option): option is GeminiCategoryOption => option !== null);
+
+    return [...builtIn, ...custom];
+  } catch (error) {
+    console.warn('list custom categories for ingest failed', error);
+    return builtIn;
+  }
+}
+
+function customCategoryOption(
+  row: UserCategoryRow,
+  direction: GeminiCategoryDirection,
+): GeminiCategoryOption | null {
+  const id = row.id.trim();
+  const label = row.name.trim();
+  if (!id || !label || row.direction !== direction) return null;
+  if (direction === 'expense' && !id.startsWith('custom-expense-')) return null;
+  if (direction === 'income' && !id.startsWith('custom-income-')) return null;
+  return { id, label, direction } as GeminiCategoryOption;
 }

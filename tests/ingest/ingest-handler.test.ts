@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createIngestTransactionHandler } from '../../supabase/functions/_shared/ingest-handler';
+import {
+  createIngestTransactionHandler,
+  type IngestSupabaseClient,
+} from '../../supabase/functions/_shared/ingest-handler';
 
 function request(init: RequestInit = {}): Request {
   return new Request('https://example.test/ingest-transaction', {
@@ -25,6 +28,12 @@ function handler(options: {
   env?: Record<string, string | undefined>;
   insertError?: { code?: string; message?: string } | null;
   inserts?: unknown[];
+  userCategories?: Array<{
+    id: string;
+    direction: 'expense' | 'income';
+    name: string;
+  }>;
+  fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 } = {}) {
   const env: Record<string, string | undefined> = {
     INGEST_SECRET: 'secret',
@@ -34,14 +43,27 @@ function handler(options: {
     ...options.env,
   };
   const inserts = options.inserts ?? [];
+  const userCategories = options.userCategories ?? [];
   const createClient = vi.fn(() => ({
-    from: vi.fn((table: string) => ({
-      insert: vi.fn(async (row: unknown) => {
-        inserts.push({ table, row });
-        return { error: options.insertError ?? null };
-      }),
-    })),
-  }));
+    from: vi.fn((table: string) => {
+      if (table === 'user_categories') {
+        const query = {
+          eq: vi.fn(() => query),
+          order: vi.fn(async () => ({ data: userCategories, error: null })),
+        };
+        return {
+          select: vi.fn(() => query),
+        };
+      }
+
+      return {
+        insert: vi.fn(async (row: unknown) => {
+          inserts.push({ table, row });
+          return { error: options.insertError ?? null };
+        }),
+      };
+    }),
+  } as unknown as IngestSupabaseClient));
 
   return {
     inserts,
@@ -49,6 +71,7 @@ function handler(options: {
     handle: createIngestTransactionHandler({
       getEnv: name => env[name],
       createClient,
+      fetch: options.fetch,
     }),
   };
 }
@@ -124,6 +147,108 @@ describe('createIngestTransactionHandler', () => {
       },
     });
     expect((inserts[0] as { row: { external_hash: string } }).row.external_hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('uses Gemini category suggestions when configured', async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: JSON.stringify({ category: 'food-drinks', confidence: 0.88 }) },
+            ],
+          },
+        },
+      ],
+    })));
+    const { handle, inserts } = handler({
+      env: { GEMINI_API_KEY: 'gemini-key' },
+      fetch,
+    });
+
+    const response = await handle(request({
+      body: JSON.stringify({
+        bank: 'MB',
+        type: 'transfer',
+        amount: '8,888.00',
+        datetime: '08-07-2026 12:59:46',
+        content: 'HUYNH NGOC SON chuyen tien an uong',
+        raw_source: 'email',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(inserts[0]).toMatchObject({
+      row: {
+        category: 'food-drinks',
+        content: 'HUYNH NGOC SON chuyen tien an uong',
+      },
+    });
+  });
+
+  it('includes default user custom categories in Gemini email suggestions', async () => {
+    const fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.generationConfig.properties).toBeUndefined();
+      expect(payload.generationConfig.responseSchema.properties.category.enum)
+        .toContain('custom-expense-pickleball-1234');
+      expect(payload.contents[0].parts[0].text).toContain('custom-expense-pickleball-1234: Pickleball');
+
+      return new Response(JSON.stringify({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: JSON.stringify({ category: 'custom-expense-pickleball-1234', confidence: 0.92 }) },
+              ],
+            },
+          },
+        ],
+      }));
+    });
+    const { handle, inserts } = handler({
+      env: { GEMINI_API_KEY: 'gemini-key' },
+      userCategories: [{
+        id: 'custom-expense-pickleball-1234',
+        direction: 'expense',
+        name: 'Pickleball',
+      }],
+      fetch,
+    });
+
+    const response = await handle(request({
+      body: JSON.stringify({
+        bank: 'MB',
+        type: 'transfer',
+        amount: '250,000.00',
+        datetime: '08-07-2026 18:10:00',
+        content: 'Phi san pickleball toi nay',
+        raw_source: 'email',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(inserts[0]).toMatchObject({
+      row: {
+        category: 'custom-expense-pickleball-1234',
+        content: 'Phi san pickleball toi nay',
+      },
+    });
+  });
+
+  it('falls back to rule-based categories when Gemini fails', async () => {
+    const fetch = vi.fn(async () => new Response('bad gateway', { status: 502 }));
+    const { handle, inserts } = handler({
+      env: { GEMINI_API_KEY: 'gemini-key' },
+      fetch,
+    });
+
+    const response = await handle(request());
+
+    expect(response.status).toBe(201);
+    expect(inserts[0]).toMatchObject({
+      row: { category: 'others' },
+    });
   });
 
   it('inserts ACB credit alerts as income rows', async () => {

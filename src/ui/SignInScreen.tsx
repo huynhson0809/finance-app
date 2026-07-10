@@ -27,6 +27,12 @@ export function SignInScreen({ setupError, authError = null, onSignIn }: SignInS
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0e1117] px-4 text-slate-100">
       <section className="w-full max-w-sm rounded-[28px] border border-white/10 bg-white/[0.07] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur">
+        <img
+          src="/brand/spendly-mark.svg"
+          alt=""
+          aria-hidden="true"
+          className="mb-4 h-16 w-16 rounded-[22px] shadow-[0_0_34px_rgba(56,189,248,0.24)]"
+        />
         <h1 className="text-2xl font-semibold text-white">{t('auth.title')}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">{t('auth.subtitle')}</p>
 

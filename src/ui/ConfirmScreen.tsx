@@ -5,6 +5,8 @@ import { Keypad } from './components/Keypad';
 import { CategoryChips } from './components/CategoryChips';
 import { useOcr } from '../hooks/useOcr';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
+import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCustomCategories } from '../hooks/useCustomCategories';
 import { runExtractors } from '../extractors';
 import { imageHolder } from '../lib/image';
 import { upsertLearnedRule } from '../db/category-rules';
@@ -12,7 +14,9 @@ import { shouldLearn } from '../categorizer';
 import { formatVND } from '../lib/money';
 import { errorMessage } from '../lib/error';
 import { saveUserTransaction } from '../transactions/save';
-import { EXPENSE_CATEGORIES, type Category, type ExpenseCategory } from '../types';
+import { categoriesForDirectionWithCustom } from '../categories/catalog';
+import { categoryLabel } from './theme/categoryMeta';
+import { type Category, type ExpenseCategory } from '../types';
 import { DarkField, GlassPanel } from './components/primitives';
 import type { BankHint, Extracted } from '../extractors';
 
@@ -57,13 +61,30 @@ export function ConfirmScreen() {
   const [occurredAt, setOccurredAt] = useState('');
   const [chosen, setChosen] = useState<ExpenseCategory | null>(null);
   const [userPickedChip, setUserPickedChip] = useState(false);
+  const userPickedChipRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const { categories: customCategories } = useCustomCategories();
+  const { overrides: categoryOverrides } = useCategoryOverrides();
+  const expenseCategories = useMemo(
+    () => categoriesForDirectionWithCustom('expense', customCategories) as ExpenseCategory[],
+    [customCategories],
+  );
+  const suggestionCategories = useMemo(
+    () => expenseCategories.map(category => ({
+      id: category,
+      label: categoryLabel(category, customCategories, t, categoryOverrides),
+    })),
+    [expenseCategories, customCategories, t, categoryOverrides],
+  );
   const searchText = useMemo(
     () => [merchant, text ?? ''].filter(Boolean).join(' '),
     [merchant, text],
   );
-  const { suggestion } = useCategorySuggestion(searchText);
+  const { suggestion } = useCategorySuggestion(searchText, {
+    direction: 'expense',
+    categories: suggestionCategories,
+  });
 
   // pre-fill on extraction
   useEffect(() => {
@@ -79,14 +100,14 @@ export function ConfirmScreen() {
 
   // chosen tracks suggestion until user explicitly taps a chip
   useEffect(() => {
-    if (!userPickedChip) {
+    if (!userPickedChipRef.current) {
       setChosen(
-        suggestion != null && EXPENSE_CATEGORIES.includes(suggestion as ExpenseCategory)
+        suggestion != null && expenseCategories.includes(suggestion as ExpenseCategory)
           ? suggestion as ExpenseCategory
           : null,
       );
     }
-  }, [suggestion, userPickedChip]);
+  }, [expenseCategories, suggestion, userPickedChip]);
 
   function handleKey(k: string) {
     if (k === '⌫') { setRaw(r => r.slice(0, -1)); return; }
@@ -96,7 +117,8 @@ export function ConfirmScreen() {
   }
 
   function handleChip(c: Category) {
-    if (!EXPENSE_CATEGORIES.includes(c as ExpenseCategory)) return;
+    if (!expenseCategories.includes(c as ExpenseCategory)) return;
+    userPickedChipRef.current = true;
     setUserPickedChip(true);
     setChosen(c as ExpenseCategory);
   }
@@ -201,7 +223,13 @@ export function ConfirmScreen() {
         <Keypad onChange={handleKey} />
       </div>
       <div className="-mx-4">
-        <CategoryChips value={chosen} onSelect={handleChip} categories={EXPENSE_CATEGORIES} />
+        <CategoryChips
+          value={chosen}
+          onSelect={handleChip}
+          categories={expenseCategories}
+          customCategories={customCategories}
+          categoryOverrides={categoryOverrides}
+        />
       </div>
 
       {saveError && (

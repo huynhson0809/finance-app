@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
+import { __resetDBForTests } from '../../src/db';
+import { getAllRules } from '../../src/db/category-rules';
 import type { Transaction, UserCategory } from '../../src/types';
 
 const transactionMocks = vi.hoisted(() => ({
@@ -48,6 +50,13 @@ beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
   await i18n.changeLanguage('vi');
+  await __resetDBForTests();
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('finance-app');
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => resolve();
+  });
   vi.restoreAllMocks();
   transactionMocks.supabase = {};
   transactionMocks.getCloudTransaction.mockReset();
@@ -88,11 +97,20 @@ function customCategory(overrides: Partial<UserCategory> = {}): UserCategory {
   } as UserCategory;
 }
 
-function renderEdit(path = '/transactions/tx-1') {
+type TestEntry = string | {
+  pathname: string;
+  search?: string;
+  state?: {
+    backTo?: string;
+  };
+};
+
+function renderEdit(entry: TestEntry = '/transactions/tx-1') {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/" element={<div>Home</div>} />
+        <Route path="/calendar" element={<div>Calendar</div>} />
         <Route path="/transactions/:id" element={<TransactionEditScreen />} />
       </Routes>
     </MemoryRouter>,
@@ -114,6 +132,22 @@ describe('TransactionEditScreen', () => {
     expect(screen.getByText('MB Card')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /đi lại/i, pressed: true })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /lương/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it('returns to the calendar when opened from the calendar', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+
+    renderEdit({
+      pathname: '/transactions/tx-1',
+      state: { backTo: '/calendar?month=2026-07' },
+    });
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    await user.click(screen.getByRole('button', { name: /back/i }));
+
+    expect(await screen.findByText('Calendar')).toBeInTheDocument();
   });
 
   it('saves edited amount, date, text, and category', async () => {
@@ -147,6 +181,36 @@ describe('TransactionEditScreen', () => {
     expect(await screen.findByText('Home')).toBeInTheDocument();
   });
 
+  it('learns a local rule when correcting an email transaction category', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({
+      category: 'others',
+      merchant: 'Lunch near office',
+      source: 'bank-email',
+      rawSource: 'email',
+    }));
+    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({
+      category: 'food-drinks',
+      merchant: 'Lunch near office',
+    }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    await user.click(screen.getByRole('button', { name: /ăn uống/i }));
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(async () => {
+      const rules = await getAllRules();
+      expect(rules).toHaveLength(1);
+      expect(rules[0]).toMatchObject({
+        pattern: 'lunch near office',
+        category: 'food-drinks',
+        learned: true,
+      });
+    });
+  });
+
   it('saves an edited transaction with a custom category', async () => {
     const user = userEvent.setup();
     customCategoryMocks.categories = [customCategory()];
@@ -165,35 +229,6 @@ describe('TransactionEditScreen', () => {
         'tx-1',
         expect.objectContaining({
           category: 'custom-expense-pet-care',
-        }),
-      );
-    });
-    expect(await screen.findByText('Home')).toBeInTheDocument();
-  });
-
-  it('copies an edited transaction with a custom category', async () => {
-    const user = userEvent.setup();
-    customCategoryMocks.categories = [customCategory()];
-    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.addCloudTransaction.mockResolvedValue(tx({
-      source: 'manual',
-      bank: undefined,
-      category: 'custom-expense-pet-care',
-    }));
-
-    renderEdit();
-
-    await screen.findByRole('heading', { name: /chỉnh sửa/i });
-    await user.click(screen.getByRole('button', { name: 'Pet Care' }));
-    await user.click(screen.getByRole('button', { name: /copy/i }));
-
-    await waitFor(() => {
-      expect(transactionMocks.addCloudTransaction).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          direction: 'expense',
-          category: 'custom-expense-pet-care',
-          source: 'manual',
         }),
       );
     });
@@ -273,28 +308,4 @@ describe('TransactionEditScreen', () => {
     expect(screen.getByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
   });
 
-  it('copies the visible transaction as a manual transaction', async () => {
-    const user = userEvent.setup();
-    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.addCloudTransaction.mockResolvedValue(tx({ source: 'manual', bank: undefined }));
-
-    renderEdit();
-
-    await screen.findByRole('heading', { name: /chỉnh sửa/i });
-    await user.click(screen.getByRole('button', { name: /copy/i }));
-
-    await waitFor(() => {
-      expect(transactionMocks.addCloudTransaction).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          amount: 38560,
-          direction: 'expense',
-          category: 'transportation',
-          source: 'manual',
-          merchant: 'Giao dịch chi tiêu tại Grab* BXTTDKA62JSE-G-3',
-        }),
-      );
-    });
-    expect(await screen.findByText('Home')).toBeInTheDocument();
-  });
 });

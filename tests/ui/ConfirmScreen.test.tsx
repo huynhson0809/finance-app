@@ -59,7 +59,7 @@ describe('ConfirmScreen', () => {
     await waitFor(() => expect(screen.getByText(/250.*000/)).toBeInTheDocument());
 
     expect(screen.getByRole('heading', { name: /confirm|xác nhận/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/merchant|cửa hàng/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/note|ghi chú/i)).toBeInTheDocument();
   });
 
   it('pre-fills amount and merchant from a Vietcombank-shaped OCR text', async () => {
@@ -84,7 +84,7 @@ describe('ConfirmScreen', () => {
       </MemoryRouter>,
     );
     await waitFor(() => expect(screen.getByText(/Could not read|Không đọc được/i)).toBeInTheDocument());
-    const merchantInput = screen.getByLabelText(/merchant|cửa hàng/i) as HTMLInputElement;
+    const merchantInput = screen.getByLabelText(/note|ghi chú/i) as HTMLInputElement;
     expect(merchantInput.value).toBe('');
   });
 
@@ -141,6 +141,19 @@ describe('ConfirmScreen', () => {
     await waitFor(() => {
       // Shopping chip should be selected (aria-pressed=true) once OCR completes + categorizer settles
       const chip = screen.getByRole('button', { name: /shopping|mua sắm/i });
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+    }, { timeout: 1500 });
+  });
+
+  it('suggests food based on Vietnamese category label in OCR text', async () => {
+    mountWithImage([
+      'MBBank',
+      'So tien: -88.000 VND',
+      'Noi dung: HUYNH NGOC SON chuyen tien an uong',
+    ].join('\n'));
+
+    await waitFor(() => {
+      const chip = screen.getByRole('button', { name: /food|ăn uống/i });
       expect(chip).toHaveAttribute('aria-pressed', 'true');
     }, { timeout: 1500 });
   });

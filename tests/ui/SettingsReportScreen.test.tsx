@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
@@ -141,5 +141,18 @@ describe('SettingsReportScreen', () => {
     expect(screen.getByText('All time')).toBeInTheDocument();
     expect(scopedReportHooks.useScopedReportTransactions).toHaveBeenCalledWith('all', '2026-01');
     expect(screen.getByTestId('category-pie')).toBeInTheDocument();
+  });
+
+  it('does not show all transactions in search until a query is entered', async () => {
+    renderReport('/settings/reports/search');
+
+    expect(screen.getByText('Enter a keyword to search transactions')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /food & drinks/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search transactions' }), {
+      target: { value: 'food' },
+    });
+
+    expect(screen.getByRole('link', { name: /food & drinks/i })).toBeInTheDocument();
   });
 });

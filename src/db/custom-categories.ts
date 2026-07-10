@@ -49,6 +49,10 @@ export async function getCustomCategories(): Promise<UserCategory[]> {
   return await getSetting<UserCategory[]>(CUSTOM_CATEGORIES_SETTING_KEY) ?? [];
 }
 
+export async function replaceCustomCategories(categories: UserCategory[]): Promise<void> {
+  await setCustomCategories(categories);
+}
+
 function mutateCustomCategories<T>(
   mutation: (categories: UserCategory[]) => MutationResult<T>,
 ): Promise<T> {

@@ -217,7 +217,7 @@ export function SettingsReportScreen() {
     const newest = [...transactions].sort((a, b) => (
       new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
     ));
-    if (!query) return newest;
+    if (!query) return [];
 
     return newest.filter(transaction => {
       const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
@@ -240,6 +240,7 @@ export function SettingsReportScreen() {
   const isSearchReport = mode === 'search';
   const isBalanceReport = mode === 'balance-change';
   const showDirectionTabs = !isBalanceReport && !isSearchReport;
+  const trimmedSearch = search.trim();
 
   function retry() {
     void report.reload();
@@ -336,7 +337,11 @@ export function SettingsReportScreen() {
                 aria-label={t('reports.search')}
                 className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300/50"
               />
-              {filteredTransactions.length === 0 ? (
+              {!trimmedSearch ? (
+                <p className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-sm text-slate-400">
+                  {t('reports.searchStart')}
+                </p>
+              ) : filteredTransactions.length === 0 ? (
                 <p className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-4 text-sm text-slate-400">
                   {t('reports.noSearchResults')}
                 </p>

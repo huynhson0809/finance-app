@@ -1,5 +1,5 @@
 {
-  "app": { "title": "Quản lý chi tiêu" },
+  "app": { "title": "Spendly" },
   "common": { "back": "Quay lại" },
   "nav": { "home": "Trang chủ", "add": "Thêm", "calendar": "Lịch", "reports": "Báo cáo", "settings": "Cài đặt" },
   "home": {
@@ -57,7 +57,7 @@
     "expense": "Tiền chi",
     "income": "Tiền thu",
     "note": "Ghi chú (tuỳ chọn)",
-    "merchant": "Cửa hàng (tuỳ chọn)",
+    "merchant": "Ghi chú (tuỳ chọn)",
     "save": "Lưu",
     "submitExpense": "Thêm tiền chi",
     "submitIncome": "Thêm tiền thu",
@@ -145,6 +145,7 @@
     "totals": "Tổng quan báo cáo",
     "direction": "Loại giao dịch",
     "searchPlaceholder": "Tìm cửa hàng, ghi chú, danh mục...",
+    "searchStart": "Nhập từ khoá để tìm giao dịch",
     "noSearchResults": "Không có giao dịch phù hợp",
     "noSpending": "Chưa có chi tiêu",
     "byCategory": "Theo danh mục",
@@ -170,12 +171,16 @@
     "income": "Thu nhập",
     "expense": "Chi tiêu",
     "net": "Còn lại",
+    "total": "Tổng",
+    "monthSummary": "Tổng tháng",
+    "dateGroups": "Giao dịch theo ngày",
     "selectedDate": "Ngày đang chọn",
     "emptyDay": "Ngày này chưa có giao dịch",
     "emptyMonth": "Tháng này chưa có giao dịch",
     "selectDate": "Chọn {{date}}",
     "transactionCount_one": "{{count}} giao dịch",
-    "transactionCount_other": "{{count}} giao dịch"
+    "transactionCount_other": "{{count}} giao dịch",
+    "transactionsForDate": "Giao dịch"
   },
   "direction": {
     "expense": "Chi",
@@ -219,8 +224,8 @@
     "dismiss": "Đóng"
   },
   "auth": {
-    "title": "Quản lý chi tiêu",
-    "subtitle": "Đăng nhập để xem chi tiêu từ email ngân hàng trên Supabase.",
+    "title": "Spendly",
+    "subtitle": "Đăng nhập để đồng bộ chi tiêu từ email ngân hàng, hoá đơn và nhập tay.",
     "loading": "Đang kiểm tra đăng nhập...",
     "signInWithGoogle": "Tiếp tục với Google",
     "signInFailed": "Đăng nhập thất bại",
