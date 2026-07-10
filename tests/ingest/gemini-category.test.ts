@@ -64,6 +64,32 @@ describe('suggestCategoryWithGemini', () => {
     });
   });
 
+  it('uses the current default Gemini Flash model when no model is configured', async () => {
+    const fetch = vi.fn(async () => jsonResponse({
+      candidates: [
+        {
+          content: {
+            parts: [
+              { text: JSON.stringify({ category: 'food-drinks', confidence: 0.91 }) },
+            ],
+          },
+        },
+      ],
+    }));
+
+    await suggestCategoryWithGemini({
+      text: 'ăn uống cuối tuần',
+      direction: 'expense',
+      categories: builtInCategoryOptionsForDirection('expense'),
+      apiKey: 'gemini-key',
+    }, {
+      fetch,
+    });
+
+    const [url] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(url)).toContain('/models/gemini-3.5-flash:generateContent');
+  });
+
   it('ignores invalid or low-confidence categories', async () => {
     const fetch = vi.fn()
       .mockResolvedValueOnce(jsonResponse({

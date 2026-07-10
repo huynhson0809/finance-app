@@ -119,7 +119,7 @@ function normalizeDirection(input: InputRecord): TransactionDirection | null {
       : null;
   }
 
-  if (input.bank === 'ACB' && input.type === 'balance_alert' && isPositiveSignedAmount(input.amount)) {
+  if (isPositiveSignedAmount(input.amount)) {
     return 'income';
   }
 

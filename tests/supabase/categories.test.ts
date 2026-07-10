@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   deleteCloudCustomCategory,
+  listCloudCategoryOrders,
   listCloudCategoryOverrides,
   listCloudCustomCategories,
+  upsertCloudCategoryOrder,
   upsertCloudCategoryOverride,
   upsertCloudCustomCategory,
 } from '../../src/supabase/categories';
@@ -183,6 +185,43 @@ describe('cloud categories', () => {
       category: 'food-drinks',
       name: 'Eating out',
       icon_key: 'coffee',
+    });
+  });
+
+  it('lists and upserts category orders for the signed-in user', async () => {
+    const context = createClient({
+      data: [{
+        direction: 'expense',
+        categories: ['coffee-bubble-tea', 'food-drinks'],
+        updated_at: '2026-07-10T00:00:00.000Z',
+      }],
+      error: null,
+    });
+
+    await expect(listCloudCategoryOrders(context.client)).resolves.toEqual([{
+      direction: 'expense',
+      categories: ['coffee-bubble-tea', 'food-drinks'],
+      updatedAt: '2026-07-10T00:00:00.000Z',
+    }]);
+
+    await upsertCloudCategoryOrder(context.client, {
+      direction: 'expense',
+      categories: ['coffee-bubble-tea', 'food-drinks'],
+      updatedAt: '2026-07-10T00:00:00.000Z',
+    });
+
+    expect(context.calls).toContainEqual({
+      method: 'from',
+      args: ['category_orders'],
+    });
+    expect(context.upsertedRow).toMatchObject({
+      user_id: 'user-1',
+      direction: 'expense',
+      categories: ['coffee-bubble-tea', 'food-drinks'],
+    });
+    expect(context.calls).toContainEqual({
+      method: 'upsert',
+      args: [expect.any(Object), { onConflict: 'user_id,direction' }],
     });
   });
 });

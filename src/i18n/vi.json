@@ -87,6 +87,9 @@
     "iconOption": "Chọn biểu tượng {{icon}}",
     "save": "Lưu danh mục",
     "delete": "Xoá danh mục",
+    "drag": "Kéo {{category}}",
+    "moveUp": "Di chuyển {{category}} lên",
+    "moveDown": "Di chuyển {{category}} xuống",
     "builtInHint": "Danh mục mặc định sẽ giữ mã cũ để không ảnh hưởng dữ liệu, nhưng tên và biểu tượng có thể đổi theo ý bạn."
   },
   "settings": {

@@ -72,6 +72,25 @@ describe('normalizeIngestPayload', () => {
     expect(result.value.amount).toBe(52043);
   });
 
+  it('infers income for MB card refunds with a positive signed amount', () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'card',
+      amount: '+81,000',
+      datetime: '2026-07-10 11:31:02',
+      content: 'Hoàn trả giao dịch tại Grab* A-9IMAW3WGW6RXAV',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value).toMatchObject({
+      amount: 81000,
+      transaction_time: '2026-07-10T04:31:02.000Z',
+      direction: 'income',
+      category: 'temporary-income',
+    });
+  });
+
   it('adds a category based on email content', () => {
     const result = normalizeIngestPayload({
       bank: 'MB',

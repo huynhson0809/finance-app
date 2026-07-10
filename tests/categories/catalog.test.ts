@@ -46,4 +46,18 @@ describe('category catalog', () => {
       customIncome.id,
     ]);
   });
+
+  it('orders built-in and custom category ids from a saved user order', () => {
+    expect(categoriesForDirectionWithCustom('expense', [customExpense, customIncome], [
+      customExpense.id,
+      'coffee-bubble-tea',
+      'missing-category' as never,
+      'food-drinks',
+    ])).toEqual([
+      customExpense.id,
+      'coffee-bubble-tea',
+      'food-drinks',
+      ...EXPENSE_CATEGORIES.filter(category => !['coffee-bubble-tea', 'food-drinks'].includes(category)),
+    ]);
+  });
 });

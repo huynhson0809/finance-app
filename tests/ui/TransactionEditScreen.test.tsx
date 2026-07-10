@@ -13,6 +13,7 @@ const transactionMocks = vi.hoisted(() => ({
   updateCloudTransaction: vi.fn(),
   deleteCloudTransaction: vi.fn(),
   addCloudTransaction: vi.fn(),
+  invalidateTransactionQueries: vi.fn(),
 }));
 
 const customCategoryMocks = vi.hoisted(() => ({
@@ -44,6 +45,14 @@ vi.mock('../../src/hooks/useCustomCategories', () => ({
   })),
 }));
 
+vi.mock('../../src/query/client', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../src/query/client')>();
+  return {
+    ...actual,
+    invalidateTransactionQueries: transactionMocks.invalidateTransactionQueries,
+  };
+});
+
 import { TransactionEditScreen } from '../../src/ui/TransactionEditScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -63,6 +72,8 @@ beforeEach(async () => {
   transactionMocks.updateCloudTransaction.mockReset();
   transactionMocks.deleteCloudTransaction.mockReset();
   transactionMocks.addCloudTransaction.mockReset();
+  transactionMocks.invalidateTransactionQueries.mockReset();
+  transactionMocks.invalidateTransactionQueries.mockResolvedValue(undefined);
   customCategoryMocks.categories = [];
 });
 
@@ -178,6 +189,9 @@ describe('TransactionEditScreen', () => {
         }),
       );
     });
+    await waitFor(() => {
+      expect(transactionMocks.invalidateTransactionQueries).toHaveBeenCalledTimes(1);
+    });
     expect(await screen.findByText('Home')).toBeInTheDocument();
   });
 
@@ -288,6 +302,9 @@ describe('TransactionEditScreen', () => {
     expect(confirmSpy).toHaveBeenCalledWith('Xóa giao dịch này?');
     await waitFor(() => {
       expect(transactionMocks.deleteCloudTransaction).toHaveBeenCalledWith(expect.anything(), 'tx-1');
+    });
+    await waitFor(() => {
+      expect(transactionMocks.invalidateTransactionQueries).toHaveBeenCalledTimes(1);
     });
     expect(await screen.findByText('Home')).toBeInTheDocument();
   });

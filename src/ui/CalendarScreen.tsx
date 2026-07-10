@@ -400,7 +400,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
   const selectedTransactions = useMemo(
     () => transactions
       .filter(transaction => todayVietnamDate(new Date(transaction.occurredAt)) === selectedDate)
-      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
     [transactions, selectedDate],
   );
   const hasMonthTransactions = transactions.some(

@@ -9,6 +9,7 @@ import { __resetDBForTests } from '../../src/db';
 import { getAllRules } from '../../src/db/category-rules';
 import { createCustomCategory } from '../../src/db/custom-categories';
 import { vietnamDatetimeInputToISO } from '../../src/lib/date';
+import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
 
 const saveMocks = vi.hoisted(() => ({
   saveUserTransaction: vi.fn(),
@@ -22,12 +23,14 @@ beforeAll(async () => { await initI18n(); });
 
 beforeEach(async () => {
   await __resetDBForTests();
+  clearSpendlyQueryCacheForTests();
   saveMocks.saveUserTransaction.mockReset();
   saveMocks.saveUserTransaction.mockResolvedValue({});
   await new Promise<void>(resolve => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
   });
+  clearSpendlyQueryCacheForTests();
 });
 
 afterEach(() => {

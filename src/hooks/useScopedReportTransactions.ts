@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { yearRangeVietnamISO } from '../lib/date';
+import {
+  spendlyQueryClient,
+  spendlyQueryKeys,
+  spendlyStaleTimes,
+} from '../query/client';
 import { supabase } from '../supabase/client';
 import {
   listCloudTransactions,
@@ -26,49 +32,40 @@ export function useScopedReportTransactions(
   kind: ScopedReportKind,
   monthISO: string,
 ): ScopedReportTransactionsResult {
-  const requestIdRef = useRef(0);
-  const [state, setState] = useState({
-    transactions: [] as Transaction[],
-    loading: kind !== null,
-    error: null as string | null,
-  });
+  const year = Number(monthISO.slice(0, 4));
+  const range = useMemo(() => yearRangeVietnamISO(year), [year]);
+  const client = supabase;
+  const queryKey = kind === 'all'
+    ? spendlyQueryKeys.transactions.all()
+    : kind === 'year'
+      ? spendlyQueryKeys.transactions.range(range.sinceISO, range.untilISO)
+      : spendlyQueryKeys.transactions.root;
+
+  const query = useQuery<Transaction[], Error>({
+    queryKey,
+    queryFn: async () => {
+      if (!client) throw new Error(SUPABASE_NOT_CONFIGURED);
+      return kind === 'all'
+        ? listCloudTransactions(client)
+        : listCloudTransactionsForRange(client, range);
+    },
+    enabled: Boolean(kind && client),
+    staleTime: spendlyStaleTimes.historicalTransactions,
+  }, spendlyQueryClient);
 
   const reload = useCallback(async () => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
+    if (!kind || !client) return;
+    await query.refetch({ throwOnError: false });
+  }, [client, kind, query]);
 
-    if (kind === null) {
-      setState({ transactions: [], loading: false, error: null });
-      return;
-    }
-
-    if (!supabase) {
-      setState({ transactions: [], loading: false, error: SUPABASE_NOT_CONFIGURED });
-      return;
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    try {
-      const transactions = kind === 'all'
-        ? await listCloudTransactions(supabase)
-        : await listCloudTransactionsForRange(
-          supabase,
-          yearRangeVietnamISO(Number(monthISO.slice(0, 4))),
-        );
-      if (requestId !== requestIdRef.current) return;
-      setState({ transactions, loading: false, error: null });
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-      setState({ transactions: [], loading: false, error: errorMessage(error) });
-    }
-  }, [kind, monthISO]);
-
-  useEffect(() => {
-    void reload();
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, [reload]);
-
-  return { ...state, reload };
+  return {
+    transactions: kind && client ? query.data ?? [] : [],
+    loading: Boolean(kind && client && query.isPending),
+    error: kind && !client
+      ? SUPABASE_NOT_CONFIGURED
+      : query.error
+        ? errorMessage(query.error)
+        : null,
+    reload,
+  };
 }

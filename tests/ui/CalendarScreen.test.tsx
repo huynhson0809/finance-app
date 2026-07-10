@@ -211,7 +211,7 @@ describe('CalendarScreen', () => {
     expect(within(screen.getByRole('article', { name: '15/06/2026 (Mon)' })).getByText('Food & Drinks')).toBeInTheDocument();
   });
 
-  it('renders only selected-day transactions as chronological tag links', async () => {
+  it('renders only selected-day transactions as newest-first tag links', async () => {
     const user = setupUser();
     cloudHooks.state.data = [
       tx({
@@ -265,17 +265,17 @@ describe('CalendarScreen', () => {
     const links = within(group).getAllByRole('link');
 
     expect(links).toHaveLength(4);
-    expect(links[0]).toHaveTextContent('Food & Drinks');
-    expect(links[0]).toHaveTextContent(/20[.,]000/);
-    expect(links[0]).toHaveAttribute('href', '/transactions/tx-food-early');
-    expect(links[1]).toHaveTextContent('Transportation');
-    expect(links[1]).toHaveAttribute('href', '/transactions/tx-transport');
-    expect(links[2]).toHaveTextContent('Food & Drinks');
-    expect(links[2]).toHaveTextContent(/30[.,]000/);
-    expect(links[2]).toHaveAttribute('href', '/transactions/tx-food-late');
-    expect(links[3]).toHaveTextContent('Salary');
-    expect(links[3]).toHaveTextContent(/\+.*1[.,]000[.,]000/);
-    expect(links[3]).toHaveAttribute('href', '/transactions/tx-salary');
+    expect(links[0]).toHaveTextContent('Salary');
+    expect(links[0]).toHaveTextContent(/\+.*1[.,]000[.,]000/);
+    expect(links[0]).toHaveAttribute('href', '/transactions/tx-salary');
+    expect(links[1]).toHaveTextContent('Food & Drinks');
+    expect(links[1]).toHaveTextContent(/30[.,]000/);
+    expect(links[1]).toHaveAttribute('href', '/transactions/tx-food-late');
+    expect(links[2]).toHaveTextContent('Transportation');
+    expect(links[2]).toHaveAttribute('href', '/transactions/tx-transport');
+    expect(links[3]).toHaveTextContent('Food & Drinks');
+    expect(links[3]).toHaveTextContent(/20[.,]000/);
+    expect(links[3]).toHaveAttribute('href', '/transactions/tx-food-early');
     expect(within(group).getAllByText('Food & Drinks')).toHaveLength(2);
     expect(within(group).queryByText(/50[.,]000/)).not.toBeInTheDocument();
   });

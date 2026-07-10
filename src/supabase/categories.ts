@@ -1,8 +1,10 @@
 import type { AppSupabaseClient } from './client';
 import type {
   BuiltInCategory,
+  Category,
   CategoryIconKey,
   CategoryOverride,
+  CategoryOrder,
   CustomExpenseCategory,
   CustomIncomeCategory,
   TransactionDirection,
@@ -11,9 +13,10 @@ import type {
 
 const CUSTOM_CATEGORY_COLUMNS = 'id,direction,name,icon_key,created_at,updated_at';
 const CATEGORY_OVERRIDE_COLUMNS = 'category,name,icon_key,updated_at';
+const CATEGORY_ORDER_COLUMNS = 'direction,categories,updated_at';
 
 type CloudCustomCategoryId = CustomExpenseCategory | CustomIncomeCategory;
-type CategoryTable = 'user_categories' | 'category_overrides';
+type CategoryTable = 'user_categories' | 'category_overrides' | 'category_orders';
 
 interface QueryError {
   message: string;
@@ -45,6 +48,12 @@ interface CloudCategoryOverrideRow {
   updated_at: string;
 }
 
+interface CloudCategoryOrderRow {
+  direction: TransactionDirection;
+  categories: Category[];
+  updated_at: string;
+}
+
 interface CustomCategoryUpsertRow {
   id: CloudCustomCategoryId;
   user_id: string;
@@ -60,6 +69,13 @@ interface CategoryOverrideUpsertRow {
   category: BuiltInCategory;
   name: string | null;
   icon_key: CategoryIconKey | null;
+  updated_at: string;
+}
+
+interface CategoryOrderUpsertRow {
+  user_id: string;
+  direction: TransactionDirection;
+  categories: Category[];
   updated_at: string;
 }
 
@@ -109,6 +125,12 @@ function categoryOverridesTable(
   return client.from('category_overrides') as CategoryTableBuilder<CloudCategoryOverrideRow, CategoryOverrideUpsertRow>;
 }
 
+function categoryOrdersTable(
+  client: CategoryClientInput,
+): CategoryTableBuilder<CloudCategoryOrderRow, CategoryOrderUpsertRow> {
+  return client.from('category_orders') as CategoryTableBuilder<CloudCategoryOrderRow, CategoryOrderUpsertRow>;
+}
+
 async function currentUserId(client: CategoryClientInput): Promise<string> {
   const result = await client.auth.getUser();
   if (result.error) {
@@ -142,6 +164,14 @@ function mapCategoryOverride(row: CloudCategoryOverrideRow): CategoryOverride {
     category: row.category,
     name: row.name ?? undefined,
     iconKey: row.icon_key ?? undefined,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCategoryOrder(row: CloudCategoryOrderRow): CategoryOrder {
+  return {
+    direction: row.direction,
+    categories: row.categories,
     updatedAt: row.updated_at,
   };
 }
@@ -225,4 +255,37 @@ export async function upsertCloudCategoryOverride(
     throw new Error('No category override returned');
   }
   return mapCategoryOverride(result.data);
+}
+
+export async function listCloudCategoryOrders(
+  client: CategoryClientInput,
+): Promise<CategoryOrder[]> {
+  const result = await categoryOrdersTable(client)
+    .select(CATEGORY_ORDER_COLUMNS)
+    .order('direction', { ascending: true });
+
+  throwIfError(result.error);
+  return (result.data ?? []).map(mapCategoryOrder);
+}
+
+export async function upsertCloudCategoryOrder(
+  client: CategoryClientInput,
+  order: CategoryOrder,
+): Promise<CategoryOrder> {
+  const userId = await currentUserId(client);
+  const result = await categoryOrdersTable(client)
+    .upsert({
+      user_id: userId,
+      direction: order.direction,
+      categories: order.categories,
+      updated_at: order.updatedAt,
+    }, { onConflict: 'user_id,direction' })
+    .select(CATEGORY_ORDER_COLUMNS)
+    .single();
+
+  throwIfError(result.error);
+  if (!result.data) {
+    throw new Error('No category order returned');
+  }
+  return mapCategoryOrder(result.data);
 }

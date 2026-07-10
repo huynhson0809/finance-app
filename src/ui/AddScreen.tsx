@@ -12,6 +12,7 @@ import { categoriesForDirectionWithCustom } from "../categories/catalog";
 import { upsertLearnedRule } from "../db/category-rules";
 import { useCategorySuggestion } from "../hooks/useCategorySuggestion";
 import { useCategoryOverrides } from "../hooks/useCategoryOverrides";
+import { useCategoryOrder } from "../hooks/useCategoryOrder";
 import { useCustomCategories } from "../hooks/useCustomCategories";
 import { shouldLearn } from "../categorizer";
 import { parseVNDInput } from "../lib/money";
@@ -68,9 +69,10 @@ export function AddScreen() {
 
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
+  const { order: categoryOrder } = useCategoryOrder(direction);
   const categoryOptions = useMemo(
-    () => categoriesForDirectionWithCustom(direction, customCategories),
-    [direction, customCategories],
+    () => categoriesForDirectionWithCustom(direction, customCategories, categoryOrder),
+    [direction, customCategories, categoryOrder],
   );
   const suggestionCategories = useMemo(
     () => categoryOptions.map(category => ({

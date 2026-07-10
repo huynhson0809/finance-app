@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   createCustomCategory,
   deleteCustomCategory,
@@ -7,6 +8,11 @@ import {
   renameCustomCategory,
   updateCustomCategoryIcon,
 } from '../db/custom-categories';
+import {
+  spendlyQueryClient,
+  spendlyQueryKeys,
+  spendlyStaleTimes,
+} from '../query/client';
 import { supabase } from '../supabase/client';
 import {
   deleteCloudCustomCategory,
@@ -110,128 +116,112 @@ async function loadCustomCategories(): Promise<UserCategory[]> {
 }
 
 export function useCustomCategories(): CustomCategoriesResult {
-  const requestIdRef = useRef(0);
-  const mutationVersionRef = useRef(0);
-  const [state, setState] = useState<CustomCategoriesState>({
-    categories: [],
-    loading: true,
-    error: null,
-  });
+  const mutationInFlightRef = useRef(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const queryKey = spendlyQueryKeys.categories.custom();
+  const query = useQuery<UserCategory[], Error>({
+    queryKey,
+    queryFn: loadCustomCategories,
+    staleTime: spendlyStaleTimes.categoryMetadata,
+  }, spendlyQueryClient);
 
   const reload = useCallback(async () => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    const mutationVersion = mutationVersionRef.current;
-    setState(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      const categories = await loadCustomCategories();
-      if (
-        requestId !== requestIdRef.current ||
-        mutationVersion !== mutationVersionRef.current
-      ) return;
-      setState({ categories, loading: false, error: null });
-    } catch (error) {
-      if (
-        requestId !== requestIdRef.current ||
-        mutationVersion !== mutationVersionRef.current
-      ) return;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, [reload]);
+    if (mutationInFlightRef.current) return;
+    setActionError(null);
+    await query.refetch({ throwOnError: false });
+  }, [query]);
 
   const addCategory = useCallback(async (
     direction: TransactionDirection,
     name: string,
     iconKey?: CategoryIconKey,
   ) => {
-    requestIdRef.current += 1;
-    mutationVersionRef.current += 1;
+    mutationInFlightRef.current = true;
+    await spendlyQueryClient.cancelQueries({ queryKey });
     try {
       const localCategory = await createCustomCategory(direction, name, iconKey);
       syncCustomCategory(localCategory);
-      mutationVersionRef.current += 1;
-      setState(prev => ({
-        categories: [...prev.categories, localCategory],
-        loading: false,
-        error: null,
-      }));
+      spendlyQueryClient.setQueryData<UserCategory[]>(
+        queryKey,
+        existing => [...(existing ?? []), localCategory],
+      );
+      setActionError(null);
       return localCategory;
     } catch (error) {
-      mutationVersionRef.current += 1;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      setActionError(errorMessage(error));
       throw error;
+    } finally {
+      mutationInFlightRef.current = false;
     }
-  }, []);
+  }, [queryKey]);
 
   const renameCategory = useCallback(async (id: CustomCategoryId, name: string) => {
-    requestIdRef.current += 1;
-    mutationVersionRef.current += 1;
+    mutationInFlightRef.current = true;
+    await spendlyQueryClient.cancelQueries({ queryKey });
     try {
       const localCategory = await renameCustomCategory(id, name);
       syncCustomCategory(localCategory);
-      mutationVersionRef.current += 1;
-      setState(prev => ({
-        categories: prev.categories.map(existing => existing.id === id ? localCategory : existing),
-        loading: false,
-        error: null,
-      }));
+      spendlyQueryClient.setQueryData<UserCategory[]>(
+        queryKey,
+        existing => (existing ?? []).map(category => (
+          category.id === id ? localCategory : category
+        )),
+      );
+      setActionError(null);
       return localCategory;
     } catch (error) {
-      mutationVersionRef.current += 1;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      setActionError(errorMessage(error));
       throw error;
+    } finally {
+      mutationInFlightRef.current = false;
     }
-  }, []);
+  }, [queryKey]);
 
   const updateCategoryIcon = useCallback(async (id: CustomCategoryId, iconKey: CategoryIconKey) => {
-    requestIdRef.current += 1;
-    mutationVersionRef.current += 1;
+    mutationInFlightRef.current = true;
+    await spendlyQueryClient.cancelQueries({ queryKey });
     try {
       const localCategory = await updateCustomCategoryIcon(id, iconKey);
       syncCustomCategory(localCategory);
-      mutationVersionRef.current += 1;
-      setState(prev => ({
-        categories: prev.categories.map(existing => existing.id === id ? localCategory : existing),
-        loading: false,
-        error: null,
-      }));
+      spendlyQueryClient.setQueryData<UserCategory[]>(
+        queryKey,
+        existing => (existing ?? []).map(category => (
+          category.id === id ? localCategory : category
+        )),
+      );
+      setActionError(null);
       return localCategory;
     } catch (error) {
-      mutationVersionRef.current += 1;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      setActionError(errorMessage(error));
       throw error;
+    } finally {
+      mutationInFlightRef.current = false;
     }
-  }, []);
+  }, [queryKey]);
 
   const deleteCategory = useCallback(async (id: CustomCategoryId) => {
-    requestIdRef.current += 1;
-    mutationVersionRef.current += 1;
+    mutationInFlightRef.current = true;
+    await spendlyQueryClient.cancelQueries({ queryKey });
     try {
       await deleteCustomCategory(id);
       removeCloudCustomCategory(id);
-      mutationVersionRef.current += 1;
-      setState(prev => ({
-        categories: prev.categories.filter(category => category.id !== id),
-        loading: false,
-        error: null,
-      }));
+      spendlyQueryClient.setQueryData<UserCategory[]>(
+        queryKey,
+        existing => (existing ?? []).filter(category => category.id !== id),
+      );
+      setActionError(null);
     } catch (error) {
-      mutationVersionRef.current += 1;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      setActionError(errorMessage(error));
       throw error;
+    } finally {
+      mutationInFlightRef.current = false;
     }
-  }, []);
+  }, [queryKey]);
 
   return {
-    ...state,
+    categories: query.data ?? [],
+    loading: query.isPending,
+    error: actionError ?? (query.error ? errorMessage(query.error) : null),
     reload,
     addCategory,
     renameCategory,

@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { monthRangeVietnamISO } from '../lib/date';
+import {
+  spendlyQueryClient,
+  spendlyQueryKeys,
+  spendlyStaleTimes,
+} from '../query/client';
 import { supabase } from '../supabase/client';
 import {
   listCloudTransactions,
@@ -24,43 +30,31 @@ function errorMessage(error: unknown): string {
 }
 
 function useCloudTransactionQuery(
-  load: () => Promise<Transaction[]>,
+  opts: {
+    queryKey: readonly unknown[];
+    staleTime: number;
+    load: () => Promise<Transaction[]>;
+  },
 ): CloudTransactionsResult {
-  const requestIdRef = useRef(0);
-  const [state, setState] = useState<CloudTransactionsState>({
-    data: [],
-    loading: true,
-    error: null,
-  });
+  const query = useQuery<Transaction[], Error>({
+    queryKey: opts.queryKey,
+    queryFn: async () => {
+      if (!supabase) throw new Error(SUPABASE_NOT_CONFIGURED);
+      return opts.load();
+    },
+    staleTime: opts.staleTime,
+  }, spendlyQueryClient);
 
   const reload = useCallback(async () => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
+    await query.refetch({ throwOnError: false });
+  }, [query]);
 
-    if (!supabase) {
-      setState({ data: [], loading: false, error: SUPABASE_NOT_CONFIGURED });
-      return;
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    try {
-      const data = await load();
-      if (requestId !== requestIdRef.current) return;
-      setState({ data, loading: false, error: null });
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-      setState({ data: [], loading: false, error: errorMessage(error) });
-    }
-  }, [load]);
-
-  useEffect(() => {
-    void reload();
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, [reload]);
-
-  return { ...state, reload };
+  return {
+    data: query.data ?? [],
+    loading: query.isPending,
+    error: query.error ? errorMessage(query.error) : null,
+    reload,
+  };
 }
 
 export function useRecentCloudTransactions(limit = 5): CloudTransactionsResult {
@@ -69,14 +63,23 @@ export function useRecentCloudTransactions(limit = 5): CloudTransactionsResult {
     return listCloudTransactions(supabase, { limit });
   }, [limit]);
 
-  return useCloudTransactionQuery(load);
+  return useCloudTransactionQuery({
+    queryKey: spendlyQueryKeys.transactions.recent(limit),
+    staleTime: spendlyStaleTimes.recentTransactions,
+    load,
+  });
 }
 
 export function useMonthCloudTransactions(monthISO: string): CloudTransactionsResult {
+  const range = monthRangeVietnamISO(monthISO);
   const load = useCallback(async () => {
     if (!supabase) return [];
-    return listCloudTransactionsForRange(supabase, monthRangeVietnamISO(monthISO));
-  }, [monthISO]);
+    return listCloudTransactionsForRange(supabase, range);
+  }, [range]);
 
-  return useCloudTransactionQuery(load);
+  return useCloudTransactionQuery({
+    queryKey: spendlyQueryKeys.transactions.range(range.sinceISO, range.untilISO),
+    staleTime: spendlyStaleTimes.monthTransactions,
+    load,
+  });
 }

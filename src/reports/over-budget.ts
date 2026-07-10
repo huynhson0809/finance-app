@@ -1,5 +1,5 @@
 import type { Budget, Category } from '../types';
-import { CATEGORIES, EXPENSE_CATEGORIES } from '../types';
+import { CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../types';
 
 export type BudgetStatus = 'ok' | 'warn' | 'over';
 export type BudgetStatusReport = {
@@ -26,7 +26,17 @@ export function status(
   budget: Budget | undefined,
   sums: Record<Category, number>,
 ): BudgetStatusReport {
-  const overallSpent = EXPENSE_CATEGORIES.reduce((sum, category) => sum + sums[category], 0);
+  const overallSpent = Object.entries(sums).reduce((sum, [category, spent]) => {
+    if (!Number.isFinite(spent)) return sum;
+    const normalizedCategory = category as Category;
+    if (
+      normalizedCategory.startsWith('custom-income-') ||
+      INCOME_CATEGORIES.includes(normalizedCategory)
+    ) {
+      return sum;
+    }
+    return sum + spent;
+  }, 0);
   const overallLimit = spendableBudget(budget);
   const perCategory = {} as Record<Category, BudgetStatus>;
   for (const c of CATEGORIES) perCategory[c] = 'ok';

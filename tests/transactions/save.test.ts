@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   supabase: null as unknown,
   addCloudTransaction: vi.fn(),
   addTransaction: vi.fn(),
+  invalidateTransactionQueries: vi.fn(),
 }));
 
 vi.mock('../../src/supabase/client', () => ({
@@ -19,6 +20,10 @@ vi.mock('../../src/supabase/transactions', () => ({
 
 vi.mock('../../src/db/transactions', () => ({
   addTransaction: mocks.addTransaction,
+}));
+
+vi.mock('../../src/query/client', () => ({
+  invalidateTransactionQueries: mocks.invalidateTransactionQueries,
 }));
 
 import { saveUserTransaction } from '../../src/transactions/save';
@@ -44,8 +49,10 @@ beforeEach(() => {
   mocks.supabase = null;
   mocks.addCloudTransaction.mockReset();
   mocks.addTransaction.mockReset();
+  mocks.invalidateTransactionQueries.mockReset();
   mocks.addCloudTransaction.mockResolvedValue(saved);
   mocks.addTransaction.mockResolvedValue(saved);
+  mocks.invalidateTransactionQueries.mockResolvedValue(undefined);
 });
 
 describe('saveUserTransaction', () => {
@@ -56,6 +63,7 @@ describe('saveUserTransaction', () => {
 
     expect(mocks.addCloudTransaction).toHaveBeenCalledWith(mocks.supabase, input);
     expect(mocks.addTransaction).not.toHaveBeenCalled();
+    expect(mocks.invalidateTransactionQueries).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to local storage only when Supabase is not configured', async () => {
@@ -65,5 +73,6 @@ describe('saveUserTransaction', () => {
 
     expect(mocks.addTransaction).toHaveBeenCalledWith(input);
     expect(mocks.addCloudTransaction).not.toHaveBeenCalled();
+    expect(mocks.invalidateTransactionQueries).not.toHaveBeenCalled();
   });
 });

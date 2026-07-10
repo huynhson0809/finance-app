@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   getCategoryOverrides,
   replaceCategoryOverrides,
   upsertCategoryOverride,
 } from '../db/category-overrides';
+import {
+  spendlyQueryClient,
+  spendlyQueryKeys,
+  spendlyStaleTimes,
+} from '../query/client';
 import { supabase } from '../supabase/client';
 import {
   listCloudCategoryOverrides,
@@ -85,65 +91,51 @@ async function loadCategoryOverrides(): Promise<CategoryOverride[]> {
 }
 
 export function useCategoryOverrides(): CategoryOverridesResult {
-  const requestIdRef = useRef(0);
-  const mutationVersionRef = useRef(0);
-  const [state, setState] = useState<CategoryOverridesState>({
-    overrides: [],
-    loading: true,
-    error: null,
-  });
+  const mutationInFlightRef = useRef(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const queryKey = spendlyQueryKeys.categories.overrides();
+  const query = useQuery<CategoryOverride[], Error>({
+    queryKey,
+    queryFn: loadCategoryOverrides,
+    staleTime: spendlyStaleTimes.categoryMetadata,
+  }, spendlyQueryClient);
 
   const reload = useCallback(async () => {
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    const mutationVersion = mutationVersionRef.current;
-    setState(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      const overrides = await loadCategoryOverrides();
-      if (requestId !== requestIdRef.current || mutationVersion !== mutationVersionRef.current) return;
-      setState({ overrides, loading: false, error: null });
-    } catch (error) {
-      if (requestId !== requestIdRef.current || mutationVersion !== mutationVersionRef.current) return;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, [reload]);
+    if (mutationInFlightRef.current) return;
+    setActionError(null);
+    await query.refetch({ throwOnError: false });
+  }, [query]);
 
   const saveOverride = useCallback(async (
     category: BuiltInCategory,
     values: { name?: string; iconKey?: CategoryIconKey },
   ) => {
-    requestIdRef.current += 1;
-    mutationVersionRef.current += 1;
+    mutationInFlightRef.current = true;
+    await spendlyQueryClient.cancelQueries({ queryKey });
     try {
       const localOverride = await upsertCategoryOverride(category, values);
       syncCategoryOverride(localOverride);
-      mutationVersionRef.current += 1;
-      setState(prev => ({
-        overrides: [
-          ...prev.overrides.filter(item => item.category !== category),
+      spendlyQueryClient.setQueryData<CategoryOverride[]>(
+        queryKey,
+        existing => [
+          ...(existing ?? []).filter(item => item.category !== category),
           localOverride,
         ],
-        loading: false,
-        error: null,
-      }));
+      );
+      setActionError(null);
       return localOverride;
     } catch (error) {
-      mutationVersionRef.current += 1;
-      setState(prev => ({ ...prev, loading: false, error: errorMessage(error) }));
+      setActionError(errorMessage(error));
       throw error;
+    } finally {
+      mutationInFlightRef.current = false;
     }
-  }, []);
+  }, [queryKey]);
 
   return {
-    ...state,
+    overrides: query.data ?? [],
+    loading: query.isPending,
+    error: actionError ?? (query.error ? errorMessage(query.error) : null),
     reload,
     saveOverride,
   };
