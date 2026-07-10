@@ -24,6 +24,7 @@ import {
   useMonthCloudTransactions,
   useRecentCloudTransactions,
 } from '../../src/hooks/useCloudTransactions';
+import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
 
 function tx(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -48,6 +49,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  clearSpendlyQueryCacheForTests();
   mocks.supabase = {};
   mocks.listCloudTransactions.mockReset();
   mocks.listCloudTransactionsForRange.mockReset();
@@ -104,15 +106,12 @@ describe('useCloudTransactions', () => {
     });
 
     expect(mocks.listCloudTransactions).toHaveBeenCalledTimes(2);
-    expect(result.current.data[0]?.id).toBe('reloaded');
+    await waitFor(() => expect(result.current.data[0]?.id).toBe('reloaded'));
   });
 
-  it('keeps newer results when older requests resolve later', async () => {
-    const stale = deferred<Transaction[]>();
-    const fresh = deferred<Transaction[]>();
-    mocks.listCloudTransactions
-      .mockReturnValueOnce(stale.promise)
-      .mockReturnValueOnce(fresh.promise);
+  it('deduplicates pending reloads for the same recent query', async () => {
+    const pending = deferred<Transaction[]>();
+    mocks.listCloudTransactions.mockReturnValueOnce(pending.promise);
 
     const { result } = renderHook(() => useRecentCloudTransactions());
     expect(result.current.loading).toBe(true);
@@ -120,21 +119,14 @@ describe('useCloudTransactions', () => {
     act(() => {
       void result.current.reload();
     });
+    expect(mocks.listCloudTransactions).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      fresh.resolve([tx({ id: 'fresh' })]);
-      await fresh.promise;
+      pending.resolve([tx({ id: 'deduped' })]);
+      await pending.promise;
     });
 
-    expect(result.current.data[0]?.id).toBe('fresh');
-    expect(result.current.loading).toBe(false);
-
-    await act(async () => {
-      stale.resolve([tx({ id: 'stale' })]);
-      await stale.promise;
-    });
-
-    expect(result.current.data[0]?.id).toBe('fresh');
+    await waitFor(() => expect(result.current.data[0]?.id).toBe('deduped'));
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -167,5 +159,22 @@ describe('useCloudTransactions', () => {
     );
     expect(result.current.data).toBe(rows);
     expect(result.current.error).toBeNull();
+  });
+
+  it('deduplicates simultaneous monthly loads for the same month', async () => {
+    const rows = [tx({ id: 'shared-month' })];
+    mocks.listCloudTransactionsForRange.mockResolvedValue(rows);
+
+    const { result } = renderHook(() => ({
+      first: useMonthCloudTransactions('2026-06'),
+      second: useMonthCloudTransactions('2026-06'),
+    }));
+
+    await waitFor(() => expect(result.current.first.loading).toBe(false));
+    await waitFor(() => expect(result.current.second.loading).toBe(false));
+
+    expect(mocks.listCloudTransactionsForRange).toHaveBeenCalledTimes(1);
+    expect(result.current.first.data).toBe(rows);
+    expect(result.current.second.data).toBe(rows);
   });
 });

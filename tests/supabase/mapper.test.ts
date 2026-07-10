@@ -147,6 +147,88 @@ describe('mapTransactionRow', () => {
     });
   });
 
+  it('keeps custom expense categories from edited manual rows', () => {
+    const tx = mapTransactionRow(row({
+      id: 'manual-custom-1',
+      bank: null,
+      type: 'manual',
+      amount: 88000,
+      transaction_time: '2026-07-09T12:30:00.000Z',
+      content: 'Pet food',
+      raw_source: 'manual',
+      merchant: 'Pet food',
+      category: 'custom-expense-pet-care',
+      bank_hint: null,
+      created_at: '2026-07-09T12:30:10.000Z',
+      direction: 'expense',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'expense',
+      category: 'custom-expense-pet-care',
+      source: 'manual',
+    });
+  });
+
+  it('keeps custom income categories from edited rows', () => {
+    const tx = mapTransactionRow(row({
+      id: 'income-custom-1',
+      bank: null,
+      type: 'manual',
+      amount: 1200000,
+      transaction_time: '2026-07-09T12:30:00.000Z',
+      content: 'Freelance',
+      raw_source: 'manual',
+      merchant: null,
+      category: 'custom-income-freelance',
+      note: 'Freelance',
+      bank_hint: null,
+      created_at: '2026-07-09T12:30:10.000Z',
+      direction: 'income',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'income',
+      category: 'custom-income-freelance',
+      source: 'manual',
+    });
+  });
+
+  it('keeps custom categories from edited email rows', () => {
+    const tx = mapTransactionRow(row({
+      id: 'email-custom-1',
+      category: 'custom-expense-snacks',
+      content: 'UNKNOWN TRANSFER MEMO',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'expense',
+      category: 'custom-expense-snacks',
+      source: 'bank-email',
+    });
+  });
+
+  it('keeps income direction and category for income email rows', () => {
+    const tx = mapTransactionRow(row({
+      id: 'email-income-1',
+      bank: 'ACB',
+      type: 'balance_alert',
+      amount: 6666,
+      content: 'HUYNH NGOC SON CHUYEN TIEN GD',
+      category: 'custom-income-family',
+      direction: 'income',
+      raw_source: 'email',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'income',
+      category: 'custom-income-family',
+      merchant: 'HUYNH NGOC SON CHUYEN TIEN GD',
+      note: 'ACB balance_alert',
+      source: 'bank-email',
+    });
+  });
+
   it('keeps cloud metadata for MB card email rows', () => {
     const tx = mapTransactionRow(row({
       bank: 'MB',

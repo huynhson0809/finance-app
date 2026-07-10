@@ -22,8 +22,10 @@ vi.mock('../../src/supabase/transactions', () => ({
 }));
 
 import { useReports } from '../../src/hooks/useReports';
+import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
 
 beforeEach(async () => {
+  clearSpendlyQueryCacheForTests();
   mocks.supabase = {};
   mocks.listCloudTransactionsForRange.mockReset();
   mocks.listCloudTransactionsForRange.mockResolvedValue([]);
@@ -83,6 +85,28 @@ describe('useReports', () => {
     expect(result.current.transactions).toEqual([]);
     expect(result.current.bStatus.overall).toBe('ok');
     expect(result.current.error).toBeNull();
+  });
+
+  it('deduplicates simultaneous report loads for the same month ranges', async () => {
+    const { result } = renderHook(() => ({
+      first: useReports('2026-06'),
+      second: useReports('2026-06'),
+    }));
+
+    await waitFor(() => expect(result.current.first.loading).toBe(false));
+    await waitFor(() => expect(result.current.second.loading).toBe(false));
+
+    expect(mocks.listCloudTransactionsForRange).toHaveBeenCalledTimes(2);
+    expect(mocks.listCloudTransactionsForRange).toHaveBeenNthCalledWith(
+      1,
+      mocks.supabase,
+      monthRangeVietnamISO('2026-06'),
+    );
+    expect(mocks.listCloudTransactionsForRange).toHaveBeenNthCalledWith(
+      2,
+      mocks.supabase,
+      monthRangeVietnamISO(prevMonth('2026-06')),
+    );
   });
 
   it('aggregates legacy current month cloud transactions with local budget data', async () => {
@@ -197,14 +221,14 @@ describe('useReports', () => {
       { initialProps: { month: '2026-06' } },
     );
 
-    rerender({ month: '2026-07' });
+    rerender({ month: '2026-08' });
 
     await act(async () => {
       freshCurrent.resolve([
         tx({
           id: 'fresh',
           amount: 700,
-          occurredAt: '2026-07-05T08:00:00.000Z',
+          occurredAt: '2026-08-05T08:00:00.000Z',
           category: 'shopping',
         }),
       ]);

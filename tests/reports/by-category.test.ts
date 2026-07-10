@@ -48,4 +48,14 @@ describe('sumByCategory', () => {
 
     expect(sumByCategory([legacy])['food-drinks']).toBe(10000);
   });
+
+  it('sums custom expense categories and still ignores custom income categories', () => {
+    const out = sumByCategory([
+      tx(332000, 'custom-expense-date-night'),
+      tx(50000, 'custom-income-side-gig', 'income'),
+    ]);
+
+    expect(out['custom-expense-date-night']).toBe(332000);
+    expect(out['custom-income-side-gig']).toBeUndefined();
+  });
 });

@@ -91,4 +91,18 @@ describe('over-budget status', () => {
     expect(out.overall).toBe('over');
     expect(out.perCategory['coffee-bubble-tea']).toBe('ok');
   });
+
+  it('includes custom expense category sums in overall spent', () => {
+    const budget: Budget = {
+      id: 'b',
+      month: '2026-06',
+      total: 1000,
+      caps: {},
+    };
+    const sums = { ...emptySums(), 'custom-expense-date-night': 850 };
+    const out = status(budget, sums);
+
+    expect(out.overallSpent).toBe(850);
+    expect(out.overall).toBe('warn');
+  });
 });

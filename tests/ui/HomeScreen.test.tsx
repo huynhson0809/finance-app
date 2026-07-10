@@ -179,6 +179,30 @@ describe('HomeScreen', () => {
     expect(monthlyOverview).toHaveTextContent(/1[.,]000[.,]000/);
   });
 
+  it('uses all monthly expenses including custom categories for remaining budget', async () => {
+    await upsertBudget(currentVietnamMonth(), 1_000_000, undefined, 200_000);
+    cloudHooks.monthState.data = [
+      tx({ id: 'custom-month-expense', amount: 332_000, category: 'custom-expense-date-night' }),
+      tx({ id: 'built-in-month-expense', amount: 163_000, category: 'healthcare' }),
+      tx({
+        id: 'income-does-not-count',
+        amount: 50_000,
+        direction: 'income',
+        category: 'salary',
+      }),
+    ];
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
+    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    expect(monthlyOverview).toHaveTextContent(/495[.,]000\s*\/\s*[^0-9]*800[.,]000/);
+    expect(monthlyOverview).toHaveTextContent(/remaining this month:\s*[^0-9]*305[.,]000/i);
+  });
+
   it('shows today expense and today income separately', () => {
     cloudHooks.monthState.data = [
       tx({ id: 'expense-today', amount: 25_000, direction: 'expense', category: 'food-drinks' }),

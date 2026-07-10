@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
@@ -7,6 +7,7 @@ import { __resetDBForTests } from '../../src/db';
 import { getCategoryOverrides } from '../../src/db/category-overrides';
 import { createCustomCategory, getCustomCategories } from '../../src/db/custom-categories';
 import { initI18n, setLocale } from '../../src/i18n';
+import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
 import { CategoryManagerScreen } from '../../src/ui/CategoryManagerScreen';
 
 beforeAll(async () => { await initI18n(); });
@@ -14,10 +15,12 @@ beforeAll(async () => { await initI18n(); });
 beforeEach(async () => {
   await setLocale('en');
   await __resetDBForTests();
+  clearSpendlyQueryCacheForTests();
   await new Promise<void>(resolve => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
   });
+  clearSpendlyQueryCacheForTests();
 });
 
 function renderManager(path = '/categories?direction=expense') {
@@ -113,5 +116,18 @@ describe('CategoryManagerScreen', () => {
     await waitFor(async () => {
       expect(await getCustomCategories()).toEqual([]);
     });
+  });
+
+  it('reorders all categories in the current direction', async () => {
+    const user = userEvent.setup();
+    renderManager();
+
+    await screen.findByRole('button', { name: 'Food & Drinks' });
+    await user.click(screen.getByRole('button', { name: 'Move Food & Drinks down' }));
+
+    const rows = screen.getAllByTestId('category-order-row');
+    expect(rows.slice(0, 2).map(row => (
+      within(row).getByTestId('category-order-label').textContent
+    ))).toEqual(['Coffee & Bubble Tea', 'Food & Drinks']);
   });
 });

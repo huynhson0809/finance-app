@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   createCustomCategory: vi.fn(),
   deleteCustomCategory: vi.fn(),
   getCustomCategories: vi.fn(),
+  replaceCustomCategories: vi.fn(),
   renameCustomCategory: vi.fn(),
   updateCustomCategoryIcon: vi.fn(),
 }));
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../src/db/custom-categories', () => mocks);
 
 import { useCustomCategories } from '../../src/hooks/useCustomCategories';
+import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -36,14 +38,31 @@ function customCategory(overrides: Partial<UserCategory> = {}): UserCategory {
 }
 
 beforeEach(() => {
+  clearSpendlyQueryCacheForTests();
   mocks.createCustomCategory.mockReset();
   mocks.deleteCustomCategory.mockReset();
   mocks.getCustomCategories.mockReset();
+  mocks.replaceCustomCategories.mockReset();
   mocks.renameCustomCategory.mockReset();
   mocks.updateCustomCategoryIcon.mockReset();
 });
 
 describe('useCustomCategories', () => {
+  it('reuses fresh categories when the hook remounts between tabs', async () => {
+    const categories = [customCategory()];
+    mocks.getCustomCategories.mockResolvedValue(categories);
+
+    const first = renderHook(() => useCustomCategories());
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+
+    const second = renderHook(() => useCustomCategories());
+    await waitFor(() => expect(second.result.current.loading).toBe(false));
+
+    expect(second.result.current.categories).toEqual(categories);
+    expect(mocks.getCustomCategories).toHaveBeenCalledTimes(1);
+  });
+
   it('does not let a stale reload overwrite a successful add', async () => {
     const staleReload = deferred<UserCategory[]>();
     const created = customCategory();
@@ -55,7 +74,7 @@ describe('useCustomCategories', () => {
     await act(async () => {
       await result.current.addCategory('expense', 'Pet care');
     });
-    expect(result.current.categories).toEqual([created]);
+    await waitFor(() => expect(result.current.categories).toEqual([created]));
 
     await act(async () => {
       staleReload.resolve([]);
@@ -91,7 +110,7 @@ describe('useCustomCategories', () => {
       pendingAdd.resolve(created);
       await addPromise;
     });
-    expect(result.current.categories).toEqual([created]);
+    await waitFor(() => expect(result.current.categories).toEqual([created]));
 
     await act(async () => {
       staleReload.resolve([]);

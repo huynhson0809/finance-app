@@ -22,7 +22,7 @@ interface GeminiCategorySuggestionDependencies {
   fetch?: FetchLike;
 }
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.5-flash';
 const MIN_CONFIDENCE = 0.45;
 
 const BUILT_IN_CATEGORY_OPTIONS: readonly GeminiCategoryOption[] = [

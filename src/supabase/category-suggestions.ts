@@ -21,11 +21,47 @@ interface SuggestCategoryResponse {
   category?: unknown;
 }
 
+const MAX_SUGGESTION_CACHE_SIZE = 100;
+const suggestionCache = new Map<string, Promise<Category | null>>();
+
+function suggestionCacheKey(input: CloudCategorySuggestionInput, text: string): string {
+  const categories = input.categories
+    .map(option => `${option.id}:${option.label}`)
+    .sort()
+    .join('|');
+  return [input.direction, text.toLocaleLowerCase('vi-VN'), categories].join('::');
+}
+
+function rememberSuggestion(
+  key: string,
+  request: Promise<Category | null>,
+): Promise<Category | null> {
+  if (suggestionCache.size >= MAX_SUGGESTION_CACHE_SIZE) {
+    const oldestKey = suggestionCache.keys().next().value;
+    if (oldestKey) suggestionCache.delete(oldestKey);
+  }
+  suggestionCache.set(key, request);
+  return request;
+}
+
 export async function suggestCloudCategory(
   input: CloudCategorySuggestionInput,
 ): Promise<Category | null> {
   const text = input.text.trim();
   if (!supabase || !text || input.categories.length === 0) return null;
+
+  const cacheKey = suggestionCacheKey(input, text);
+  const cached = suggestionCache.get(cacheKey);
+  if (cached) return cached;
+
+  return rememberSuggestion(cacheKey, requestCloudCategory(input, text));
+}
+
+async function requestCloudCategory(
+  input: CloudCategorySuggestionInput,
+  text: string,
+): Promise<Category | null> {
+  if (!supabase) return null;
 
   try {
     const { data: sessionResult, error: sessionError } = await supabase.auth.getSession();
@@ -60,4 +96,8 @@ export async function suggestCloudCategory(
   }
 
   return null;
+}
+
+export function clearCloudCategorySuggestionCacheForTests(): void {
+  suggestionCache.clear();
 }

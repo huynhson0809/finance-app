@@ -422,6 +422,38 @@ describe('cloud transaction queries', () => {
     expect(tx.category).toBe('shopping');
   });
 
+  it('updates editable transaction fields with a custom category', async () => {
+    const context = createClient({ data: [row({
+      id: 'tx-custom-42',
+      amount: 123000,
+      transaction_time: '2026-07-08T05:00:00.000Z',
+      content: 'Pet food',
+      raw_source: 'manual',
+      merchant: 'Pet food',
+      category: 'custom-expense-pet-care',
+      direction: 'expense',
+    })], error: null });
+
+    const tx = await updateCloudTransaction(context.client, 'tx-custom-42', {
+      amount: 123000,
+      occurredAt: '2026-07-08T05:00:00.000Z',
+      content: 'Pet food',
+      merchant: 'Pet food',
+      note: null,
+      category: 'custom-expense-pet-care',
+    });
+
+    expect(context.updatedRow).toEqual({
+      amount: 123000,
+      transaction_time: '2026-07-08T05:00:00.000Z',
+      content: 'Pet food',
+      merchant: 'Pet food',
+      note: null,
+      category: 'custom-expense-pet-care',
+    });
+    expect(tx.category).toBe('custom-expense-pet-care');
+  });
+
   it('deletes one cloud transaction by id', async () => {
     const context = createClient({ data: [], error: null });
 

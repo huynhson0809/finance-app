@@ -6,6 +6,7 @@ import { CategoryChips } from './components/CategoryChips';
 import { useOcr } from '../hooks/useOcr';
 import { useCategorySuggestion } from '../hooks/useCategorySuggestion';
 import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCategoryOrder } from '../hooks/useCategoryOrder';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { runExtractors } from '../extractors';
 import { imageHolder } from '../lib/image';
@@ -66,9 +67,10 @@ export function ConfirmScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
+  const { order: categoryOrder } = useCategoryOrder('expense');
   const expenseCategories = useMemo(
-    () => categoriesForDirectionWithCustom('expense', customCategories) as ExpenseCategory[],
-    [customCategories],
+    () => categoriesForDirectionWithCustom('expense', customCategories, categoryOrder) as ExpenseCategory[],
+    [categoryOrder, customCategories],
   );
   const suggestionCategories = useMemo(
     () => expenseCategories.map(category => ({

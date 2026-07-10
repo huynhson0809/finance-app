@@ -65,6 +65,12 @@ export interface CategoryOverride {
   updatedAt: string;
 }
 
+export interface CategoryOrder {
+  direction: TransactionDirection;
+  categories: Category[];
+  updatedAt: string;
+}
+
 export const EXPENSE_CATEGORIES: BuiltInCategoryList<BuiltInExpenseCategory> = [
   'food-drinks',
   'coffee-bubble-tea',

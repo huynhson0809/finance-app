@@ -1,8 +1,12 @@
-import { ArrowLeft, Check, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { builtInCategoriesForDirection, customCategoriesForDirection } from '../categories/catalog';
+import {
+  builtInCategoriesForDirection,
+  categoriesForDirectionWithCustom,
+  customCategoriesForDirection,
+} from '../categories/catalog';
 import { errorMessage } from '../lib/error';
 import type {
   BuiltInCategory,
@@ -15,6 +19,7 @@ import type {
 } from '../types';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCategoryOrder } from '../hooks/useCategoryOrder';
 import { DarkField, GlassPanel, SegmentedControl } from './components/primitives';
 import {
   categoryLabel,
@@ -35,6 +40,46 @@ function searchDirection(value: string | null): TransactionDirection {
   return value === 'income' ? 'income' : 'expense';
 }
 
+function sameCategoryOrder(left: readonly Category[], right: readonly Category[]): boolean {
+  return left.length === right.length && left.every((category, index) => category === right[index]);
+}
+
+function moveCategoryByOffset(
+  categories: readonly Category[],
+  category: Category,
+  offset: -1 | 1,
+): Category[] {
+  const fromIndex = categories.indexOf(category);
+  const toIndex = fromIndex + offset;
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= categories.length) return [...categories];
+  const next = [...categories];
+  next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, category);
+  return next;
+}
+
+function moveCategoryNear(
+  categories: readonly Category[],
+  moving: Category,
+  target: Category,
+): Category[] {
+  const fromIndex = categories.indexOf(moving);
+  const targetIndex = categories.indexOf(target);
+  if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return [...categories];
+
+  const withoutMoving = categories.filter(category => category !== moving);
+  const targetIndexAfterRemoval = withoutMoving.indexOf(target);
+  const insertIndex = fromIndex < targetIndex
+    ? targetIndexAfterRemoval + 1
+    : targetIndexAfterRemoval;
+
+  return [
+    ...withoutMoving.slice(0, insertIndex),
+    moving,
+    ...withoutMoving.slice(insertIndex),
+  ];
+}
+
 export function CategoryManagerScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -47,8 +92,11 @@ export function CategoryManagerScreen() {
   const [draftIconKey, setDraftIconKey] = useState<CategoryIconKey>(
     () => defaultIconKeyForDirection(direction),
   );
+  const [draftOrder, setDraftOrderState] = useState<Category[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const draggingCategoryRef = useRef<Category | null>(null);
+  const draftOrderRef = useRef<Category[] | null>(null);
   const {
     categories: customCategories,
     error,
@@ -62,6 +110,11 @@ export function CategoryManagerScreen() {
     error: categoryOverridesError,
     saveOverride,
   } = useCategoryOverrides();
+  const {
+    order: categoryOrder,
+    error: categoryOrderError,
+    saveOrder: saveCategoryOrder,
+  } = useCategoryOrder(direction);
 
   const builtInCategories = useMemo(
     () => builtInCategoriesForDirection(direction),
@@ -71,11 +124,24 @@ export function CategoryManagerScreen() {
     () => customCategoriesForDirection(customCategories, direction),
     [customCategories, direction],
   );
+  const customCategoryById = useMemo(() => (
+    new Map(visibleCustomCategories.map(category => [category.id, category]))
+  ), [visibleCustomCategories]);
+  const orderedCategories = useMemo(
+    () => categoriesForDirectionWithCustom(direction, customCategories, categoryOrder),
+    [categoryOrder, customCategories, direction],
+  );
+  const orderedCategoriesKey = orderedCategories.join('|');
+  const displayedCategories = draftOrder ?? orderedCategories;
   const editingCategory = editing?.mode === 'custom'
     ? visibleCustomCategories.find(category => category.id === editing.id)
     : undefined;
   const editingBuiltInCategory = editing?.mode === 'builtin' ? editing.category : undefined;
-  const managerError = localError ?? error ?? categoryOverridesError;
+  const managerError = localError ?? error ?? categoryOverridesError ?? categoryOrderError;
+
+  useEffect(() => {
+    setDraftOrder(null);
+  }, [direction, orderedCategoriesKey]);
 
   function setDirection(next: TransactionDirection) {
     setDirectionState(next);
@@ -86,6 +152,11 @@ export function CategoryManagerScreen() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('direction', next);
     setSearchParams(nextParams, { replace: true });
+  }
+
+  function setDraftOrder(next: Category[] | null) {
+    draftOrderRef.current = next;
+    setDraftOrderState(next);
   }
 
   function startNewCategory() {
@@ -154,39 +225,122 @@ export function CategoryManagerScreen() {
     }
   }
 
-  function renderBuiltInCategoryRow(category: Category) {
+  async function persistCategoryOrder(next: Category[]) {
+    setDraftOrder(next);
+    setLocalError(null);
+    try {
+      await saveCategoryOrder(next);
+    } catch (err) {
+      setLocalError(errorMessage(err));
+    } finally {
+      setDraftOrder(null);
+    }
+  }
+
+  function editOrderedCategory(category: Category) {
+    const customCategory = customCategoryById.get(category as CustomCategoryId);
+    if (customCategory) {
+      startEditCategory(customCategory);
+      return;
+    }
+    if (builtInCategories.includes(category)) {
+      startEditBuiltInCategory(category as BuiltInCategory);
+    }
+  }
+
+  async function moveOrderedCategory(category: Category, offset: -1 | 1) {
+    const next = moveCategoryByOffset(displayedCategories, category, offset);
+    if (sameCategoryOrder(next, displayedCategories)) return;
+    await persistCategoryOrder(next);
+  }
+
+  function handleDragStart(event: PointerEvent<HTMLButtonElement>, category: Category) {
+    draggingCategoryRef.current = category;
+    setDraftOrder(displayedCategories);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleDragMove(event: PointerEvent<HTMLButtonElement>) {
+    const moving = draggingCategoryRef.current;
+    if (!moving) return;
+
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLElement>('[data-category-id]')
+      ?.dataset.categoryId as Category | undefined;
+    if (!target || target === moving) return;
+
+    const current = draftOrderRef.current ?? displayedCategories;
+    const next = moveCategoryNear(current, moving, target);
+    if (!sameCategoryOrder(next, current)) setDraftOrder(next);
+  }
+
+  async function handleDragEnd(event: PointerEvent<HTMLButtonElement>) {
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    draggingCategoryRef.current = null;
+    const next = draftOrderRef.current;
+    if (next && !sameCategoryOrder(next, orderedCategories)) {
+      await persistCategoryOrder(next);
+      return;
+    }
+    setDraftOrder(null);
+  }
+
+  function renderCategoryRow(category: Category, index: number) {
     const meta = getCategoryMeta(category, customCategories, categoryOverrides);
     const Icon = meta.Icon;
     const label = categoryLabel(category, customCategories, t, categoryOverrides);
+    const isFirst = index === 0;
+    const isLast = index === displayedCategories.length - 1;
 
     return (
-      <button
+      <div
         key={category}
-        type="button"
-        onClick={() => startEditBuiltInCategory(category as BuiltInCategory)}
-        className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035] last:border-b-0"
+        data-category-id={category}
+        data-testid="category-order-row"
+        className="grid min-h-14 w-full grid-cols-[2rem_2.25rem_minmax(0,1fr)_2rem_2rem_1.25rem] items-center gap-2 border-b border-white/10 px-3 text-left transition hover:bg-white/[0.035] last:border-b-0"
       >
+        <button
+          type="button"
+          aria-label={t('categories.drag', { category: label })}
+          onPointerDown={event => handleDragStart(event, category)}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+          className="grid h-9 w-8 touch-none place-items-center rounded-xl text-slate-500 active:cursor-grabbing active:bg-white/10 active:text-slate-200"
+        >
+          <GripVertical aria-hidden="true" className="h-5 w-5" />
+        </button>
         <Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
-        <span className="truncate text-base font-semibold text-slate-100">{label}</span>
+        <button
+          type="button"
+          onClick={() => editOrderedCategory(category)}
+          className="min-w-0 py-4 text-left"
+        >
+          <span data-testid="category-order-label" className="block truncate text-base font-semibold text-slate-100">
+            {label}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void moveOrderedCategory(category, -1)}
+          disabled={isFirst}
+          aria-label={t('categories.moveUp', { category: label })}
+          className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
+        >
+          <ArrowUp aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => void moveOrderedCategory(category, 1)}
+          disabled={isLast}
+          aria-label={t('categories.moveDown', { category: label })}
+          className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
+        >
+          <ArrowDown aria-hidden="true" className="h-4 w-4" />
+        </button>
         <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
-      </button>
-    );
-  }
-
-  function renderCustomCategoryRow(category: UserCategory) {
-    const meta = getCategoryMeta(category.id, customCategories, categoryOverrides);
-    const Icon = meta.Icon;
-    return (
-      <button
-        key={category.id}
-        type="button"
-        onClick={() => startEditCategory(category)}
-        className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035] last:border-b-0"
-      >
-        <Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
-        <span className="truncate text-base font-semibold text-slate-100">{category.name}</span>
-        <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
-      </button>
+      </div>
     );
   }
 
@@ -306,8 +460,7 @@ export function CategoryManagerScreen() {
           <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
         </button>
 
-        {builtInCategories.map(renderBuiltInCategoryRow)}
-        {visibleCustomCategories.map(renderCustomCategoryRow)}
+        {displayedCategories.map(renderCategoryRow)}
       </GlassPanel>
     </div>
   );

@@ -19,8 +19,10 @@ import { categoriesForDirectionWithCustom } from '../categories/catalog';
 import { shouldLearn } from '../categorizer';
 import { upsertLearnedRule } from '../db/category-rules';
 import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
+import { useCategoryOrder } from '../hooks/useCategoryOrder';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { errorMessage } from '../lib/error';
+import { invalidateTransactionQueries } from '../query/client';
 import { DarkField, GlassPanel } from './components/primitives';
 import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
@@ -116,6 +118,8 @@ export function TransactionEditScreen() {
   const [category, setCategory] = useState<Category | null>(null);
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
+  const categoryDirection = transaction?.direction ?? 'expense';
+  const { order: categoryOrder } = useCategoryOrder(categoryDirection);
   const backTo = typeof (location.state as { backTo?: unknown } | null)?.backTo === 'string' &&
     ((location.state as { backTo: string }).backTo.startsWith('/'))
     ? (location.state as { backTo: string }).backTo
@@ -124,7 +128,7 @@ export function TransactionEditScreen() {
   const categoryOptions = useMemo(() => {
     if (!transaction) return [];
 
-    const options = categoriesForDirectionWithCustom(transaction.direction, customCategories);
+    const options = categoriesForDirectionWithCustom(transaction.direction, customCategories, categoryOrder);
     if (
       category &&
       categoryBelongsToDirection(category, transaction.direction) &&
@@ -134,7 +138,7 @@ export function TransactionEditScreen() {
     }
 
     return options;
-  }, [category, customCategories, transaction]);
+  }, [category, categoryOrder, customCategories, transaction]);
 
   useEffect(() => {
     let ignore = false;
@@ -243,6 +247,7 @@ export function TransactionEditScreen() {
           category,
         });
       }
+      await invalidateTransactionQueries();
       navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.saveFailed')}: ${errorMessage(err)}`);
@@ -261,6 +266,7 @@ export function TransactionEditScreen() {
         throw new Error(t('auth.setupError'));
       }
       await deleteCloudTransaction(client, id);
+      await invalidateTransactionQueries();
       navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.deleteFailed')}: ${errorMessage(err)}`);

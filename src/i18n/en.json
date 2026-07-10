@@ -87,6 +87,9 @@
     "iconOption": "Choose {{icon}} icon",
     "save": "Save category",
     "delete": "Delete category",
+    "drag": "Drag {{category}}",
+    "moveUp": "Move {{category}} up",
+    "moveDown": "Move {{category}} down",
     "builtInHint": "Default categories keep their original code so existing data stays intact, while the display name and icon can be customized."
   },
   "settings": {
