@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
 import { upsertBudget } from '../../src/db/budgets';
 import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
 import { __resetDBForTests } from '../../src/db';
 import type { Transaction, UserCategory } from '../../src/types';
+import type { AssetAccount, AssetSummary } from '../../src/assets/types';
 
 const cloudHooks = vi.hoisted(() => ({
   recentReload: vi.fn(),
@@ -36,6 +37,21 @@ const customCategoryHooks = vi.hoisted(() => ({
   },
 }));
 
+const assetHooks = vi.hoisted(() => ({
+  useAssetSummary: vi.fn(),
+  state: {
+    data: {
+      totalAssetsVnd: 0,
+      liquidVnd: 0,
+      savingsVnd: 0,
+      liabilityVnd: 0,
+      byAccount: [],
+    } as AssetSummary,
+    isLoading: false,
+    error: null as Error | null,
+  },
+}));
+
 vi.mock('../../src/hooks/useCloudTransactions', () => ({
   useRecentCloudTransactions: vi.fn(() => ({
     ...cloudHooks.recentState,
@@ -49,6 +65,10 @@ vi.mock('../../src/hooks/useCloudTransactions', () => ({
 
 vi.mock('../../src/hooks/useCustomCategories', () => ({
   useCustomCategories: customCategoryHooks.useCustomCategories,
+}));
+
+vi.mock('../../src/hooks/useAssets', () => ({
+  useAssetSummary: assetHooks.useAssetSummary,
 }));
 
 import { HomeScreen } from '../../src/ui/HomeScreen';
@@ -76,6 +96,11 @@ beforeEach(async () => {
   customCategoryHooks.state.renameCategory.mockReset();
   customCategoryHooks.state.deleteCategory.mockReset();
   customCategoryHooks.useCustomCategories.mockImplementation(() => customCategoryHooks.state);
+  assetHooks.useAssetSummary.mockReset();
+  assetHooks.state.data = emptyAssetSummary();
+  assetHooks.state.isLoading = false;
+  assetHooks.state.error = null;
+  assetHooks.useAssetSummary.mockImplementation(() => assetHooks.state);
   await new Promise<void>(resolve => {
     const req = indexedDB.deleteDatabase('finance-app');
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
@@ -116,7 +141,73 @@ function expectPanelMetric(panel: HTMLElement, label: string | RegExp, value: Re
   expect(labelNode.parentElement).toHaveTextContent(value);
 }
 
+function emptyAssetSummary(): AssetSummary {
+  return {
+    totalAssetsVnd: 0,
+    liquidVnd: 0,
+    savingsVnd: 0,
+    liabilityVnd: 0,
+    byAccount: [],
+  };
+}
+
+function assetAccount(overrides: Partial<AssetAccount> = {}): AssetAccount {
+  return {
+    id: 'asset-cash',
+    kind: 'cash',
+    name: 'Cash',
+    currency: 'VND',
+    balance: 1_000_000,
+    includeInTotal: true,
+    sortOrder: 0,
+    createdAt: '2026-07-11T00:00:00.000Z',
+    updatedAt: '2026-07-11T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="current-path">{location.pathname}</div>;
+}
+
 describe('HomeScreen', () => {
+  it('renders the empty asset summary state', () => {
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(assetHooks.useAssetSummary).toHaveBeenCalled();
+    expect(screen.getByText('Chưa thiết lập tài sản')).toBeInTheDocument();
+  });
+
+  it('renders non-empty total assets', () => {
+    assetHooks.state.data = {
+      totalAssetsVnd: 12_500_000,
+      liquidVnd: 4_000_000,
+      savingsVnd: 9_000_000,
+      liabilityVnd: 500_000,
+      byAccount: [{ account: assetAccount(), valueVnd: 12_500_000 }],
+    };
+
+    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+
+    expect(screen.getByText(/12[.,]500[.,]000/)).toBeInTheDocument();
+  });
+
+  it('navigates to assets when clicking the asset summary', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <HomeScreen />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('link', { name: /tài sản/i }));
+
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/assets');
+  });
+
   it('shows monthly totals, budget status, today chips, and recent cloud rows', async () => {
     await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.recentState.data = [

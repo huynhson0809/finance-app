@@ -18,6 +18,10 @@ const ReportsScreen = lazy(() =>
   import('./ui/ReportsScreen').then(m => ({ default: m.ReportsScreen })),
 );
 
+const AssetManagementScreen = lazy(() =>
+  import('./ui/AssetManagementScreen').then(m => ({ default: m.AssetManagementScreen })),
+);
+
 function RouteFallback() {
   return <div className="p-4 text-sm text-gray-500">Loading...</div>;
 }
@@ -29,6 +33,14 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<HomeScreen />} />
           <Route path="add" element={<AddScreen />} />
+          <Route
+            path="assets"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <AssetManagementScreen />
+              </Suspense>
+            }
+          />
           <Route path="categories" element={<CategoryManagerScreen />} />
           <Route path="confirm" element={<ConfirmScreen />} />
           <Route path="transactions/:id" element={<TransactionEditScreen />} />

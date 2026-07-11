@@ -6,9 +6,11 @@ import {
   useRecentCloudTransactions,
 } from '../hooks/useCloudTransactions';
 import { AddImageButton } from './AddImageButton';
+import { useAssetSummary } from '../hooks/useAssets';
 import { useBudget } from '../hooks/useBudget';
 import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
+import { AssetSummaryCard } from './components/AssetSummaryCard';
 import { BudgetBar } from './components/BudgetBar';
 import { BudgetAlert } from './components/BudgetAlert';
 import { TransactionRow } from './components/TransactionRow';
@@ -26,6 +28,11 @@ export function HomeScreen() {
   const { data: budget } = useBudget(month);
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
+  const {
+    data: assetSummary,
+    isLoading: assetSummaryLoading,
+    error: assetSummaryError,
+  } = useAssetSummary();
   const {
     data: recent,
     loading: recentLoading,
@@ -81,6 +88,15 @@ export function HomeScreen() {
         <span className="text-2xl text-zinc-300">‹</span>
         <span className="text-lg font-bold">{formatMonthLabel(month)}</span>
         <span className="text-2xl text-zinc-300">›</span>
+      </div>
+
+      <div className="px-3 pt-3">
+        <AssetSummaryCard
+          summary={assetSummary}
+          loading={assetSummaryLoading}
+          error={assetSummaryError}
+          locale={locale}
+        />
       </div>
 
       <section aria-label="Monthly overview" className="grid grid-cols-3 gap-2 px-3 py-3">
