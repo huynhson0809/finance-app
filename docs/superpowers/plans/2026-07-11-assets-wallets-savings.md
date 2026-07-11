@@ -101,7 +101,8 @@
   - `1 luong` equals `37.5 gram`.
   - `1 chi` equals `3.75 gram`.
   - USD value uses the newest `USD_VND` rate.
-  - credit card balance reduces total assets as a liability.
+  - positive credit card balance reduces total assets as a liability.
+  - negative credit card balance is treated as overpaid and does not increase liability.
   - savings remains included in total assets.
 
   Example test shape:
@@ -133,7 +134,9 @@
   - VND cash, bank, and savings use `balance`.
   - USD foreign currency uses `balance * USD_VND`.
   - Gold uses `goldQuantityToGrams(quantity, goldUnit) * GOLD_GRAM_VND`.
-  - Credit card uses negative `Math.abs(balance)` in total and liability uses positive debt.
+  - Credit card `balance` is stored as a positive debt amount.
+  - Credit card valuation reduces total assets by `Math.max(0, balance)` and liability adds `Math.max(0, balance)`.
+  - Negative credit card balances represent overpayment and do not reduce assets or increase liability.
   - Exclude accounts where `includeInTotal === false`.
   - Missing rate returns `0` for that non-VND account and keeps the account visible in `byAccount`.
 
