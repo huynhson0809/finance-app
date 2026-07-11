@@ -4,6 +4,15 @@ import type { Transaction } from '../types';
 const ONE_MINUTE = 60 * 1000;
 const FIVE_MINUTES = 5 * ONE_MINUTE;
 
+export const ASSET_STALE_TIME_MS = 5 * 60 * 1000;
+
+export const assetQueryKeys = {
+  accounts: ['assets', 'accounts'] as const,
+  rates: ['assets', 'rates'] as const,
+  events: (accountId?: string) => ['assets', 'events', accountId ?? 'all'] as const,
+  summary: ['assets', 'summary'] as const,
+};
+
 export const spendlyQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -41,6 +50,7 @@ export const spendlyQueryKeys = {
     overrides: () => ['categories', 'overrides'] as const,
     order: (direction: string) => ['categories', 'order', direction] as const,
   },
+  assets: assetQueryKeys,
 };
 
 export function setCachedTransactionsForRange(
@@ -58,6 +68,10 @@ export async function invalidateTransactionQueries(): Promise<void> {
   await spendlyQueryClient.invalidateQueries({
     queryKey: spendlyQueryKeys.transactions.root,
   });
+}
+
+export async function invalidateAssetQueries(): Promise<void> {
+  await spendlyQueryClient.invalidateQueries({ queryKey: ['assets'] });
 }
 
 export function clearSpendlyQueryCacheForTests(): void {
