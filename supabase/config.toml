@@ -1,2 +1,5 @@
 [functions.ingest-transaction]
 verify_jwt = false
+
+[functions.fetch-asset-rates]
+verify_jwt = true

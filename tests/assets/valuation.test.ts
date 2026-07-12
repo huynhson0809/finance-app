@@ -27,6 +27,7 @@ function account(overrides: Partial<AssetAccount>): AssetAccount {
 function rate(overrides: Partial<AssetRate>): AssetRate {
   return {
     id: 'rate-1',
+    userId: 'user-1',
     pair: 'USD_VND',
     value: 25000,
     source: 'manual',
@@ -48,6 +49,25 @@ describe('goldQuantityToGrams', () => {
 });
 
 describe('getRateValue', () => {
+  it('prefers an older manual user rate over a newer global auto rate', () => {
+    const rates = [
+      rate({
+        id: 'manual-usd',
+        value: 24000,
+        fetchedAt: '2026-07-10T00:00:00.000Z',
+      }),
+      rate({
+        id: 'auto-usd',
+        userId: undefined,
+        source: 'auto',
+        value: 26000,
+        fetchedAt: '2026-07-12T00:00:00.000Z',
+      }),
+    ];
+
+    expect(getRateValue(rates, 'USD_VND')).toBe(24000);
+  });
+
   it('returns the newest matching rate by fetchedAt', () => {
     const rates = [
       rate({ id: 'old-usd', value: 24000, fetchedAt: '2026-07-10T00:00:00.000Z' }),
@@ -161,6 +181,24 @@ describe('valueAssetAccountVnd', () => {
 });
 
 describe('buildAssetSummary', () => {
+  it('uses manual rate precedence in summary valuations', () => {
+    const summary = buildAssetSummary(
+      [account({ kind: 'foreign_currency', currency: 'USD', balance: 10 })],
+      [
+        rate({ value: 24000, fetchedAt: '2026-07-10T00:00:00.000Z' }),
+        rate({
+          userId: undefined,
+          source: 'auto',
+          value: 26000,
+          fetchedAt: '2026-07-12T00:00:00.000Z',
+        }),
+      ],
+    );
+
+    expect(summary.totalAssetsVnd).toBe(240000);
+    expect(summary.liquidVnd).toBe(240000);
+  });
+
   it('counts positive credit card debt as negative assets and positive liability', () => {
     const summary = buildAssetSummary(
       [

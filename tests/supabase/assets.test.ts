@@ -5,12 +5,10 @@ import {
   insertCloudAssetEvent,
   listCloudAssetAccounts,
   listCloudAssetEvents,
-  listCloudAssetRates,
   reorderCloudAssetAccounts,
   upsertCloudAssetAccount,
-  upsertCloudAssetRate,
 } from '../../src/supabase/assets';
-import type { AssetAccountInput, AssetEventInput, AssetRateInput } from '../../src/supabase/assets';
+import type { AssetAccountInput, AssetEventInput } from '../../src/supabase/assets';
 
 interface Call {
   method: string;
@@ -255,88 +253,6 @@ describe('cloud assets', () => {
       { method: 'update', args: [{ sort_order: 1 }] },
       { method: 'eq', args: ['id', 'account-a'] },
     ]);
-  });
-
-  it('maps asset rate rows', async () => {
-    const { client, calls } = createClient({
-      data: [{
-        id: 'rate-1',
-        user_id: null,
-        pair: 'USD_VND',
-        value: '25400.75',
-        source: 'auto',
-        fetched_at: '2026-07-11T03:00:00.000Z',
-        created_at: '2026-07-11T03:01:00.000Z',
-        updated_at: '2026-07-11T03:02:00.000Z',
-      }],
-      error: null,
-    });
-
-    await expect(listCloudAssetRates(client)).resolves.toEqual([{
-      id: 'rate-1',
-      userId: undefined,
-      pair: 'USD_VND',
-      value: 25400.75,
-      source: 'auto',
-      fetchedAt: '2026-07-11T03:00:00.000Z',
-      createdAt: '2026-07-11T03:01:00.000Z',
-      updatedAt: '2026-07-11T03:02:00.000Z',
-    }]);
-    expect(calls).toContainEqual({
-      method: 'order',
-      args: ['fetched_at', { ascending: false }],
-    });
-  });
-
-  it('upserts asset rates with the current user id by default', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-07-11T04:00:00.000Z'));
-    const rate: AssetRateInput = {
-      id: 'rate-1',
-      pair: 'GOLD_GRAM_VND',
-      value: 2460000,
-      source: 'manual',
-      fetchedAt: '2026-07-11T03:59:00.000Z',
-    };
-    const context = createClient({
-      data: {
-        id: 'rate-1',
-        user_id: 'user-1',
-        pair: 'GOLD_GRAM_VND',
-        value: '2461000.5',
-        source: 'manual',
-        fetched_at: '2026-07-11T03:59:00.000Z',
-        created_at: '2026-07-11T04:00:00.000Z',
-        updated_at: '2026-07-11T04:00:00.000Z',
-      },
-      error: null,
-    });
-
-    try {
-      await expect(upsertCloudAssetRate(context.client, rate)).resolves.toEqual({
-        id: 'rate-1',
-        userId: 'user-1',
-        pair: 'GOLD_GRAM_VND',
-        value: 2461000.5,
-        source: 'manual',
-        fetchedAt: '2026-07-11T03:59:00.000Z',
-        createdAt: '2026-07-11T04:00:00.000Z',
-        updatedAt: '2026-07-11T04:00:00.000Z',
-      });
-    } finally {
-      vi.useRealTimers();
-    }
-
-    expect(context.upsertedRow).toMatchObject({
-      id: 'rate-1',
-      user_id: 'user-1',
-      pair: 'GOLD_GRAM_VND',
-      value: 2460000,
-      source: 'manual',
-      fetched_at: '2026-07-11T03:59:00.000Z',
-      created_at: '2026-07-11T04:00:00.000Z',
-      updated_at: '2026-07-11T04:00:00.000Z',
-    });
   });
 
   it('inserts asset events with the current user id', async () => {

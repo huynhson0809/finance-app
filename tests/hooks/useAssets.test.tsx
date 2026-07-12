@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AssetAccount, AssetEvent, AssetRate, AssetSummary } from '../../src/assets/types';
+import type { AssetRateRefreshResult } from '../../src/supabase/rates';
 import type { Transaction } from '../../src/types';
 
 const mocks = vi.hoisted(() => ({
@@ -8,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   listCloudAssetAccounts: vi.fn(),
   listCloudAssetRates: vi.fn(),
   listCloudAssetEvents: vi.fn(),
+  upsertCloudAssetRate: vi.fn(),
+  deleteCloudAssetRate: vi.fn(),
+  refreshCloudAssetRates: vi.fn(),
   getCustomCategories: vi.fn(),
   listCloudTransactions: vi.fn(),
   listCloudTransactionsForRange: vi.fn(),
@@ -21,8 +25,14 @@ vi.mock('../../src/supabase/client', () => ({
 
 vi.mock('../../src/supabase/assets', () => ({
   listCloudAssetAccounts: mocks.listCloudAssetAccounts,
-  listCloudAssetRates: mocks.listCloudAssetRates,
   listCloudAssetEvents: mocks.listCloudAssetEvents,
+}));
+
+vi.mock('../../src/supabase/rates', () => ({
+  listCloudAssetRates: mocks.listCloudAssetRates,
+  upsertCloudAssetRate: mocks.upsertCloudAssetRate,
+  deleteCloudAssetRate: mocks.deleteCloudAssetRate,
+  refreshCloudAssetRates: mocks.refreshCloudAssetRates,
 }));
 
 vi.mock('../../src/db/custom-categories', () => ({
@@ -39,6 +49,9 @@ import {
   useAssetEvents,
   useAssetRates,
   useAssetSummary,
+  useClearAssetRateOverride,
+  useRefreshAssetRates,
+  useSaveAssetRateOverride,
 } from '../../src/hooks/useAssets';
 import {
   assetQueryKeys,
@@ -121,6 +134,9 @@ beforeEach(() => {
   mocks.listCloudAssetAccounts.mockReset();
   mocks.listCloudAssetRates.mockReset();
   mocks.listCloudAssetEvents.mockReset();
+  mocks.upsertCloudAssetRate.mockReset();
+  mocks.deleteCloudAssetRate.mockReset();
+  mocks.refreshCloudAssetRates.mockReset();
   mocks.getCustomCategories.mockReset();
   mocks.listCloudTransactions.mockReset();
   mocks.listCloudTransactionsForRange.mockReset();
@@ -141,6 +157,165 @@ describe('useAssets', () => {
     expect(second.result.current.data).toBe(accounts);
     expect(mocks.listCloudAssetAccounts).toHaveBeenCalledWith(mocks.supabase);
     expect(mocks.listCloudAssetAccounts).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns effective rates with manual overrides taking precedence per pair', async () => {
+    const automaticUsd = rate({
+      id: 'auto-usd',
+      userId: undefined,
+      source: 'auto',
+      value: 26_000,
+      fetchedAt: '2026-07-12T00:00:00.000Z',
+    });
+    const manualUsd = rate({
+      id: 'manual-usd',
+      value: 24_000,
+      fetchedAt: '2026-07-10T00:00:00.000Z',
+    });
+    const automaticGold = rate({
+      id: 'auto-gold',
+      userId: undefined,
+      pair: 'GOLD_GRAM_VND',
+      source: 'auto',
+      value: 2_000_000,
+    });
+    mocks.listCloudAssetRates.mockResolvedValue([
+      automaticUsd,
+      automaticGold,
+      manualUsd,
+    ]);
+
+    const { result } = renderHook(() => useAssetRates());
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toEqual([manualUsd, automaticGold]);
+    expect(mocks.listCloudAssetRates).toHaveBeenCalledWith(mocks.supabase);
+  });
+
+  it('invalidates only rates and summary after saving a manual override', async () => {
+    const savedRate = rate({ value: 24_500 });
+    const transactionKey = spendlyQueryKeys.transactions.recent(5);
+    const categoryKey = spendlyQueryKeys.categories.custom();
+    const eventsKey = assetQueryKeys.events('account-1');
+    const transactions = [tx()];
+    const categories = [{ id: 'custom-expense-cafe' }];
+    mocks.upsertCloudAssetRate.mockResolvedValue(savedRate);
+    spendlyQueryClient.setQueryData(assetQueryKeys.accounts, [account()]);
+    spendlyQueryClient.setQueryData(assetQueryKeys.rates, [rate()]);
+    spendlyQueryClient.setQueryData(eventsKey, [event()]);
+    spendlyQueryClient.setQueryData(assetQueryKeys.summary, zeroSummary());
+    spendlyQueryClient.setQueryData(transactionKey, transactions);
+    spendlyQueryClient.setQueryData(categoryKey, categories);
+
+    const { result } = renderHook(() => useSaveAssetRateOverride());
+    await act(async () => {
+      await result.current.mutateAsync({ pair: 'USD_VND', value: 24_500 });
+    });
+
+    expect(mocks.upsertCloudAssetRate).toHaveBeenCalledWith(mocks.supabase, {
+      pair: 'USD_VND',
+      value: 24_500,
+    });
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.rates)?.isInvalidated).toBe(true);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.summary)?.isInvalidated).toBe(true);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.accounts)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(eventsKey)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(transactionKey)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(categoryKey)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryData(transactionKey)).toBe(transactions);
+    expect(spendlyQueryClient.getQueryData(categoryKey)).toBe(categories);
+  });
+
+  it('refetches active rates and summary after refreshing automatic rates', async () => {
+    const usdAccount = account({
+      id: 'usd-1',
+      kind: 'foreign_currency',
+      currency: 'USD',
+      balance: 10,
+    });
+    const initialRate = rate({
+      id: 'auto-usd',
+      userId: undefined,
+      source: 'auto',
+      value: 25_000,
+    });
+    const refreshedRate = rate({
+      id: 'auto-usd',
+      userId: undefined,
+      source: 'auto',
+      value: 26_000,
+      fetchedAt: '2026-07-12T00:00:00.000Z',
+    });
+    spendlyQueryClient.setQueryData(assetQueryKeys.accounts, [usdAccount]);
+    mocks.listCloudAssetRates
+      .mockResolvedValueOnce([initialRate])
+      .mockResolvedValue([refreshedRate]);
+    const refreshResponse = {
+      ok: true,
+      outcomes: { USD_VND: 'refreshed', GOLD_GRAM_VND: 'cached' },
+      rates: [refreshedRate],
+    } satisfies AssetRateRefreshResult;
+    mocks.refreshCloudAssetRates.mockResolvedValue(refreshResponse);
+    const eventsKey = assetQueryKeys.events('account-1');
+    const transactionKey = spendlyQueryKeys.transactions.recent(5);
+    const categoryKey = spendlyQueryKeys.categories.custom();
+    spendlyQueryClient.setQueryData(eventsKey, [event()]);
+    spendlyQueryClient.setQueryData(transactionKey, [tx()]);
+    spendlyQueryClient.setQueryData(categoryKey, [{ id: 'custom-expense-cafe' }]);
+
+    const { result } = renderHook(() => ({
+      rates: useAssetRates(),
+      summary: useAssetSummary(),
+      refresh: useRefreshAssetRates(),
+    }));
+    await waitFor(() => expect(result.current.rates.data).toEqual([initialRate]));
+    await waitFor(() => expect(result.current.summary.data?.totalAssetsVnd).toBe(250_000));
+
+    const invalidateSpy = vi.spyOn(spendlyQueryClient, 'invalidateQueries');
+    let mutationResult: AssetRateRefreshResult | undefined;
+    try {
+      await act(async () => {
+        mutationResult = await result.current.refresh.mutateAsync();
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledTimes(2);
+      expect(invalidateSpy).toHaveBeenNthCalledWith(1, {
+        queryKey: assetQueryKeys.rates,
+        exact: true,
+      });
+      expect(invalidateSpy).toHaveBeenNthCalledWith(2, {
+        queryKey: assetQueryKeys.summary,
+        exact: true,
+      });
+    } finally {
+      invalidateSpy.mockRestore();
+    }
+
+    expect(mutationResult).toBe(refreshResponse);
+    await waitFor(() => expect(result.current.rates.data).toEqual([refreshedRate]));
+    await waitFor(() => expect(result.current.summary.data?.totalAssetsVnd).toBe(260_000));
+    expect(mocks.refreshCloudAssetRates).toHaveBeenCalledWith(mocks.supabase);
+    expect(mocks.refreshCloudAssetRates).toHaveBeenCalledTimes(1);
+    expect(mocks.listCloudAssetRates).toHaveBeenCalledTimes(2);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.accounts)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(eventsKey)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(transactionKey)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(categoryKey)?.isInvalidated).toBe(false);
+  });
+
+  it('clears a manual override and invalidates rates and summary', async () => {
+    mocks.deleteCloudAssetRate.mockResolvedValue(undefined);
+    spendlyQueryClient.setQueryData(assetQueryKeys.rates, [rate()]);
+    spendlyQueryClient.setQueryData(assetQueryKeys.summary, zeroSummary());
+
+    const { result } = renderHook(() => useClearAssetRateOverride());
+    await act(async () => {
+      await result.current.mutateAsync('USD_VND');
+    });
+
+    expect(mocks.deleteCloudAssetRate).toHaveBeenCalledWith(mocks.supabase, 'USD_VND');
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.rates)?.isInvalidated).toBe(true);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.summary)?.isInvalidated).toBe(true);
   });
 
   it('summary recomputes from cached accounts and rates without refetching categories or transactions', async () => {
@@ -229,5 +404,24 @@ describe('useAssets', () => {
     expect(mocks.listCloudAssetAccounts).not.toHaveBeenCalled();
     expect(mocks.listCloudAssetRates).not.toHaveBeenCalled();
     expect(mocks.listCloudAssetEvents).not.toHaveBeenCalled();
+  });
+
+  it('returns a useful typed error when a rate mutation has no Supabase client', async () => {
+    mocks.supabase = null;
+    const { result } = renderHook(() => useSaveAssetRateOverride());
+    let mutationError: unknown;
+
+    await act(async () => {
+      mutationError = await result.current
+        .mutateAsync({ pair: 'USD_VND', value: 24_500 })
+        .catch(error => error);
+    });
+
+    expect(mutationError).toBeInstanceOf(Error);
+    expect(mutationError).toMatchObject({
+      message: 'Supabase is not configured; cannot save an asset rate override',
+    });
+    await waitFor(() => expect(result.current.error).toBe(mutationError));
+    expect(mocks.upsertCloudAssetRate).not.toHaveBeenCalled();
   });
 });

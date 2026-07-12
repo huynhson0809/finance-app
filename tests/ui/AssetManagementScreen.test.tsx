@@ -1,20 +1,26 @@
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { AssetAccount, AssetRate } from '../../src/assets/types';
 import { clearSpendlyQueryCacheForTests } from '../../src/query/client';
+import type { AssetRateRefreshResult } from '../../src/supabase/rates';
 
 const assetMocks = vi.hoisted(() => ({
   supabase: {} as unknown,
   accounts: [] as AssetAccount[],
   rates: [] as AssetRate[],
   nextId: 1,
+  getUser: vi.fn(),
+  invokeFunction: vi.fn(),
   listCloudAssetAccounts: vi.fn(),
   listCloudAssetRates: vi.fn(),
   listCloudAssetEvents: vi.fn(),
   upsertCloudAssetAccount: vi.fn(),
   reorderCloudAssetAccounts: vi.fn(),
+  upsertCloudAssetRate: vi.fn(),
+  deleteCloudAssetRate: vi.fn(),
+  refreshCloudAssetRates: vi.fn(),
 }));
 
 vi.mock('../../src/supabase/client', () => ({
@@ -25,10 +31,16 @@ vi.mock('../../src/supabase/client', () => ({
 
 vi.mock('../../src/supabase/assets', () => ({
   listCloudAssetAccounts: assetMocks.listCloudAssetAccounts,
-  listCloudAssetRates: assetMocks.listCloudAssetRates,
   listCloudAssetEvents: assetMocks.listCloudAssetEvents,
   upsertCloudAssetAccount: assetMocks.upsertCloudAssetAccount,
   reorderCloudAssetAccounts: assetMocks.reorderCloudAssetAccounts,
+}));
+
+vi.mock('../../src/supabase/rates', () => ({
+  listCloudAssetRates: assetMocks.listCloudAssetRates,
+  upsertCloudAssetRate: assetMocks.upsertCloudAssetRate,
+  deleteCloudAssetRate: assetMocks.deleteCloudAssetRate,
+  refreshCloudAssetRates: assetMocks.refreshCloudAssetRates,
 }));
 
 import { AssetManagementScreen } from '../../src/ui/AssetManagementScreen';
@@ -67,14 +79,52 @@ function rate(overrides: Partial<AssetRate> = {}): AssetRate {
   };
 }
 
+function refreshResult(
+  outcomes: AssetRateRefreshResult['outcomes'] = {
+    USD_VND: 'refreshed',
+    GOLD_GRAM_VND: 'refreshed',
+  },
+): AssetRateRefreshResult {
+  return {
+    ok: true,
+    outcomes,
+    rates: assetMocks.rates.filter(item => item.source === 'auto'),
+  };
+}
+
 function resetMocks() {
   clearSpendlyQueryCacheForTests();
-  assetMocks.supabase = {};
+  assetMocks.getUser.mockReset();
+  assetMocks.invokeFunction.mockReset();
+  assetMocks.getUser.mockResolvedValue({
+    data: { user: { id: 'user-1' } },
+    error: null,
+  });
+  assetMocks.invokeFunction.mockResolvedValue({ data: { ok: true }, error: null });
+  assetMocks.supabase = {
+    auth: { getUser: assetMocks.getUser },
+    functions: { invoke: assetMocks.invokeFunction },
+  };
   assetMocks.accounts = [];
   assetMocks.rates = [
-    rate(),
     rate({
-      id: 'rate-gold',
+      id: 'rate-usd-auto',
+      userId: undefined,
+      value: 24_500,
+      source: 'auto',
+      fetchedAt: '2026-07-10T00:00:00.000Z',
+    }),
+    rate({ id: 'rate-usd-manual' }),
+    rate({
+      id: 'rate-gold-auto',
+      userId: undefined,
+      pair: 'GOLD_GRAM_VND',
+      value: 1_900_000,
+      source: 'auto',
+      fetchedAt: '2026-07-10T00:00:00.000Z',
+    }),
+    rate({
+      id: 'rate-gold-manual',
       pair: 'GOLD_GRAM_VND',
       value: 2_000_000,
     }),
@@ -85,6 +135,9 @@ function resetMocks() {
   assetMocks.listCloudAssetEvents.mockReset();
   assetMocks.upsertCloudAssetAccount.mockReset();
   assetMocks.reorderCloudAssetAccounts.mockReset();
+  assetMocks.upsertCloudAssetRate.mockReset();
+  assetMocks.deleteCloudAssetRate.mockReset();
+  assetMocks.refreshCloudAssetRates.mockReset();
   assetMocks.listCloudAssetAccounts.mockImplementation(() => Promise.resolve([...assetMocks.accounts]));
   assetMocks.listCloudAssetRates.mockImplementation(() => Promise.resolve([...assetMocks.rates]));
   assetMocks.listCloudAssetEvents.mockResolvedValue([]);
@@ -115,6 +168,43 @@ function resetMocks() {
       sortOrder: index,
     }));
   });
+  assetMocks.upsertCloudAssetRate.mockImplementation(async (
+    _client: unknown,
+    input: Pick<AssetRate, 'pair' | 'value'>,
+  ) => {
+    const existing = assetMocks.rates.find(item => (
+      item.pair === input.pair && item.source === 'manual' && item.userId === 'user-1'
+    ));
+    const saved = rate({
+      ...existing,
+      id: existing?.id ?? `rate-${input.pair.toLowerCase()}-manual`,
+      userId: 'user-1',
+      pair: input.pair,
+      value: input.value,
+      source: 'manual',
+      fetchedAt: nowIso(),
+      createdAt: existing?.createdAt ?? nowIso(),
+      updatedAt: nowIso(),
+    });
+    assetMocks.rates = [
+      ...assetMocks.rates.filter(item => !(
+        item.pair === input.pair && item.source === 'manual' && item.userId === 'user-1'
+      )),
+      saved,
+    ];
+    return saved;
+  });
+  assetMocks.deleteCloudAssetRate.mockImplementation(async (_client: unknown, pair: AssetRate['pair']) => {
+    assetMocks.rates = assetMocks.rates.filter(item => !(
+      item.pair === pair && item.source === 'manual' && item.userId === 'user-1'
+    ));
+  });
+  assetMocks.refreshCloudAssetRates.mockImplementation(async () => {
+    assetMocks.rates = assetMocks.rates.map(item => item.source === 'auto'
+      ? { ...item, fetchedAt: '2026-07-12T00:00:00.000Z', value: item.value + 100 }
+      : item);
+    return refreshResult();
+  });
 }
 
 beforeEach(() => {
@@ -138,6 +228,238 @@ async function openForm(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('AssetManagementScreen', () => {
+  it('shows effective values, sources, and fetched times for both rate pairs', async () => {
+    assetMocks.rates = [
+      rate({
+        id: 'usd-auto',
+        userId: undefined,
+        source: 'auto',
+        value: 24_500,
+        fetchedAt: '2026-07-10T02:30:00.000Z',
+      }),
+      rate({
+        id: 'gold-manual',
+        pair: 'GOLD_GRAM_VND',
+        value: 2_100_000,
+        fetchedAt: '2026-07-11T01:15:00.000Z',
+      }),
+    ];
+    renderScreen();
+
+    const usdRate = await screen.findByRole('region', { name: 'USD / VND' });
+    expect(await within(usdRate).findByText('1 USD = 24.500 ₫')).toBeInTheDocument();
+    expect(within(usdRate).getByText('Tự động')).toBeInTheDocument();
+    expect(within(usdRate).getByText('09:30 10/07/2026')).toBeInTheDocument();
+    expect(within(usdRate).getByRole('button', { name: 'Xóa tỷ giá thủ công USD / VND' })).toBeDisabled();
+
+    const goldRate = screen.getByRole('region', { name: 'Gram vàng / VND' });
+    expect(within(goldRate).getByText('1 gram vàng = 2.100.000 ₫')).toBeInTheDocument();
+    expect(within(goldRate).getByText('Thủ công')).toBeInTheDocument();
+    expect(within(goldRate).getByText('08:15 11/07/2026')).toBeInTheDocument();
+    expect(within(goldRate).getByRole('button', {
+      name: 'Xóa tỷ giá thủ công Gram vàng / VND',
+    })).toBeEnabled();
+  });
+
+  it('saves a Vietnamese-formatted override and clears it back to automatic', async () => {
+    assetMocks.rates = assetMocks.rates.filter(item => !(
+      item.pair === 'USD_VND' && item.source === 'manual'
+    ));
+    const user = userEvent.setup();
+    renderScreen();
+
+    const usdRate = await screen.findByRole('region', { name: 'USD / VND' });
+    const input = within(usdRate).getByLabelText('Tỷ giá thủ công USD / VND');
+    const clearButton = within(usdRate).getByRole('button', {
+      name: 'Xóa tỷ giá thủ công USD / VND',
+    });
+    await waitFor(() => expect(input).toHaveValue('24.500'));
+    expect(clearButton).toBeDisabled();
+
+    await user.clear(input);
+    await user.type(input, '25.500,5');
+    await user.click(within(usdRate).getByRole('button', {
+      name: 'Lưu tỷ giá thủ công USD / VND',
+    }));
+
+    await waitFor(() => {
+      expect(assetMocks.upsertCloudAssetRate).toHaveBeenCalledWith(assetMocks.supabase, {
+        pair: 'USD_VND',
+        value: 25_500.5,
+      });
+    });
+    expect(await within(usdRate).findByText('1 USD = 25.500,5 ₫')).toBeInTheDocument();
+    expect(within(usdRate).getByText('Thủ công')).toBeInTheDocument();
+    expect(clearButton).toBeEnabled();
+
+    await user.click(clearButton);
+    await waitFor(() => {
+      expect(assetMocks.deleteCloudAssetRate).toHaveBeenCalledWith(assetMocks.supabase, 'USD_VND');
+    });
+    expect(await within(usdRate).findByText('1 USD = 24.500 ₫')).toBeInTheDocument();
+    expect(within(usdRate).getByText('Tự động')).toBeInTheDocument();
+    expect(clearButton).toBeDisabled();
+  });
+
+  it('shows refresh progress and all-refreshed feedback with manual precedence in an Info popover', async () => {
+    let finishRefresh: ((result: AssetRateRefreshResult) => void) | undefined;
+    assetMocks.refreshCloudAssetRates.mockImplementationOnce(() => new Promise(resolve => {
+      finishRefresh = resolve;
+    }));
+    const user = userEvent.setup();
+    renderScreen();
+
+    const refreshButton = await screen.findByRole('button', { name: 'Làm mới tỷ giá tự động' });
+    const infoButton = screen.getByRole('button', { name: 'Thông tin về tỷ giá thủ công' });
+    expect(screen.queryByText(/tỷ giá thủ công luôn được ưu tiên áp dụng/i)).not.toBeInTheDocument();
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false');
+    await user.click(infoButton);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(
+      'Tỷ giá thủ công luôn được ưu tiên áp dụng cho đến khi bạn xóa tỷ giá đó.',
+    );
+    expect(infoButton).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(infoButton).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(refreshButton);
+
+    expect(refreshButton).toBeDisabled();
+    expect(refreshButton).toHaveAttribute('aria-busy', 'true');
+    expect(refreshButton).toHaveTextContent('Đang làm mới');
+    expect(assetMocks.refreshCloudAssetRates).toHaveBeenCalledWith(assetMocks.supabase);
+
+    await act(async () => {
+      finishRefresh?.(refreshResult());
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Đã làm mới tất cả tỷ giá tự động.',
+    );
+    expect(assetMocks.refreshCloudAssetRates).toHaveBeenCalledTimes(1);
+    expect(refreshButton).toBeEnabled();
+    expect(refreshButton).toHaveAttribute('aria-busy', 'false');
+  });
+
+  it.each([
+    {
+      name: 'already-current cached rates',
+      outcomes: { USD_VND: 'cached', GOLD_GRAM_VND: 'cached' },
+      role: 'status',
+      message: 'Tỷ giá tự động đã được cập nhật trước đó và vẫn còn hiệu lực.',
+    },
+    {
+      name: 'a refreshed and a cached rate',
+      outcomes: { USD_VND: 'refreshed', GOLD_GRAM_VND: 'cached' },
+      role: 'status',
+      message: 'Đã làm mới một phần tỷ giá tự động (USD / VND). Gram vàng / VND đã được cập nhật trước đó và vẫn còn hiệu lực.',
+    },
+    {
+      name: 'a partially unavailable refresh',
+      outcomes: { USD_VND: 'refreshed', GOLD_GRAM_VND: 'unavailable' },
+      role: 'alert',
+      message: 'Đã làm mới một phần tỷ giá tự động (USD / VND). Chưa thể cập nhật Gram vàng / VND.',
+    },
+    {
+      name: 'both unavailable rates',
+      outcomes: { USD_VND: 'unavailable', GOLD_GRAM_VND: 'unavailable' },
+      role: 'alert',
+      message: 'Tỷ giá tự động hiện không khả dụng.',
+    },
+  ] as const)('reports $name accurately', async ({ outcomes, role, message }) => {
+    assetMocks.refreshCloudAssetRates.mockResolvedValueOnce(refreshResult(outcomes));
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByRole('button', { name: 'Làm mới tỷ giá tự động' }));
+
+    expect(await screen.findByRole(role)).toHaveTextContent(message);
+    expect(assetMocks.refreshCloudAssetRates).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates that overrides are positive finite values', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    const usdRate = await screen.findByRole('region', { name: 'USD / VND' });
+    const input = within(usdRate).getByLabelText('Tỷ giá thủ công USD / VND');
+    const saveButton = within(usdRate).getByRole('button', {
+      name: 'Lưu tỷ giá thủ công USD / VND',
+    });
+    await waitFor(() => expect(input).toHaveValue('25.000'));
+    await user.clear(input);
+    await user.type(input, '0');
+    await user.click(saveButton);
+
+    expect(within(usdRate).getByRole('alert')).toHaveTextContent(
+      'Nhập tỷ giá là một số hữu hạn lớn hơn 0.',
+    );
+    expect(assetMocks.upsertCloudAssetRate).not.toHaveBeenCalled();
+
+    await user.clear(input);
+    await user.type(input, '1e309');
+    await user.click(saveButton);
+    expect(within(usdRate).getByRole('alert')).toHaveTextContent(
+      'Nhập tỷ giá là một số hữu hạn lớn hơn 0.',
+    );
+    expect(assetMocks.upsertCloudAssetRate).not.toHaveBeenCalled();
+  });
+
+  it('shows refresh failures and re-enables the refresh control', async () => {
+    assetMocks.refreshCloudAssetRates.mockRejectedValueOnce(new Error('Dịch vụ tỷ giá tạm thời lỗi.'));
+    const user = userEvent.setup();
+    renderScreen();
+
+    const refreshButton = await screen.findByRole('button', { name: 'Làm mới tỷ giá tự động' });
+    await user.click(refreshButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Không thể làm mới tỷ giá tự động: Dịch vụ tỷ giá tạm thời lỗi.',
+    );
+    expect(refreshButton).toBeEnabled();
+  });
+
+  it('keeps a rate query error visible alongside refresh feedback', async () => {
+    assetMocks.listCloudAssetRates.mockRejectedValue(new Error('Không thể tải danh sách tỷ giá.'));
+    assetMocks.refreshCloudAssetRates.mockResolvedValueOnce(refreshResult({
+      USD_VND: 'cached',
+      GOLD_GRAM_VND: 'cached',
+    }));
+    const user = userEvent.setup();
+    renderScreen();
+
+    expect(await screen.findByText('Không thể tải danh sách tỷ giá.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Làm mới tỷ giá tự động' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Tỷ giá tự động đã được cập nhật trước đó và vẫn còn hiệu lực.',
+    );
+    expect(screen.getByText('Không thể tải danh sách tỷ giá.')).toBeInTheDocument();
+  });
+
+  it('preserves a typed override when refreshed query data changes', async () => {
+    assetMocks.rates = assetMocks.rates.filter(item => !(
+      item.pair === 'USD_VND' && item.source === 'manual'
+    ));
+    assetMocks.refreshCloudAssetRates.mockImplementationOnce(async () => {
+      assetMocks.rates = assetMocks.rates.map(item => item.pair === 'USD_VND'
+        ? { ...item, value: 26_000, fetchedAt: '2026-07-12T00:00:00.000Z' }
+        : item);
+      return refreshResult({ USD_VND: 'refreshed', GOLD_GRAM_VND: 'cached' });
+    });
+    const user = userEvent.setup();
+    renderScreen();
+
+    const usdRate = await screen.findByRole('region', { name: 'USD / VND' });
+    const input = within(usdRate).getByLabelText('Tỷ giá thủ công USD / VND');
+    await waitFor(() => expect(input).toHaveValue('24.500'));
+    await user.clear(input);
+    await user.type(input, '25.750');
+    await user.click(screen.getByRole('button', { name: 'Làm mới tỷ giá tự động' }));
+
+    expect(await within(usdRate).findByText('1 USD = 26.000 ₫')).toBeInTheDocument();
+    expect(input).toHaveValue('25.750');
+  });
+
   it('creates a cash account', async () => {
     const user = userEvent.setup();
     await openForm(user);

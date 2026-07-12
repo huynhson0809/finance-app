@@ -1,6 +1,7 @@
 export type AssetAccountKind = 'cash' | 'bank' | 'credit_card' | 'savings' | 'gold' | 'foreign_currency';
 export type AssetCurrency = 'VND' | 'USD';
 export type GoldUnit = 'gram' | 'chi' | 'luong';
+export type AssetRatePair = 'USD_VND' | 'GOLD_GRAM_VND';
 export type AssetEventType =
   | 'opening_balance'
   | 'manual_adjustment'
@@ -33,7 +34,7 @@ export interface AssetAccount {
 export interface AssetRate {
   id: string;
   userId?: string;
-  pair: 'USD_VND' | 'GOLD_GRAM_VND';
+  pair: AssetRatePair;
   value: number;
   source: 'auto' | 'manual';
   fetchedAt: string;

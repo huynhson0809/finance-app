@@ -1,4 +1,11 @@
-import type { AssetAccount, AssetRate, AssetSummary, GoldUnit } from './types';
+import { selectEffectiveAssetRate } from './rates';
+import type {
+  AssetAccount,
+  AssetRate,
+  AssetRatePair,
+  AssetSummary,
+  GoldUnit,
+} from './types';
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled asset kind: ${String(value)}`);
@@ -15,26 +22,15 @@ export function goldQuantityToGrams(quantity: number, unit: GoldUnit): number {
   }
 }
 
-export function getRateValue(rates: AssetRate[], pair: AssetRate['pair']): number | null {
-  let newestRate: AssetRate | null = null;
-  let newestFetchedAt: number | null = null;
-
-  for (const rate of rates) {
-    if (rate.pair !== pair) continue;
-
-    const fetchedAt = Date.parse(rate.fetchedAt);
-    if (!Number.isFinite(fetchedAt)) continue;
-
-    if (newestFetchedAt === null || fetchedAt >= newestFetchedAt) {
-      newestRate = rate;
-      newestFetchedAt = fetchedAt;
-    }
-  }
-
-  return newestRate?.value ?? null;
+export function getRateValue(rates: readonly AssetRate[], pair: AssetRatePair): number | null {
+  return selectEffectiveAssetRate(rates, pair)?.value ?? null;
 }
 
-function currencyAmountToVnd(amount: number, currency: AssetAccount['currency'], rates: AssetRate[]): number {
+function currencyAmountToVnd(
+  amount: number,
+  currency: AssetAccount['currency'],
+  rates: readonly AssetRate[],
+): number {
   if (currency === 'VND') return amount;
 
   const usdVnd = getRateValue(rates, 'USD_VND');
@@ -43,7 +39,7 @@ function currencyAmountToVnd(amount: number, currency: AssetAccount['currency'],
   return amount * usdVnd;
 }
 
-export function valueAssetAccountVnd(account: AssetAccount, rates: AssetRate[]): number {
+export function valueAssetAccountVnd(account: AssetAccount, rates: readonly AssetRate[]): number {
   switch (account.kind) {
     case 'cash':
     case 'bank':
@@ -65,7 +61,7 @@ export function valueAssetAccountVnd(account: AssetAccount, rates: AssetRate[]):
   }
 }
 
-export function buildAssetSummary(accounts: AssetAccount[], rates: AssetRate[]): AssetSummary {
+export function buildAssetSummary(accounts: AssetAccount[], rates: readonly AssetRate[]): AssetSummary {
   let totalAssetsVnd = 0;
   let liquidVnd = 0;
   let savingsVnd = 0;

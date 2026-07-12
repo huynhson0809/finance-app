@@ -74,6 +74,10 @@ export async function invalidateAssetQueries(): Promise<void> {
   await spendlyQueryClient.invalidateQueries({ queryKey: ['assets'] });
 }
 
-export function clearSpendlyQueryCacheForTests(): void {
+export function clearSpendlyQueryCache(): void {
   spendlyQueryClient.clear();
+}
+
+export function clearSpendlyQueryCacheForTests(): void {
+  clearSpendlyQueryCache();
 }

@@ -5,9 +5,16 @@ import type {
   AssetCurrency,
   AssetEvent,
   AssetEventType,
-  AssetRate,
   GoldUnit,
 } from '../assets/types';
+
+export {
+  deleteCloudAssetRate,
+  listCloudAssetRates,
+  refreshCloudAssetRates,
+  upsertCloudAssetRate,
+} from './rates';
+export type { AssetRateInput } from './rates';
 
 const ASSET_ACCOUNT_COLUMNS = [
   'id',
@@ -26,7 +33,6 @@ const ASSET_ACCOUNT_COLUMNS = [
   'created_at',
   'updated_at',
 ].join(',');
-const ASSET_RATE_COLUMNS = 'id,user_id,pair,value,source,fetched_at,created_at,updated_at';
 const ASSET_EVENT_COLUMNS = [
   'id',
   'user_id',
@@ -42,7 +48,7 @@ const ASSET_EVENT_COLUMNS = [
   'created_at',
 ].join(',');
 
-type AssetTable = 'asset_accounts' | 'asset_rates' | 'asset_events';
+type AssetTable = 'asset_accounts' | 'asset_events';
 type NumericValue = number | string;
 
 interface QueryError {
@@ -77,17 +83,6 @@ interface CloudAssetAccountRow {
   updated_at: string;
 }
 
-interface CloudAssetRateRow {
-  id: string;
-  user_id: string | null;
-  pair: AssetRate['pair'];
-  value: NumericValue;
-  source: AssetRate['source'];
-  fetched_at: string;
-  created_at: string;
-  updated_at: string;
-}
-
 interface CloudAssetEventRow {
   id: string;
   user_id: string;
@@ -117,17 +112,6 @@ interface AssetAccountUpsertRow {
   card_identifier: string | null;
   include_in_total: boolean;
   sort_order?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AssetRateUpsertRow {
-  id?: string;
-  user_id: string;
-  pair: AssetRate['pair'];
-  value: number;
-  source: AssetRate['source'];
-  fetched_at: string;
   created_at: string;
   updated_at: string;
 }
@@ -190,12 +174,6 @@ export type AssetAccountInput = Omit<AssetAccount, 'id' | 'userId' | 'createdAt'
   createdAt?: string;
   updatedAt?: string;
 };
-export type AssetRateInput = Omit<AssetRate, 'id' | 'userId' | 'createdAt' | 'updatedAt'> & {
-  id?: string;
-  userId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
 export type AssetEventInput = Omit<AssetEvent, 'id' | 'userId' | 'createdAt'> & {
   id?: string;
   createdAt?: string;
@@ -205,12 +183,6 @@ function assetAccountsTable(
   client: AssetClientInput,
 ): AssetTableBuilder<CloudAssetAccountRow, AssetAccountUpsertRow, never> {
   return client.from('asset_accounts') as AssetTableBuilder<CloudAssetAccountRow, AssetAccountUpsertRow, never>;
-}
-
-function assetRatesTable(
-  client: AssetClientInput,
-): AssetTableBuilder<CloudAssetRateRow, AssetRateUpsertRow, never> {
-  return client.from('asset_rates') as AssetTableBuilder<CloudAssetRateRow, AssetRateUpsertRow, never>;
 }
 
 function assetEventsTable(
@@ -251,19 +223,6 @@ function mapAssetAccount(row: CloudAssetAccountRow): AssetAccount {
     cardIdentifier: row.card_identifier,
     includeInTotal: row.include_in_total,
     sortOrder: row.sort_order,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function mapAssetRate(row: CloudAssetRateRow): AssetRate {
-  return {
-    id: row.id,
-    userId: row.user_id ?? undefined,
-    pair: row.pair,
-    value: Number(row.value),
-    source: row.source,
-    fetchedAt: row.fetched_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -360,48 +319,6 @@ export async function reorderCloudAssetAccounts(
 
     throwIfError(result.error);
   }
-}
-
-export async function listCloudAssetRates(
-  client: AssetClientInput,
-): Promise<AssetRate[]> {
-  const result = await assetRatesTable(client)
-    .select(ASSET_RATE_COLUMNS)
-    .order('fetched_at', { ascending: false });
-
-  throwIfError(result.error);
-  return (result.data ?? []).map(mapAssetRate);
-}
-
-export async function upsertCloudAssetRate(
-  client: AssetClientInput,
-  input: AssetRateInput,
-): Promise<AssetRate> {
-  const userId = input.userId ?? await currentUserId(client);
-  const now = new Date().toISOString();
-  const row: AssetRateUpsertRow = {
-    user_id: userId,
-    pair: input.pair,
-    value: input.value,
-    source: input.source,
-    fetched_at: input.fetchedAt,
-    created_at: input.createdAt ?? now,
-    updated_at: input.updatedAt ?? now,
-  };
-  if (input.id !== undefined) {
-    row.id = input.id;
-  }
-
-  const result = await assetRatesTable(client)
-    .upsert(row, { onConflict: 'id' })
-    .select(ASSET_RATE_COLUMNS)
-    .single();
-
-  throwIfError(result.error);
-  if (!result.data) {
-    throw new Error('No asset rate returned');
-  }
-  return mapAssetRate(result.data);
 }
 
 export async function insertCloudAssetEvent(
