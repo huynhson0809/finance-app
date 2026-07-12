@@ -69,21 +69,33 @@ From the repository root:
 supabase link --project-ref <project-ref>
 ```
 
-### 4. Apply the transaction migrations
+### 4. Apply all database migrations
 
-The migrations under `supabase/migrations/` create the transaction table, allow bank-email ingestion, and allow signed-in users to add manual, receipt, and bank-screenshot transactions from the PWA.
+The migrations under `supabase/migrations/` create the transaction, category, asset account, savings, asset event, bank-email linking, and asset-rate storage required by the app.
 
 ```text
 supabase/migrations/
 ```
 
-Push pending migrations:
+From the repository root, push every pending migration to the linked project:
 
 ```bash
-supabase db push
+npx supabase db push
 ```
 
-After pulling updates, run `npx supabase db push` so Supabase has the latest transaction columns, including `transactions.direction`, the expanded category constraints, and the category update RLS policy. Without the latest migrations, manual income, manual/image saves, or category edits may fail with a schema or row-level security error.
+Run this command again after every pull that adds a file under `supabase/migrations/`. The command applies migrations in filename order and skips versions already recorded by Supabase.
+
+For the wallet, savings, bank-email linking, and rate features, confirm that these migrations are included in the push:
+
+```text
+20260711010000_create_assets.sql
+20260711011000_link_transactions_to_assets.sql
+20260712010000_asset_transaction_rpcs.sql
+20260712020000_ingest_bank_email_assets.sql
+20260712030000_harden_asset_rates.sql
+```
+
+Without the latest migrations, asset accounts may not save, transaction-to-wallet updates may fail, bank emails cannot update linked accounts, and automatic/manual rates may be hidden by row-level security.
 
 ### 5. Get `DEFAULT_USER_ID`
 
@@ -94,26 +106,24 @@ After pulling updates, run `npx supabase db push` so Supabase has the latest tra
 
 If `DEFAULT_USER_ID` belongs to a different auth user, the Edge Function will insert rows for that other user and row-level security will hide the inserted transactions from the signed-in PWA user.
 
-### 6. Set Edge Function secrets
+### 6. Set application-owned Edge Function secrets
 
-Set all four secrets for the linked project:
+Supabase Hosted Edge Functions already receive `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from the platform. Set only the two secrets owned by this application:
 
 ```bash
-supabase secrets set \
-  SUPABASE_URL="https://<project-ref>.supabase.co" \
-  SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+npx supabase secrets set \
   INGEST_SECRET="<strong-random-secret>" \
   DEFAULT_USER_ID="<auth-user-uuid>"
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` must never be exposed in the PWA or Shortcuts.
+For a self-hosted or nonstandard Edge runtime, provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` through that runtime's environment. `SUPABASE_SERVICE_ROLE_KEY` must never be exposed in the PWA or Shortcuts.
 
-### 7. Deploy the Edge Function
+### 7. Deploy the Edge Functions
 
-Deploy `supabase/functions/ingest-transaction`:
+Deploy the bank-email ingestion function:
 
 ```bash
-supabase functions deploy ingest-transaction --no-verify-jwt
+npx supabase functions deploy ingest-transaction --no-verify-jwt
 ```
 
 The function uses `x-ingest-secret` instead of Supabase JWT auth because iOS Shortcuts is the ingestion bridge. Redeploy it after pulling updates so bank-email rows include `direction: "expense"`.
@@ -127,6 +137,19 @@ The repository also pins this setting in `supabase/config.toml`:
 verify_jwt = false
 ```
 
+Deploy the authenticated rate-refresh function separately:
+
+```bash
+npx supabase functions deploy fetch-asset-rates
+```
+
+Do not add `--no-verify-jwt` to `fetch-asset-rates`. It is called by a signed-in user from the PWA and its committed configuration keeps JWT verification enabled:
+
+```toml
+[functions.fetch-asset-rates]
+verify_jwt = true
+```
+
 ### 8. Configure PWA env
 
 Create the PWA environment file for local development and set the same values in production hosting:
@@ -137,6 +160,92 @@ VITE_SUPABASE_ANON_KEY=<anon-key>
 ```
 
 Only use the anon key in the frontend.
+
+## Triển khai Ví, Tiết kiệm và Tỷ giá
+
+Thực hiện các lệnh sau từ thư mục gốc của repository. Thay `<project-ref>` và các giá trị mẫu bằng project Supabase thật.
+
+### 1. Liên kết project và chạy migration
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+```
+
+`db push` phải hoàn tất trước khi deploy function. Edge Function mới gọi các RPC và bảng được tạo bởi migration; deploy function trước migration có thể gây lỗi `rate_store_failed`, lỗi schema, hoặc không cập nhật được số dư ví.
+
+### 2. Đặt secret của luồng email
+
+Supabase hosted tự cấp URL và API key cho Edge Functions. Chỉ cần đặt hai secret thuộc ứng dụng một lần:
+
+```bash
+npx supabase secrets set \
+  INGEST_SECRET="<strong-random-secret>" \
+  DEFAULT_USER_ID="<auth-user-uuid>"
+```
+
+Không đưa service role/secret key vào file `.env` của frontend hoặc iOS Shortcuts. Với môi trường self-hosted, phải cấu hình thêm `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` trong chính runtime của Edge Function.
+
+### 3. Cấu hình nhà cung cấp tỷ giá
+
+USD/VND tự động dùng endpoint mặc định `https://open.er-api.com/v6/latest/USD`, vì vậy không cần API key để cập nhật USD.
+
+`GOLD_API_KEY` là tùy chọn. Chỉ đặt secret này nếu muốn cập nhật giá vàng tự động qua GoldAPI:
+
+```bash
+npx supabase secrets set GOLD_API_KEY="<goldapi-key>"
+```
+
+Nếu không có `GOLD_API_KEY`, USD/VND vẫn cập nhật tự động. Giá vàng tự động sẽ tạm thời không khả dụng, nhưng người dùng vẫn có thể nhập và xóa tỷ giá vàng thủ công trong màn hình quản lý tài sản. Tỷ giá thủ công của từng người dùng được ưu tiên hơn tỷ giá tự động.
+
+Chỉ đặt các biến dưới đây khi cần đổi provider hoặc tinh chỉnh cache. Tất cả đều tùy chọn; giá trị bên phải là mặc định hiện tại:
+
+```bash
+npx supabase secrets set \
+  USD_VND_RATE_URL="https://open.er-api.com/v6/latest/USD" \
+  GOLD_XAU_USD_RATE_URL="https://www.goldapi.io/api/XAU/USD" \
+  ASSET_RATE_CACHE_TTL_SECONDS="28800" \
+  ASSET_RATE_PROVIDER_TIMEOUT_MS="8000" \
+  ASSET_RATE_REFRESH_LEASE_SECONDS="45" \
+  ASSET_RATE_RETRY_BACKOFF_SECONDS="30"
+```
+
+- `ASSET_RATE_CACHE_TTL_SECONDS`: thời gian giữ kết quả tự động; mặc định 8 giờ.
+- `ASSET_RATE_PROVIDER_TIMEOUT_MS`: timeout cho mỗi request đến provider.
+- `ASSET_RATE_REFRESH_LEASE_SECONDS`: khóa ngắn để các request đồng thời không cập nhật cùng một cặp tỷ giá.
+- `ASSET_RATE_RETRY_BACKOFF_SECONDS`: thời gian chờ trước lần thử lại sau khi provider lỗi.
+
+Code hỗ trợ cả key mới dạng đơn, key mới dạng JSON dictionary do Supabase Hosted cấp, và key legacy theo thứ tự sau, nên project đang dùng legacy key không cần đổi cấu hình:
+
+```text
+SUPABASE_PUBLISHABLE_KEY -> SUPABASE_PUBLISHABLE_KEYS["default"] -> SUPABASE_ANON_KEY
+SUPABASE_SECRET_KEY      -> SUPABASE_SECRET_KEYS["default"]      -> SUPABASE_SERVICE_ROLE_KEY
+```
+
+Trên Supabase Hosted, dictionary key mới và/hoặc legacy key cần thiết đã được platform cấp sẵn. Với runtime khác, có thể đặt key mới dạng đơn bằng `SUPABASE_PUBLISHABLE_KEY` và `SUPABASE_SECRET_KEY`; không đưa secret key vào frontend.
+
+Khi dùng `sb_secret_*`, function tự dùng transport chỉ gửi secret qua header `apikey` (không gửi dưới dạng Bearer token). Legacy service-role JWT vẫn đi qua client Supabase thông thường.
+
+### 4. Deploy cả hai function
+
+```bash
+npx supabase functions deploy ingest-transaction --no-verify-jwt
+npx supabase functions deploy fetch-asset-rates
+```
+
+Cần deploy lại `ingest-transaction` ngay cả khi Shortcuts cũ vẫn hoạt động: bản mới liên kết email MB/ACB với ví hoặc thẻ theo `account_identifier`/`card_identifier`, đồng bộ số dư ACB, và ghi asset event cùng giao dịch.
+
+### 5. Kiểm tra sau khi deploy
+
+1. Đăng nhập PWA bằng Google và mở màn hình quản lý tài sản.
+2. Tạo một ví VND, tài khoản ngân hàng, hoặc khoản tiết kiệm; tải lại trang và xác nhận dữ liệu vẫn còn.
+3. Nhấn cập nhật tỷ giá. USD/VND phải hiện nguồn tự động và thời gian cập nhật, kể cả khi không có `GOLD_API_KEY`.
+4. Nếu có `GOLD_API_KEY`, xác nhận `GOLD_GRAM_VND` cũng có giá tự động. Nếu không có, nhập giá vàng thủ công và xác nhận tổng tài sản được tính lại.
+5. Gửi một email thử nghiệm MB/ACB qua Shortcut. Giao dịch phải vẫn được tạo; nếu identifier trùng với tài khoản đã khai báo, giao dịch/asset event phải liên kết đúng tài khoản.
+6. Kiểm tra Edge Function Logs cho cả `ingest-transaction` và `fetch-asset-rates`. Không nên có `missing_server_config`, `rate_store_failed`, hoặc lỗi RLS/schema.
+
+Nếu đã deploy function nhưng thấy lỗi liên quan bảng/RPC, chạy lại `npx supabase db push` rồi deploy lại hai function theo bước 4.
 
 ## Endpoint Details
 
@@ -389,6 +498,9 @@ If the first request returns `duplicate`, that exact transaction was already ins
 - Local and production PWA redirect URLs are configured.
 - All migrations in `supabase/migrations/` have been applied.
 - Edge Function `supabase/functions/ingest-transaction` is deployed with `--no-verify-jwt` or the committed `supabase/config.toml` setting.
-- Edge Function secrets are set: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INGEST_SECRET`, `DEFAULT_USER_ID`.
+- Edge Function `supabase/functions/fetch-asset-rates` is deployed with JWT verification enabled.
+- Application-owned Edge Function secrets are set: `INGEST_SECRET` and `DEFAULT_USER_ID`.
+- Supabase hosted runtime keys are available through the supported new/legacy fallbacks; self-hosted runtimes provide `SUPABASE_URL` and a service-role/secret key explicitly.
+- `GOLD_API_KEY` is set only when automatic gold refresh is required; otherwise a per-user manual gold rate is configured in the app.
 - PWA env is set: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - Exactly three iOS Mail automations are enabled: MB transfer, MB card, and one branched ACB balance-alert automation.
