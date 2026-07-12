@@ -42,13 +42,15 @@ function toLocalDatetimeInput(iso: string): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
   }).format(date);
   return parts.replace(' ', 'T');
 }
 
 function vietnamDatetimeInputToISO(value: string): string {
-  return new Date(`${value}:00+07:00`).toISOString();
+  const valueWithSeconds = /T\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
+  return new Date(`${valueWithSeconds}+07:00`).toISOString();
 }
 
 function visibleText(transaction: Transaction): string {
@@ -219,11 +221,14 @@ export function TransactionEditScreen() {
       if (!client) {
         throw new Error(t('auth.setupError'));
       }
+      const occurredAt = date === toLocalDatetimeInput(transaction.occurredAt)
+        ? transaction.occurredAt
+        : vietnamDatetimeInputToISO(date);
       if (transaction.direction === 'expense') {
         if (!isExpenseCategory(category)) return;
         await updateTransactionWithAssetEffect(id, {
           amount: parsedAmount,
-          occurredAt: vietnamDatetimeInputToISO(date),
+          occurredAt,
           content,
           merchant: trimmedText || null,
           note: null,
@@ -239,7 +244,7 @@ export function TransactionEditScreen() {
         if (!isIncomeCategory(category)) return;
         await updateTransactionWithAssetEffect(id, {
           amount: parsedAmount,
-          occurredAt: vietnamDatetimeInputToISO(date),
+          occurredAt,
           content,
           merchant: null,
           note: trimmedText || null,
@@ -290,6 +295,7 @@ export function TransactionEditScreen() {
         <DarkField label={t('transactionEdit.date')}>
           <input
             type="datetime-local"
+            step="1"
             aria-label={t('transactionEdit.date')}
             value={date}
             onChange={event => setDate(event.target.value)}

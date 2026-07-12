@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
@@ -124,7 +124,7 @@ describe('TransactionEditScreen', () => {
     renderEdit();
 
     expect(await screen.findByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/ngày/i)).toHaveValue('2026-07-08T11:14');
+    expect(screen.getByLabelText(/ngày/i)).toHaveValue('2026-07-08T11:14:42.000');
     expect(screen.getByLabelText(/ghi chú/i)).toHaveValue('Giao dịch chi tiêu tại Grab* BXTTDKA62JSE-G-3');
     expect(screen.getByLabelText(/tiền chi/i)).toHaveValue(38560);
     expect(screen.getByText('Email ngân hàng')).toBeInTheDocument();
@@ -186,6 +186,95 @@ describe('TransactionEditScreen', () => {
     expect(transactionMocks.updateTransactionWithAssetEffect.mock.calls[0]?.[1])
       .not.toHaveProperty('assetAccountId');
     expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('preserves fractional milliseconds when the date is saved unchanged', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.500Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ occurredAt }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    const dateInput = screen.getByLabelText(/ngày/i);
+    expect(dateInput).toHaveValue('2026-07-08T11:14:42.000');
+    expect(dateInput).toHaveAttribute('step', '1');
+
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt }),
+      );
+    });
+  });
+
+  it('saves a changed second-precision date instead of the original timestamp', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.500Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx());
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    fireEvent.change(screen.getByLabelText(/ngày/i), {
+      target: { value: '2026-07-08T12:30:15' },
+    });
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt: '2026-07-08T05:30:15.000Z' }),
+      );
+    });
+  });
+
+  it('preserves whole seconds when the date is saved unchanged', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.000Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ occurredAt }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    const dateInput = screen.getByLabelText(/ngày/i);
+    expect(dateInput).toHaveValue('2026-07-08T11:14:42.000');
+    expect(dateInput).toHaveAttribute('step', '1');
+
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt }),
+      );
+    });
+  });
+
+  it('accepts a backward-compatible minute-only date value', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx());
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    fireEvent.change(screen.getByLabelText(/ngày/i), {
+      target: { value: '2026-07-08T11:14' },
+    });
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt: '2026-07-08T04:14:00.000Z' }),
+      );
+    });
   });
 
   it('learns a local rule when correcting an email transaction category', async () => {

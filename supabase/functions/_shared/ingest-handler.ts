@@ -1,22 +1,14 @@
-import { buildExternalHash, normalizeIngestPayload } from './ingest.ts';
+import {
+  buildExternalHash,
+  normalizeIngestPayload,
+  type NormalizedIngestPayload,
+} from './ingest.ts';
 import {
   builtInCategoryOptionsForDirection,
   type GeminiCategoryDirection,
   type GeminiCategoryOption,
   suggestCategoryWithGemini,
 } from './gemini-category.ts';
-
-interface InsertError {
-  code?: string;
-}
-
-interface InsertResult {
-  error: InsertError | null;
-}
-
-interface InsertBuilder {
-  insert(row: Record<string, unknown>): Promise<InsertResult>;
-}
 
 interface SelectResult<T> {
   data: T[] | null;
@@ -38,9 +30,46 @@ interface UserCategoryRow {
   name: string;
 }
 
+interface IngestTransactionRpcArgs {
+  p_user_id: string;
+  p_bank: string;
+  p_type: string;
+  p_amount: number;
+  p_transaction_time: string;
+  p_content: string;
+  p_category: string;
+  p_direction: string;
+  p_external_hash: string;
+  p_account_identifier: string | null;
+  p_card_identifier: string | null;
+  p_balance_vnd: number | null;
+}
+
+interface IngestTransactionRpcResult {
+  data: unknown;
+  error: unknown | null;
+}
+
+type IngestTransactionRpcData =
+  | {
+      status: 'inserted';
+      transaction_id: string;
+      asset_account_id: string | null;
+      asset_event_id: string | null;
+    }
+  | {
+      status: 'duplicate';
+      transaction_id: string | null;
+      asset_account_id: string | null;
+      asset_event_id: string | null;
+    };
+
 export interface IngestSupabaseClient {
-  from(table: 'transactions'): InsertBuilder;
   from(table: 'user_categories'): UserCategoriesBuilder<UserCategoryRow>;
+  rpc(
+    functionName: 'ingest_bank_email_transaction',
+    args: IngestTransactionRpcArgs,
+  ): PromiseLike<IngestTransactionRpcResult>;
 }
 
 export interface IngestHandlerDependencies {
@@ -81,8 +110,12 @@ export function createIngestTransactionHandler(
     }
 
     const expectedSecret = dependencies.getEnv('INGEST_SECRET');
+    if (!expectedSecret?.trim()) {
+      return json({ ok: false, error: 'missing_server_config' }, 500);
+    }
+
     const providedSecret = req.headers.get('x-ingest-secret');
-    if (!expectedSecret || providedSecret !== expectedSecret) {
+    if (providedSecret !== expectedSecret) {
       return json({ ok: false, error: 'unauthorized' }, 401);
     }
 
@@ -124,26 +157,79 @@ export function createIngestTransactionHandler(
     }, {
       fetch: dependencies.fetch,
     });
-    const transaction = aiCategory
+    const transaction: NormalizedIngestPayload = aiCategory
       ? { ...normalized.value, category: aiCategory }
       : normalized.value;
     const external_hash = await buildExternalHash(transaction);
-    const { error } = await supabase.from('transactions').insert({
-      ...transaction,
-      user_id: defaultUserId,
-      external_hash,
-    });
+    let rpcResult: IngestTransactionRpcResult;
 
-    if (error?.code === '23505') {
-      return json({ ok: true, status: 'duplicate' }, 200);
-    }
-    if (error) {
-      console.error('insert transaction failed', error);
+    try {
+      rpcResult = await supabase.rpc('ingest_bank_email_transaction', {
+        p_user_id: defaultUserId,
+        p_bank: transaction.bank,
+        p_type: transaction.type,
+        p_amount: transaction.amount,
+        p_transaction_time: transaction.transaction_time,
+        p_content: transaction.content,
+        p_category: transaction.category,
+        p_direction: transaction.direction,
+        p_external_hash: external_hash,
+        p_account_identifier: transaction.account_identifier ?? null,
+        p_card_identifier: transaction.card_identifier ?? null,
+        p_balance_vnd: transaction.balance_vnd ?? null,
+      });
+    } catch (error) {
+      console.error('ingest transaction RPC failed', error);
       return json({ ok: false, error: 'insert_failed' }, 500);
     }
 
-    return json({ ok: true, status: 'inserted' }, 201);
+    if (rpcResult.error) {
+      console.error('ingest transaction RPC failed', rpcResult.error);
+      return json({ ok: false, error: 'insert_failed' }, 500);
+    }
+    if (!isIngestTransactionRpcData(rpcResult.data)) {
+      console.error('invalid ingest transaction RPC response', rpcResult.data);
+      return json({ ok: false, error: 'insert_failed' }, 500);
+    }
+
+    if (rpcResult.data.status === 'duplicate') {
+      return json({ ok: true, status: 'duplicate' }, 200);
+    }
+
+    return json({
+      ok: true,
+      status: 'inserted',
+      transaction_id: rpcResult.data.transaction_id,
+      asset_account_id: rpcResult.data.asset_account_id,
+      asset_event_id: rpcResult.data.asset_event_id,
+    }, 201);
   };
+}
+
+function isIngestTransactionRpcData(data: unknown): data is IngestTransactionRpcData {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+
+  const candidate = data as Record<string, unknown>;
+  if (
+    !isNullableNonEmptyString(candidate.asset_account_id) ||
+    !isNullableNonEmptyString(candidate.asset_event_id)
+  ) {
+    return false;
+  }
+
+  if (candidate.status === 'inserted') return isNonEmptyString(candidate.transaction_id);
+  if (candidate.status === 'duplicate') {
+    return isNullableNonEmptyString(candidate.transaction_id);
+  }
+  return false;
+}
+
+function isNullableNonEmptyString(value: unknown): value is string | null {
+  return value === null || isNonEmptyString(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 async function categoryOptionsForDefaultUser(

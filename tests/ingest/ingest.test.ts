@@ -5,6 +5,34 @@ import {
   parseVietnamDatetime,
 } from '../../supabase/functions/_shared/ingest';
 
+const MB_TRANSFER_INPUT = {
+  bank: 'MB',
+  type: 'transfer',
+  amount: 10000,
+  datetime: '2026-07-06 11:19:20',
+  content: 'demo',
+} as const;
+
+const MB_CARD_INPUT = {
+  bank: 'MB',
+  type: 'card',
+  amount: '-52,043',
+  datetime: '2026-07-06 11:19:20',
+  content: 'Grab* BWCFLJMBDWRJ-G-1',
+} as const;
+
+const ACB_BALANCE_INPUT = {
+  bank: 'ACB',
+  type: 'balance_alert',
+  amount: '-10,000.00',
+  datetime: '060726-14:47:32',
+  content: 'HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA',
+} as const;
+
+const MB_CARD_AMOUNT_REGEX = /Giao dịch gần nhất\s*([+-]?[\d,]+)\s*VND/;
+const MB_CARD_LAST_FOUR_REGEX = /Thông tin thẻ\s*[0-9*Xx. -]*([0-9]{4})[ \t]*(?=\r?\n|$)/;
+const MB_ACCOUNT_IDENTIFIER_REGEX = /Tài khoản trích nợ\s*:?\s*(?:[^\r\n]*-\s*)?([0-9]{4,})\s*\(VND\)/;
+
 describe('parseVietnamDatetime', () => {
   it('parses MB transfer datetime as Vietnam local time', () => {
     expect(parseVietnamDatetime('04-07-2026 21:48:49')).toBe('2026-07-04T14:48:49.000Z');
@@ -33,6 +61,40 @@ describe('parseVietnamDatetime', () => {
   });
 });
 
+describe('documented Shortcut regexes', () => {
+  it.each([
+    ['Thông tin thẻ 356419....5248', '5248'],
+    ['Thông tin thẻ 9704.05XX.XXXX.1234', '1234'],
+    ['Thông tin thẻ **** 1234', '1234'],
+    ['Thông tin thẻ 9704051234569876', '9876'],
+  ])('extracts the final four digits from MB card mask %#', (input, expected) => {
+    expect(MB_CARD_LAST_FOUR_REGEX.exec(input)?.[1]).toBe(expected);
+  });
+
+  it.each([
+    'Thông tin thẻ **** 123',
+    'Thông tin thẻ 9704.05XX.XXXX.123',
+    'Thông tin thẻ 9704 05XX XXXX 123',
+    'Thông tin thẻ XXXX.XXXX.1234X',
+  ])('does not extract an earlier group from malformed MB card mask %#', (input) => {
+    expect(MB_CARD_LAST_FOUR_REGEX.exec(input)).toBeNull();
+  });
+
+  it.each([
+    ['Giao dịch gần nhất -52,043 VND', '-52,043'],
+    ['Giao dịch gần nhất +81,000 VND', '+81,000'],
+  ])('preserves the sign from MB card amount %#', (input, expected) => {
+    expect(MB_CARD_AMOUNT_REGEX.exec(input)?.[1]).toBe(expected);
+  });
+
+  it.each([
+    ['Tài khoản trích nợ: 00123456789 (VND)', '00123456789'],
+    ['Tài khoản trích nợ\nHUYNH NGOC SON - 8920026789999 (VND)', '8920026789999'],
+  ])('extracts the MB debit account identifier from %#', (input, expected) => {
+    expect(MB_ACCOUNT_IDENTIFIER_REGEX.exec(input)?.[1]).toBe(expected);
+  });
+});
+
 describe('normalizeIngestPayload', () => {
   it('accepts MB transfer payload', () => {
     const result = normalizeIngestPayload({
@@ -58,7 +120,7 @@ describe('normalizeIngestPayload', () => {
     });
   });
 
-  it('accepts negative MB card amount as positive spending', () => {
+  it('normalizes a negative MB card charge as positive expense spending', () => {
     const result = normalizeIngestPayload({
       bank: 'MB',
       type: 'card',
@@ -69,7 +131,11 @@ describe('normalizeIngestPayload', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
-    expect(result.value.amount).toBe(52043);
+    expect(result.value).toMatchObject({
+      amount: 52043,
+      direction: 'expense',
+      category: 'transportation',
+    });
   });
 
   it('infers income for MB card refunds with a positive signed amount', () => {
@@ -84,6 +150,7 @@ describe('normalizeIngestPayload', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
     expect(result.value).toMatchObject({
+      type: 'card',
       amount: 81000,
       transaction_time: '2026-07-10T04:31:02.000Z',
       direction: 'income',
@@ -251,6 +318,146 @@ describe('normalizeIngestPayload', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
     expect(result.value.content).toBe('demo content');
+  });
+
+  it('keeps the legacy normalized shape when optional asset fields are omitted', () => {
+    const result = normalizeIngestPayload(MB_TRANSFER_INPUT);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value).toEqual({
+      bank: 'MB',
+      type: 'transfer',
+      amount: 10000,
+      transaction_time: '2026-07-06T04:19:20.000Z',
+      content: 'demo',
+      category: 'others',
+      direction: 'expense',
+      raw_source: 'email',
+    });
+  });
+
+  it('canonicalizes account identifiers for non-card transactions', () => {
+    const result = normalizeIngestPayload({
+      ...MB_TRANSFER_INPUT,
+      account_identifier: '  ab-0012.cd  ',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.account_identifier).toBe('AB0012CD');
+  });
+
+  it.each([
+    ['9704.05XX.XXXX.1234', '1234'],
+    ['  **** 1234  ', '1234'],
+    ['9704051234569876', '9876'],
+    ['1234', '1234'],
+  ])('canonicalizes card identifier %# to its last four decimal digits', (cardIdentifier, expected) => {
+    const result = normalizeIngestPayload({
+      ...MB_CARD_INPUT,
+      card_identifier: cardIdentifier,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.card_identifier).toBe(expected);
+  });
+
+  it.each([
+    { label: 'blank account identifier', input: { ...MB_TRANSFER_INPUT, account_identifier: '  ' }, error: 'invalid_account_identifier' },
+    { label: 'mask-only account identifier', input: { ...MB_TRANSFER_INPUT, account_identifier: '*** ... ---' }, error: 'invalid_account_identifier' },
+    { label: 'non-string account identifier', input: { ...MB_TRANSFER_INPUT, account_identifier: 1234 }, error: 'invalid_account_identifier' },
+    { label: 'mask-only card identifier', input: { ...MB_CARD_INPUT, card_identifier: '****' }, error: 'invalid_card_identifier' },
+    { label: 'three-digit card identifier', input: { ...MB_CARD_INPUT, card_identifier: '123' }, error: 'invalid_card_identifier' },
+    { label: 'card mask with three digits', input: { ...MB_CARD_INPUT, card_identifier: '**** 123' }, error: 'invalid_card_identifier' },
+    { label: 'non-string card identifier', input: { ...MB_CARD_INPUT, card_identifier: null }, error: 'invalid_card_identifier' },
+  ])('rejects an explicitly supplied $label', ({ input, error }) => {
+    expect(normalizeIngestPayload(input)).toEqual({ ok: false, error });
+  });
+
+  it('rejects account identifiers for card transactions', () => {
+    expect(normalizeIngestPayload({
+      ...MB_CARD_INPUT,
+      account_identifier: '00123456789',
+    })).toEqual({ ok: false, error: 'invalid_account_identifier' });
+  });
+
+  it('rejects card identifiers for non-card transactions', () => {
+    expect(normalizeIngestPayload({
+      ...MB_TRANSFER_INPUT,
+      card_identifier: '1234',
+    })).toEqual({ ok: false, error: 'invalid_card_identifier' });
+  });
+
+  it.each([
+    ['17,016,222.00', 17016222],
+    [17016222, 17016222],
+    [0, 0],
+    ['0.00', 0],
+    ['2,147,483,647.00', 2147483647],
+    [3000000000, 3000000000],
+    ['3,000,000,000.00', 3000000000],
+    [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+    ['9,007,199,254,740,991.00', Number.MAX_SAFE_INTEGER],
+  ])('normalizes allowed balance_vnd value %#', (balanceVnd, expected) => {
+    const result = normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      account_identifier: '  00123456789  ',
+      balance_vnd: balanceVnd,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value).toMatchObject({
+      account_identifier: '00123456789',
+      balance_vnd: expected,
+    });
+  });
+
+  it.each([
+    [-1],
+    ['-1,000.00'],
+    [1.5],
+    ['1,000.50'],
+    [Number.POSITIVE_INFINITY],
+    [Number.NaN],
+    [Number.MAX_SAFE_INTEGER + 1],
+    ['9,007,199,254,740,992.00'],
+  ])('rejects invalid balance_vnd value %#', (balanceVnd) => {
+    expect(normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      account_identifier: '00123456789',
+      balance_vnd: balanceVnd,
+    })).toEqual({ ok: false, error: 'invalid_balance_vnd' });
+  });
+
+  it('rejects balance_vnd without a valid account identifier', () => {
+    expect(normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      balance_vnd: '17,016,222.00',
+    })).toEqual({ ok: false, error: 'invalid_balance_vnd' });
+
+    expect(normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      account_identifier: '****',
+      balance_vnd: '17,016,222.00',
+    })).toEqual({ ok: false, error: 'invalid_account_identifier' });
+  });
+
+  it('allows balance_vnd only for ACB balance alerts', () => {
+    expect(normalizeIngestPayload({
+      ...MB_TRANSFER_INPUT,
+      account_identifier: '00123456789',
+      balance_vnd: 10000,
+    })).toEqual({ ok: false, error: 'invalid_balance_vnd' });
+
+    expect(normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      type: 'transfer',
+      account_identifier: '00123456789',
+      balance_vnd: 10000,
+    })).toEqual({ ok: false, error: 'invalid_balance_vnd' });
   });
 
   it('rejects non-object payload', () => {
@@ -440,6 +647,51 @@ describe('buildExternalHash', () => {
     if (!one.ok || !two.ok) throw new Error('normalization failed');
 
     await expect(buildExternalHash(one.value)).resolves.toBe(await buildExternalHash(two.value));
+  });
+
+  it('matches the pinned historical digest for a legacy payload', async () => {
+    const result = normalizeIngestPayload({
+      bank: 'MB',
+      type: 'transfer',
+      amount: '297,000.00',
+      datetime: '04-07-2026 21:48:49',
+      content: '159287 1PEV8',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    await expect(buildExternalHash(result.value)).resolves.toBe(
+      '48aee9b90be1473f284b6ea668b64ad2e914cc481fb73c96b93f96672779090b',
+    );
+  });
+
+  it('excludes optional asset fields so legacy and enriched retries dedupe identically', async () => {
+    const legacyAccount = normalizeIngestPayload(ACB_BALANCE_INPUT);
+    const enrichedAccount = normalizeIngestPayload({
+      ...ACB_BALANCE_INPUT,
+      account_identifier: '00123456789',
+      balance_vnd: '17,016,222.00',
+    });
+    const legacyCard = normalizeIngestPayload(MB_CARD_INPUT);
+    const enrichedCard = normalizeIngestPayload({
+      ...MB_CARD_INPUT,
+      card_identifier: '1234',
+    });
+
+    expect(legacyAccount.ok).toBe(true);
+    expect(enrichedAccount.ok).toBe(true);
+    expect(legacyCard.ok).toBe(true);
+    expect(enrichedCard.ok).toBe(true);
+    if (!legacyAccount.ok || !enrichedAccount.ok || !legacyCard.ok || !enrichedCard.ok) {
+      throw new Error('normalization failed');
+    }
+
+    await expect(buildExternalHash(enrichedAccount.value)).resolves.toBe(
+      await buildExternalHash(legacyAccount.value),
+    );
+    await expect(buildExternalHash(enrichedCard.value)).resolves.toBe(
+      await buildExternalHash(legacyCard.value),
+    );
   });
 
   it('returns a lowercase SHA-256 hex string', async () => {

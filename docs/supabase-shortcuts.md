@@ -174,23 +174,27 @@ Notes:
 - `bank` is `MB` or `ACB`.
 - `type` is `transfer`, `card`, or `balance_alert`.
 - `raw_source` is optional and defaults to `email`.
-- `direction` is optional and defaults to `expense`. Send `income` for ACB `Ghi có` emails. The Edge Function also infers ACB income when `amount` starts with `+`.
+- `direction` is optional and defaults to `expense`. Send `income` for ACB `Ghi có` emails. A leading `+` also infers income, including MB card refunds.
+- `account_identifier` is optional for `transfer` and `balance_alert`. The Edge Function uppercases it and removes non-alphanumeric mask and separator characters; values that contain no alphanumeric characters are rejected.
+- `card_identifier` is optional for `card` and is always stored as its last four decimal digits. For example, `9704.05XX.XXXX.1234`, `**** 1234`, and a full card number ending in `1234` all normalize to `1234`. A provided value with fewer than four digits is rejected.
+- `balance_vnd` is optional only for ACB `balance_alert` requests and must be sent together with a valid `account_identifier`. It accepts a nonnegative safe integer or a formatted whole-VND string such as `17,016,222.00`, including zero.
 - Datetimes are interpreted as Vietnam local time before storage.
+- Existing Shortcuts may omit all three asset fields. They remain valid, and enriched retries dedupe against legacy requests because asset fields are excluded from the external hash.
 
 ## iOS Shortcuts Guidance
 
 iOS does not let the PWA or app read Mail, push notifications, or notification content directly. The Shortcut automation is the bridge: Mail triggers it, Shortcuts extracts the fields, and Shortcuts posts the JSON to the Edge Function.
 
-Current data limitation: MB emails in this phase cover debit and spending only. ACB `mailalert@acb.com.vn` can cover both `Ghi nợ` spending and `Ghi có` income when those emails are enabled.
+ACB `mailalert@acb.com.vn` can cover both `Ghi nợ` spending and `Ghi có` income when those emails are enabled. A positive-signed MB card amount is retained as a card transaction and inferred as income for refunds.
 
-Create one Mail automation per sender. For each automation:
+Create exactly three Mail automations: one for MB transfer, one for MB card, and one for ACB balance alerts. The ACB automation handles both debit and credit with an If branch. For each automation:
 
 1. Trigger: Mail -> Email received.
 2. Sender: use the exact sender address from the matching section below.
 3. Action: Receive emails as input.
 4. Action: Match Text against Shortcut Input with each regex.
 5. Action: From each Match Text result, use First Item, then Group 1 / first capture group for the field value. Do not send the full regex match or the whole Matches list.
-6. Action: Build a Dictionary with `bank`, `type`, `amount`, `datetime`, `content`, `raw_source`, and optional `direction`.
+6. Action: Build a Dictionary with `bank`, `type`, `amount`, `datetime`, `content`, `raw_source`, and any optional fields extracted for that email: `direction`, `account_identifier`, `card_identifier`, or `balance_vnd`. Never add `balance_vnd` unless the same Dictionary also has `account_identifier`.
 7. Action: Get Contents of URL.
 8. URL: `https://<project-ref>.supabase.co/functions/v1/ingest-transaction`.
 9. Method: `POST`.
@@ -219,9 +223,10 @@ Regex set:
 amount: Số tiền giao dịch\s*:?\s*\(VND\)\s*([\d,]+\.\d{2})
 content: Nội dung chuyển tiền\s*:?\s*\n?\s*(.+)
 datetime: Ngày,\s*giờ giao dịch\s*:?\s*(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})
+account_identifier (optional): Tài khoản trích nợ\s*:?\s*(?:[^\r\n]*-\s*)?([0-9]{4,})\s*\(VND\)
 ```
 
-Use Group 1 / the first capture group from the first match for each field.
+Use Group 1 / the first capture group from the first match for each field. If the MB email does not contain the account label above, omit `account_identifier`; do not send an empty Dictionary value. The Edge Function canonicalizes the captured token before matching it to an asset account.
 
 Sample POST JSON:
 
@@ -232,7 +237,8 @@ Sample POST JSON:
   "amount": "297,000.00",
   "datetime": "04-07-2026 21:48:49",
   "content": "159287 1PEV8",
-  "raw_source": "email"
+  "raw_source": "email",
+  "account_identifier": "00123456789"
 }
 ```
 
@@ -247,12 +253,15 @@ mbcard@mbbank.com.vn
 Regex set:
 
 ```text
-amount: Giao dịch gần nhất\s*(-?[\d,]+)\s*VND
+amount: Giao dịch gần nhất\s*([+-]?[\d,]+)\s*VND
 content: Nội dung\s*:?\s*([^\r\n]+)
 datetime: Ngày,\s*giờ giao dịch\s*:?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})
+card_identifier last four (optional): Thông tin thẻ\s*[0-9*Xx. -]*([0-9]{4})[ \t]*(?=\r?\n|$)
 ```
 
-Use Group 1 / the first capture group from the first match for each field. Keep the leading minus sign if the email includes it; the Edge Function normalizes spending amounts to positive VND.
+Use Group 1 / the first capture group from the first match for each field. Keep the leading `-` or `+`; the Edge Function stores a positive VND amount while using `+` to infer a card refund as income. For `card_identifier`, capture and send only the last four digits with the pattern above. It returns `5248` from `356419....5248` and `1234` from `9704.05XX.XXXX.1234`; its end-of-line check prevents an incomplete mask such as `9704.05XX.XXXX.123` from incorrectly returning `9704`. Omit the field if no valid card identifier is present.
+
+Full masks and full card numbers are accepted for compatibility, but the Edge Function always normalizes them to the last four digits. Do not use the preceding digits to distinguish cards. If multiple cards at the same bank share the same last four digits, automatic matching is ambiguous; resolve the affected card association in asset management.
 
 Sample POST JSON:
 
@@ -263,11 +272,12 @@ Sample POST JSON:
   "amount": "-52,043",
   "datetime": "2026-07-06 11:19:20",
   "content": "Grab* BWCFLJMBDWRJ-G-1",
-  "raw_source": "email"
+  "raw_source": "email",
+  "card_identifier": "1234"
 }
 ```
 
-## Shortcut 3: ACB Debit Balance Alert
+## Shortcut 3: ACB Balance Alert
 
 Sender:
 
@@ -275,19 +285,30 @@ Sender:
 mailalert@acb.com.vn
 ```
 
-Regex set:
+Create one automation for this sender. Extract the shared fields first:
 
 ```text
-amount: Ghi nợ\s*(-?[\d,\.]+)\s*VND
 content: Nội dung giao dịch:\s*(.+?)\.
 datetime: (\d{6}-\d{2}:\d{2}:\d{2})
+account_identifier (optional): ACB trân trọng thông báo tài khoản\s+([0-9]{4,})
+balance_vnd (optional): Số dư mới(?: của tài khoản trên)?(?: là)?\s*:?\s*([\d,.]+)\s*VND
 ```
 
-Use the first Vietnamese match only. ACB includes Vietnamese and English sections in the same email, and later English matches can duplicate or distort the transaction fields.
+Then add an If action whose condition is: email body contains `Ghi có`.
 
-Use Group 1 / the first capture group from the first match for each field. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly by the Edge Function.
+- If true, extract `amount` with the credit regex and set `direction` to `income`.
+- Otherwise, extract `amount` with the debit regex and omit `direction` or set it to `expense`.
 
-Sample POST JSON:
+```text
+credit amount: Ghi có\s*(\+?[\d,.]+)\s*VND
+debit amount: Ghi nợ\s*(-?[\d,.]+)\s*VND
+```
+
+Use First Item, then Group 1 / the first capture group, from the first Vietnamese match only. ACB includes Vietnamese and English sections in the same email, and later English matches can duplicate or distort fields. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly.
+
+The `account_identifier` and `balance_vnd` captures are shared by both branches. `balance_vnd` is the current post-transaction balance, not the transaction amount. Add it to the Dictionary only when `account_identifier` was also captured successfully; never send a balance snapshot by itself. If either label differs in your ACB template, use the equivalent Vietnamese label and omit `balance_vnd` when the account capture is unavailable.
+
+Debit branch example:
 
 ```json
 {
@@ -296,31 +317,13 @@ Sample POST JSON:
   "amount": "-10,000.00",
   "datetime": "060726-14:47:32",
   "content": "HUYNH NGOC SON CHUYEN KHOAN-060726-14:47:32 6187ASCB028NLNNA",
-  "raw_source": "email"
+  "raw_source": "email",
+  "account_identifier": "00123456789",
+  "balance_vnd": "17,016,222.00"
 }
 ```
 
-## Shortcut 4: ACB Credit Balance Alert
-
-Sender:
-
-```text
-mailalert@acb.com.vn
-```
-
-Regex set:
-
-```text
-amount: Ghi có\s*(\+?[\d,\.]+)\s*VND
-content: Nội dung giao dịch:\s*(.+?)\.
-datetime: (\d{6}-\d{2}:\d{2}:\d{2})
-```
-
-Use the first Vietnamese match only. ACB includes Vietnamese and English sections in the same email, and later English matches can duplicate or distort the transaction fields.
-
-Use First Item from Matches, then Group 1 / the first capture group from that first match for each field. The ACB datetime format `DDMMYY-HH:mm:ss` is accepted directly by the Edge Function.
-
-Sample POST JSON:
+Credit branch example:
 
 ```json
 {
@@ -330,7 +333,9 @@ Sample POST JSON:
   "datetime": "080726-13:14:07",
   "content": "HUYNH NGOC SON CHUYEN TIEN GD 6189MSCBD2E4DZA8 080726-13:14:07",
   "raw_source": "email",
-  "direction": "income"
+  "direction": "income",
+  "account_identifier": "00123456789",
+  "balance_vnd": "17,022,888.00"
 }
 ```
 
@@ -358,7 +363,13 @@ curl -i \
 Expected first response: HTTP `201` with body:
 
 ```json
-{ "ok": true, "status": "inserted" }
+{
+  "ok": true,
+  "status": "inserted",
+  "transaction_id": "<uuid>",
+  "asset_account_id": "<uuid-or-null>",
+  "asset_event_id": "<uuid-or-null>"
+}
 ```
 
 Run the same `curl` command again.
@@ -380,4 +391,4 @@ If the first request returns `duplicate`, that exact transaction was already ins
 - Edge Function `supabase/functions/ingest-transaction` is deployed with `--no-verify-jwt` or the committed `supabase/config.toml` setting.
 - Edge Function secrets are set: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `INGEST_SECRET`, `DEFAULT_USER_ID`.
 - PWA env is set: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- All three iOS Mail automations are enabled.
+- Exactly three iOS Mail automations are enabled: MB transfer, MB card, and one branched ACB balance-alert automation.

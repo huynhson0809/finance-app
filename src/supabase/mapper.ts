@@ -60,7 +60,7 @@ function isIncomeCategory(category: Category | null | undefined): category is In
 }
 
 function expenseCategoryForEmail(row: CloudTransactionRow): ExpenseCategory {
-  if (isExpenseCategory(row.category) && row.category !== 'others') {
+  if (isExpenseCategory(row.category)) {
     return row.category;
   }
 
@@ -146,10 +146,10 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
       amount: row.amount,
       currency: 'VND',
       occurredAt: row.transaction_time,
-      merchant: row.content,
+      merchant: row.note ?? row.content,
       direction: 'income',
       category: categoryForDirection(row, 'income'),
-      note: `${row.bank} ${row.type}`,
+      note: row.note ?? `${row.bank} ${row.type}`,
       source: 'bank-email',
       bankHint: row.bank ? bankHint(row.bank) : undefined,
       bank: row.bank ?? undefined,
@@ -167,7 +167,7 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
     amount: row.amount,
     currency: 'VND',
     occurredAt: row.transaction_time,
-    merchant: row.content,
+    merchant: row.note ?? row.merchant ?? row.content,
     direction: 'expense',
     category,
     note: `${row.bank} ${row.type}`,
