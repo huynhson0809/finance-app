@@ -117,23 +117,6 @@ describe('SettingsScreen caps editor', () => {
     });
   });
 
-  it('saves a savings target and shows the spendable budget', async () => {
-    await setLocale('en');
-    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
-    const user = userEvent.setup();
-
-    await user.type(screen.getByLabelText(/monthly budget/i, { selector: 'input' }), '10000000');
-    await user.type(screen.getByLabelText(/savings target/i, { selector: 'input' }), '2000000');
-    await user.click(screen.getByRole('button', { name: /save/i }));
-
-    await waitFor(async () => {
-      const budget = await getBudgetForMonth(currentVietnamMonth());
-      expect(budget?.total).toBe(10000000);
-      expect(budget?.savingsTarget).toBe(2000000);
-    });
-    expect(screen.getByRole('status', { name: /spendable budget/i })).toHaveTextContent(/8,000,000/);
-  });
-
   it('saves a per-category cap after debounce', async () => {
     await upsertBudget(currentVietnamMonth(), 5000000);
     render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
@@ -144,21 +127,6 @@ describe('SettingsScreen caps editor', () => {
     await waitFor(async () => {
       const b = await getBudgetForMonth(currentVietnamMonth());
       expect(b?.caps?.['coffee-bubble-tea']).toBe(500000);
-    }, { timeout: 1500 });
-  });
-
-  it('preserves savings target when a cap autosaves', async () => {
-    await upsertBudget(currentVietnamMonth(), 10000000, {}, 2000000);
-    render(<MemoryRouter><SettingsScreen /></MemoryRouter>);
-
-    fireEvent.click(await screen.findByRole('button', { name: /caps|hạng mục/i }));
-    const coffeeInput = await screen.findByLabelText(/coffee|cà phê/i);
-    fireEvent.change(coffeeInput, { target: { value: '500000' } });
-
-    await waitFor(async () => {
-      const budget = await getBudgetForMonth(currentVietnamMonth());
-      expect(budget?.caps?.['coffee-bubble-tea']).toBe(500000);
-      expect(budget?.savingsTarget).toBe(2000000);
     }, { timeout: 1500 });
   });
 

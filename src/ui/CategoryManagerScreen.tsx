@@ -1,7 +1,22 @@
 import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   builtInCategoriesForDirection,
   categoriesForDirectionWithCustom,
@@ -12,6 +27,7 @@ import type {
   BuiltInCategory,
   Category,
   CategoryIconKey,
+  CategoryOverride,
   CustomExpenseCategory,
   CustomIncomeCategory,
   TransactionDirection,
@@ -95,8 +111,11 @@ export function CategoryManagerScreen() {
   const [draftOrder, setDraftOrderState] = useState<Category[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const draggingCategoryRef = useRef<Category | null>(null);
   const draftOrderRef = useRef<Category[] | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
   const {
     categories: customCategories,
     error,
@@ -254,94 +273,15 @@ export function CategoryManagerScreen() {
     await persistCategoryOrder(next);
   }
 
-  function handleDragStart(event: PointerEvent<HTMLButtonElement>, category: Category) {
-    draggingCategoryRef.current = category;
-    setDraftOrder(displayedCategories);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }
-
-  function handleDragMove(event: PointerEvent<HTMLButtonElement>) {
-    const moving = draggingCategoryRef.current;
-    if (!moving) return;
-
-    const target = document
-      .elementFromPoint(event.clientX, event.clientY)
-      ?.closest<HTMLElement>('[data-category-id]')
-      ?.dataset.categoryId as Category | undefined;
-    if (!target || target === moving) return;
-
-    const current = draftOrderRef.current ?? displayedCategories;
-    const next = moveCategoryNear(current, moving, target);
-    if (!sameCategoryOrder(next, current)) setDraftOrder(next);
-  }
-
-  async function handleDragEnd(event: PointerEvent<HTMLButtonElement>) {
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    draggingCategoryRef.current = null;
-    const next = draftOrderRef.current;
-    if (next && !sameCategoryOrder(next, orderedCategories)) {
-      await persistCategoryOrder(next);
-      return;
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const moving = active.id as Category;
+    const target = over.id as Category;
+    const next = moveCategoryNear(displayedCategories, moving, target);
+    if (!sameCategoryOrder(next, orderedCategories)) {
+      void persistCategoryOrder(next);
     }
-    setDraftOrder(null);
-  }
-
-  function renderCategoryRow(category: Category, index: number) {
-    const meta = getCategoryMeta(category, customCategories, categoryOverrides);
-    const Icon = meta.Icon;
-    const label = categoryLabel(category, customCategories, t, categoryOverrides);
-    const isFirst = index === 0;
-    const isLast = index === displayedCategories.length - 1;
-
-    return (
-      <div
-        key={category}
-        data-category-id={category}
-        data-testid="category-order-row"
-        className="grid min-h-14 w-full grid-cols-[2rem_2.25rem_minmax(0,1fr)_2rem_2rem_1.25rem] items-center gap-2 border-b border-white/10 px-3 text-left transition hover:bg-white/[0.035] last:border-b-0"
-      >
-        <button
-          type="button"
-          aria-label={t('categories.drag', { category: label })}
-          onPointerDown={event => handleDragStart(event, category)}
-          onPointerMove={handleDragMove}
-          onPointerUp={handleDragEnd}
-          onPointerCancel={handleDragEnd}
-          className="grid h-9 w-8 touch-none place-items-center rounded-xl text-slate-500 active:cursor-grabbing active:bg-white/10 active:text-slate-200"
-        >
-          <GripVertical aria-hidden="true" className="h-5 w-5" />
-        </button>
-        <Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
-        <button
-          type="button"
-          onClick={() => editOrderedCategory(category)}
-          className="min-w-0 py-4 text-left"
-        >
-          <span data-testid="category-order-label" className="block truncate text-base font-semibold text-slate-100">
-            {label}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => void moveOrderedCategory(category, -1)}
-          disabled={isFirst}
-          aria-label={t('categories.moveUp', { category: label })}
-          className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
-        >
-          <ArrowUp aria-hidden="true" className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => void moveOrderedCategory(category, 1)}
-          disabled={isLast}
-          aria-label={t('categories.moveDown', { category: label })}
-          className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
-        >
-          <ArrowDown aria-hidden="true" className="h-4 w-4" />
-        </button>
-        <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
-      </div>
-    );
   }
 
   return (
@@ -460,8 +400,123 @@ export function CategoryManagerScreen() {
           <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
         </button>
 
-        {displayedCategories.map(renderCategoryRow)}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={displayedCategories} strategy={verticalListSortingStrategy}>
+            {displayedCategories.map((category, index) => (
+              <SortableCategoryRow
+                key={category}
+                category={category}
+                index={index}
+                total={displayedCategories.length}
+                customCategories={customCategories}
+                categoryOverrides={categoryOverrides}
+                onEdit={editOrderedCategory}
+                onMove={moveOrderedCategory}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </GlassPanel>
+    </div>
+  );
+}
+
+interface SortableCategoryRowProps {
+  category: Category;
+  index: number;
+  total: number;
+  customCategories: UserCategory[];
+  categoryOverrides: readonly CategoryOverride[];
+  onEdit: (category: Category) => void;
+  onMove: (category: Category, offset: -1 | 1) => Promise<void>;
+}
+
+function SortableCategoryRow({
+  category,
+  index,
+  total,
+  customCategories,
+  categoryOverrides,
+  onEdit,
+  onMove,
+}: SortableCategoryRowProps) {
+  const { t } = useTranslation();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category });
+
+  const meta = getCategoryMeta(category, customCategories, categoryOverrides);
+  const Icon = meta.Icon;
+  const label = categoryLabel(category, customCategories, t, categoryOverrides);
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-category-id={category}
+      data-testid="category-order-row"
+      className={`grid min-h-14 w-full grid-cols-[2rem_2.25rem_minmax(0,1fr)_2rem_2rem_1.25rem] items-center gap-2 border-b border-white/10 px-3 text-left last:border-b-0 ${
+        isDragging
+          ? 'relative z-50 rounded-xl bg-slate-800/95 shadow-xl shadow-black/40 ring-1 ring-white/10'
+          : ''
+      }`}
+    >
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        aria-label={t('categories.drag', { category: label })}
+        className={`grid h-9 w-8 touch-none place-items-center rounded-xl text-slate-500 ${
+          isDragging
+            ? 'cursor-grabbing text-slate-200'
+            : 'cursor-grab active:cursor-grabbing active:bg-white/10 active:text-slate-200'
+        }`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical aria-hidden="true" className="h-5 w-5" />
+      </button>
+      <Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />
+      <button
+        type="button"
+        onClick={() => onEdit(category)}
+        className="min-w-0 py-4 text-left"
+      >
+        <span data-testid="category-order-label" className="block truncate text-base font-semibold text-slate-100">
+          {label}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => void onMove(category, -1)}
+        disabled={isFirst}
+        aria-label={t('categories.moveUp', { category: label })}
+        className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
+      >
+        <ArrowUp aria-hidden="true" className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => void onMove(category, 1)}
+        disabled={isLast}
+        aria-label={t('categories.moveDown', { category: label })}
+        className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
+      >
+        <ArrowDown aria-hidden="true" className="h-4 w-4" />
+      </button>
+      <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
     </div>
   );
 }

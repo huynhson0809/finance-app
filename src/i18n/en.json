@@ -10,7 +10,6 @@
     "todayIncome": "Today's income",
     "remaining": "Remaining this month",
     "budgetUsed": "Monthly budget used",
-    "protectedSavings": "Protected savings",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
     "empty": "No transactions yet"
@@ -114,8 +113,6 @@
       "searchTransactions": "Search transactions"
     },
     "monthlyBudget": "Monthly budget",
-    "savingsTarget": "Savings target",
-    "spendableBudget": "Spendable budget",
     "save": "Save",
     "account": "Account",
     "signOut": "Sign out",
@@ -249,5 +246,28 @@
     "reminderMessage": "It's been over 30 days since your last backup",
     "reminderCta": "Backup now",
     "dismiss": "Dismiss"
+  },
+  "debts": {
+    "title": "Debts",
+    "lent": "Lent",
+    "borrowed": "Borrowed",
+    "addDebt": "Add debt",
+    "person": "Person",
+    "amount": "Amount",
+    "note": "Note",
+    "save": "Save",
+    "settled": "Settled",
+    "remaining": "Remaining",
+    "paid": "Paid",
+    "addPayment": "Add payment",
+    "paymentAmount": "Payment amount",
+    "markSettled": "Mark as settled",
+    "markUnsettled": "Mark as unsettled",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this debt record?",
+    "noDebts": "No debts yet",
+    "totalLent": "Total lent",
+    "totalBorrowed": "Total borrowed",
+    "payments": "Payments"
   }
 }

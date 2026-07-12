@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { SignInScreen } from './SignInScreen';
@@ -23,5 +23,5 @@ export function AuthGate({ children }: AuthGateProps) {
     return <SignInScreen setupError={setupError} authError={error} onSignIn={signInWithGoogle} />;
   }
 
-  return <>{children}</>;
+  return <Fragment key={session.user.id}>{children}</Fragment>;
 }

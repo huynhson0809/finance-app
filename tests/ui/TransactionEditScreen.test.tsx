@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { initI18n, i18n } from '../../src/i18n';
@@ -10,10 +10,8 @@ import type { Transaction, UserCategory } from '../../src/types';
 const transactionMocks = vi.hoisted(() => ({
   supabase: {},
   getCloudTransaction: vi.fn(),
-  updateCloudTransaction: vi.fn(),
-  deleteCloudTransaction: vi.fn(),
-  addCloudTransaction: vi.fn(),
-  invalidateTransactionQueries: vi.fn(),
+  updateTransactionWithAssetEffect: vi.fn(),
+  deleteTransactionWithAssetEffect: vi.fn(),
 }));
 
 const customCategoryMocks = vi.hoisted(() => ({
@@ -28,9 +26,11 @@ vi.mock('../../src/supabase/client', () => ({
 
 vi.mock('../../src/supabase/transactions', () => ({
   getCloudTransaction: transactionMocks.getCloudTransaction,
-  updateCloudTransaction: transactionMocks.updateCloudTransaction,
-  deleteCloudTransaction: transactionMocks.deleteCloudTransaction,
-  addCloudTransaction: transactionMocks.addCloudTransaction,
+}));
+
+vi.mock('../../src/assets/save', () => ({
+  updateTransactionWithAssetEffect: transactionMocks.updateTransactionWithAssetEffect,
+  deleteTransactionWithAssetEffect: transactionMocks.deleteTransactionWithAssetEffect,
 }));
 
 vi.mock('../../src/hooks/useCustomCategories', () => ({
@@ -44,14 +44,6 @@ vi.mock('../../src/hooks/useCustomCategories', () => ({
     deleteCategory: vi.fn(),
   })),
 }));
-
-vi.mock('../../src/query/client', async importOriginal => {
-  const actual = await importOriginal<typeof import('../../src/query/client')>();
-  return {
-    ...actual,
-    invalidateTransactionQueries: transactionMocks.invalidateTransactionQueries,
-  };
-});
 
 import { TransactionEditScreen } from '../../src/ui/TransactionEditScreen';
 
@@ -69,11 +61,8 @@ beforeEach(async () => {
   vi.restoreAllMocks();
   transactionMocks.supabase = {};
   transactionMocks.getCloudTransaction.mockReset();
-  transactionMocks.updateCloudTransaction.mockReset();
-  transactionMocks.deleteCloudTransaction.mockReset();
-  transactionMocks.addCloudTransaction.mockReset();
-  transactionMocks.invalidateTransactionQueries.mockReset();
-  transactionMocks.invalidateTransactionQueries.mockResolvedValue(undefined);
+  transactionMocks.updateTransactionWithAssetEffect.mockReset();
+  transactionMocks.deleteTransactionWithAssetEffect.mockReset();
   customCategoryMocks.categories = [];
 });
 
@@ -135,7 +124,7 @@ describe('TransactionEditScreen', () => {
     renderEdit();
 
     expect(await screen.findByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/ngày/i)).toHaveValue('2026-07-08T11:14');
+    expect(screen.getByLabelText(/ngày/i)).toHaveValue('2026-07-08T11:14:42.000');
     expect(screen.getByLabelText(/ghi chú/i)).toHaveValue('Giao dịch chi tiêu tại Grab* BXTTDKA62JSE-G-3');
     expect(screen.getByLabelText(/tiền chi/i)).toHaveValue(38560);
     expect(screen.getByText('Email ngân hàng')).toBeInTheDocument();
@@ -163,8 +152,14 @@ describe('TransactionEditScreen', () => {
 
   it('saves edited amount, date, text, and category', async () => {
     const user = userEvent.setup();
-    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({ amount: 45000, category: 'food-drinks' }));
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({
+      assetAccountId: 'account-1',
+      assetEventId: 'event-1',
+    }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({
+      amount: 45000,
+      category: 'food-drinks',
+    }));
 
     renderEdit();
 
@@ -177,8 +172,7 @@ describe('TransactionEditScreen', () => {
     await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
 
     await waitFor(() => {
-      expect(transactionMocks.updateCloudTransaction).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
         'tx-1',
         expect.objectContaining({
           amount: 45000,
@@ -189,10 +183,98 @@ describe('TransactionEditScreen', () => {
         }),
       );
     });
-    await waitFor(() => {
-      expect(transactionMocks.invalidateTransactionQueries).toHaveBeenCalledTimes(1);
-    });
+    expect(transactionMocks.updateTransactionWithAssetEffect.mock.calls[0]?.[1])
+      .not.toHaveProperty('assetAccountId');
     expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
+  it('preserves fractional milliseconds when the date is saved unchanged', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.500Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ occurredAt }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    const dateInput = screen.getByLabelText(/ngày/i);
+    expect(dateInput).toHaveValue('2026-07-08T11:14:42.000');
+    expect(dateInput).toHaveAttribute('step', '1');
+
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt }),
+      );
+    });
+  });
+
+  it('saves a changed second-precision date instead of the original timestamp', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.500Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx());
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    fireEvent.change(screen.getByLabelText(/ngày/i), {
+      target: { value: '2026-07-08T12:30:15' },
+    });
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt: '2026-07-08T05:30:15.000Z' }),
+      );
+    });
+  });
+
+  it('preserves whole seconds when the date is saved unchanged', async () => {
+    const user = userEvent.setup();
+    const occurredAt = '2026-07-08T04:14:42.000Z';
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx({ occurredAt }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ occurredAt }));
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    const dateInput = screen.getByLabelText(/ngày/i);
+    expect(dateInput).toHaveValue('2026-07-08T11:14:42.000');
+    expect(dateInput).toHaveAttribute('step', '1');
+
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt }),
+      );
+    });
+  });
+
+  it('accepts a backward-compatible minute-only date value', async () => {
+    const user = userEvent.setup();
+    transactionMocks.getCloudTransaction.mockResolvedValue(tx());
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx());
+
+    renderEdit();
+
+    await screen.findByRole('heading', { name: /chỉnh sửa/i });
+    fireEvent.change(screen.getByLabelText(/ngày/i), {
+      target: { value: '2026-07-08T11:14' },
+    });
+    await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
+
+    await waitFor(() => {
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
+        'tx-1',
+        expect.objectContaining({ occurredAt: '2026-07-08T04:14:00.000Z' }),
+      );
+    });
   });
 
   it('learns a local rule when correcting an email transaction category', async () => {
@@ -203,7 +285,7 @@ describe('TransactionEditScreen', () => {
       source: 'bank-email',
       rawSource: 'email',
     }));
-    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({
       category: 'food-drinks',
       merchant: 'Lunch near office',
     }));
@@ -229,7 +311,7 @@ describe('TransactionEditScreen', () => {
     const user = userEvent.setup();
     customCategoryMocks.categories = [customCategory()];
     transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({ category: 'custom-expense-pet-care' }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ category: 'custom-expense-pet-care' }));
 
     renderEdit();
 
@@ -238,8 +320,7 @@ describe('TransactionEditScreen', () => {
     await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
 
     await waitFor(() => {
-      expect(transactionMocks.updateCloudTransaction).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
         'tx-1',
         expect.objectContaining({
           category: 'custom-expense-pet-care',
@@ -264,7 +345,7 @@ describe('TransactionEditScreen', () => {
   it('saves blank text with category fallback content', async () => {
     const user = userEvent.setup();
     transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.updateCloudTransaction.mockResolvedValue(tx({ merchant: undefined }));
+    transactionMocks.updateTransactionWithAssetEffect.mockResolvedValue(tx({ merchant: undefined }));
 
     renderEdit();
 
@@ -273,8 +354,7 @@ describe('TransactionEditScreen', () => {
     await user.click(screen.getByRole('button', { name: /lưu thay đổi/i }));
 
     await waitFor(() => {
-      expect(transactionMocks.updateCloudTransaction).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(transactionMocks.updateTransactionWithAssetEffect).toHaveBeenCalledWith(
         'tx-1',
         expect.objectContaining({
           content: 'transportation',
@@ -290,7 +370,7 @@ describe('TransactionEditScreen', () => {
   it('confirms before deleting a transaction', async () => {
     const user = userEvent.setup();
     transactionMocks.getCloudTransaction.mockResolvedValue(tx());
-    transactionMocks.deleteCloudTransaction.mockResolvedValue(undefined);
+    transactionMocks.deleteTransactionWithAssetEffect.mockResolvedValue(undefined);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
 
     renderEdit();
@@ -301,10 +381,7 @@ describe('TransactionEditScreen', () => {
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(confirmSpy).toHaveBeenCalledWith('Xóa giao dịch này?');
     await waitFor(() => {
-      expect(transactionMocks.deleteCloudTransaction).toHaveBeenCalledWith(expect.anything(), 'tx-1');
-    });
-    await waitFor(() => {
-      expect(transactionMocks.invalidateTransactionQueries).toHaveBeenCalledTimes(1);
+      expect(transactionMocks.deleteTransactionWithAssetEffect).toHaveBeenCalledWith('tx-1');
     });
     expect(await screen.findByText('Home')).toBeInTheDocument();
   });
@@ -321,7 +398,7 @@ describe('TransactionEditScreen', () => {
 
     expect(confirmSpy).toHaveBeenCalledTimes(1);
     expect(confirmSpy).toHaveBeenCalledWith('Xóa giao dịch này?');
-    expect(transactionMocks.deleteCloudTransaction).not.toHaveBeenCalled();
+    expect(transactionMocks.deleteTransactionWithAssetEffect).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
   });
 

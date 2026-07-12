@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { useReports } from '../hooks/useReports';
@@ -179,8 +180,8 @@ export function ReportsScreen() {
   const { t, i18n } = useTranslation();
   const locale = (i18n.language === 'en' ? 'en' : 'vi') as 'en' | 'vi';
   const [searchParams, setSearchParams] = useSearchParams();
-  const [direction, setDirection] = useState<TransactionDirection>('expense');
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const direction: TransactionDirection = searchParams.get('direction') === 'income' ? 'income' : 'expense';
+  const selectedCategory: Category | null = (searchParams.get('category') as Category) || null;
   const [transactionSearch, setTransactionSearch] = useState('');
   const month = safeMonth(searchParams.get('month'));
   const rawReportMode = searchParams.get('mode');
@@ -256,41 +257,39 @@ export function ReportsScreen() {
   const periodTotal = periodRows.reduce((sum, row) => sum + row.value, 0);
   const periodAverage = periodRows.length > 0 ? Math.round(periodTotal / periodRows.length) : 0;
 
-  useEffect(() => {
-    if (selectedCategory && !categoryBelongsToDirection(selectedCategory, direction)) {
-      setSelectedCategory(null);
-    }
-  }, [direction, selectedCategory]);
+  const effectiveCategory = selectedCategory && categoryBelongsToDirection(selectedCategory, direction)
+    ? selectedCategory
+    : null;
 
-  const selectedSummary = selectedCategory
-    ? categoryRows.find(row => row.category === selectedCategory)
+  const selectedSummary = effectiveCategory
+    ? categoryRows.find(row => row.category === effectiveCategory)
     : undefined;
 
   const detailDaily = useMemo(
-    () => selectedCategory
-      ? categoryDayTotals(reportTransactions, month, direction, selectedCategory)
+    () => effectiveCategory
+      ? categoryDayTotals(reportTransactions, month, direction, effectiveCategory)
       : [],
-    [reportTransactions, month, direction, selectedCategory],
+    [reportTransactions, month, direction, effectiveCategory],
   );
 
   const detailPeriodRows = useMemo(
-    () => selectedCategory && reportScope === 'year'
-      ? monthRowsForCategory(reportTransactions, year, direction, selectedCategory)
+    () => effectiveCategory && reportScope === 'year'
+      ? monthRowsForCategory(reportTransactions, year, direction, effectiveCategory)
       : [],
-    [direction, reportScope, reportTransactions, selectedCategory, year],
+    [direction, reportScope, reportTransactions, effectiveCategory, year],
   );
 
   const detailTransactions = useMemo(
-    () => selectedCategory
+    () => effectiveCategory
       ? reportTransactions
         .filter(transaction => (
           transactionDirection(transaction) === direction &&
-          transaction.category === selectedCategory &&
+          transaction.category === effectiveCategory &&
           (reportScope ? true : monthOfVietnamDate(transaction.occurredAt) === month)
         ))
         .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
       : [],
-    [reportTransactions, reportScope, month, direction, selectedCategory],
+    [reportTransactions, reportScope, month, direction, effectiveCategory],
   );
 
   const searchTransactions = useMemo(() => {
@@ -344,6 +343,32 @@ export function ReportsScreen() {
     void (reportScope ? scopedReport.reload() : reload());
   }
 
+  function setDirection(next: TransactionDirection) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('direction', next);
+    nextParams.delete('category');
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function setSelectedCategory(category: Category | null) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (category) {
+      nextParams.set('category', category);
+    } else {
+      nextParams.delete('category');
+    }
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function currentReportUrl(): string {
+    const params = new URLSearchParams();
+    params.set('month', month);
+    if (direction !== 'expense') params.set('direction', direction);
+    if (reportMode) params.set('mode', reportMode);
+    if (effectiveCategory) params.set('category', effectiveCategory);
+    return `/reports?${params.toString()}`;
+  }
+
   function renderTransactionRow(transaction: Transaction) {
     const title = transactionTitle(transaction);
     const label = categoryLabel(transaction.category, customCategories, t, categoryOverrides);
@@ -356,39 +381,62 @@ export function ReportsScreen() {
     ].filter(Boolean).join(' · ');
 
     return (
-      <MoneyRow
-        key={transaction.id}
-        as="li"
-        icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
-        title={title === transaction.category ? label : title}
-        subtitle={subtitle}
-        amount={formatVND(signedAmount(transaction), locale)}
-        tone={direction}
-      />
+      <li key={transaction.id}>
+        <Link
+          to={`/transactions/${transaction.id}`}
+          state={{ backTo: currentReportUrl() }}
+          className="block active:bg-white/5"
+        >
+          <MoneyRow
+            icon={<Icon aria-hidden="true" className={`h-6 w-6 ${meta.accentClass}`} />}
+            title={title === transaction.category ? label : title}
+            subtitle={subtitle}
+            amount={formatVND(signedAmount(transaction), locale)}
+            tone={direction}
+          />
+        </Link>
+      </li>
     );
   }
 
   return (
     <div className="space-y-4 pb-24 pt-4 text-slate-100">
-      <header className="flex items-center justify-between px-4">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          aria-label="prev-month"
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
-        >
-          ‹
-        </button>
-        <h1 className="text-xl font-bold text-white">{month}</h1>
-        <button
-          type="button"
-          onClick={() => step(1)}
-          aria-label="next-month"
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
-        >
-          ›
-        </button>
-      </header>
+      {effectiveCategory && !isSummaryReport && reportAvailable ? (
+        <header className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 px-4">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory(null)}
+            aria-label={t('reports.backToReports')}
+            className="grid h-11 w-11 place-items-center rounded-full text-slate-100"
+          >
+            <ArrowLeft aria-hidden="true" className="h-7 w-7" />
+          </button>
+          <h1 className="truncate text-center text-xl font-bold text-white">
+            {categoryLabel(effectiveCategory, customCategories, t, categoryOverrides)}
+          </h1>
+          <span aria-hidden="true" />
+        </header>
+      ) : (
+        <header className="flex items-center justify-between px-4">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            aria-label="prev-month"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
+          >
+            ‹
+          </button>
+          <h1 className="text-xl font-bold text-white">{month}</h1>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            aria-label="next-month"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-2xl leading-none text-slate-100 shadow-sm"
+          >
+            ›
+          </button>
+        </header>
+      )}
 
       {reportModeLabel && (
         <div className="px-4">
@@ -519,40 +567,32 @@ export function ReportsScreen() {
             </section>
           )}
 
-          {!isSummaryReport && selectedCategory ? (
-            <section className="space-y-4 px-4">
-              <button
-                type="button"
-                className="text-sm font-semibold text-sky-300"
-                onClick={() => setSelectedCategory(null)}
-              >
-                {t('reports.backToReports')}
-              </button>
-
-              <GlassPanel className="p-4">
-                <h2 className="text-lg font-semibold text-white">
+          {!isSummaryReport && effectiveCategory ? (
+            <section className="space-y-4">
+              <GlassPanel className="mx-4 p-4">
+                <div className="text-sm text-slate-400">
                   {t('reports.categoryDetailTitle', {
-                    category: categoryLabel(selectedCategory, customCategories, t, categoryOverrides),
+                    category: categoryLabel(effectiveCategory, customCategories, t, categoryOverrides),
                     month,
                   })}
-                </h2>
+                </div>
                 <div className="mt-1 text-2xl font-bold text-sky-300">
                   {formatVND(selectedSummary?.total ?? 0, locale)}
                 </div>
               </GlassPanel>
 
-              <GlassPanel className="p-3">
+              <GlassPanel className="mx-4 p-3">
                 {reportScope === 'year'
                   ? <PeriodBar data={detailPeriodRows} color={direction === 'income' ? '#34d399' : '#fb7185'} />
                   : <MonthBar data={detailDaily} />}
               </GlassPanel>
 
               {detailTransactions.length === 0 ? (
-                <GlassPanel className="border-dashed border-white/15 p-4 text-sm text-slate-400">
+                <GlassPanel className="mx-4 border-dashed border-white/15 p-4 text-sm text-slate-400">
                   {t('reports.noCategoryTransactions')}
                 </GlassPanel>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-2 px-4">
                   {detailTransactions.map(renderTransactionRow)}
                 </ul>
               )}

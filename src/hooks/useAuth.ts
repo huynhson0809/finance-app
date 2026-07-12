@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { clearSpendlyQueryCache } from '../query/client';
 import { supabase, type AppSupabaseClient } from '../supabase/client';
 
 type AuthError = { message: string } | null;
@@ -31,55 +32,123 @@ export interface AuthState {
   signOut: () => Promise<void>;
 }
 
+type AuthClientLike = AuthClient | AppSupabaseClient;
+
+interface AuthSnapshot {
+  client: AuthClientLike | null;
+  session: Session | null;
+  loading: boolean;
+  setupError: boolean;
+  error: string | null;
+}
+
+interface CacheAuthIdentity {
+  client: AuthClientLike | null;
+  userId: string | null | undefined;
+}
+
+let cacheAuthIdentity: CacheAuthIdentity | undefined;
+
+function startCacheAuthScope(client: AuthClientLike | null): void {
+  if (cacheAuthIdentity?.client === client) return;
+
+  clearSpendlyQueryCache();
+  cacheAuthIdentity = {
+    client,
+    userId: client ? undefined : null,
+  };
+}
+
+function syncCacheAuthIdentity(client: AuthClientLike, session: Session | null): void {
+  if (cacheAuthIdentity?.client !== client) return;
+
+  const nextUserId = session?.user.id ?? null;
+  if (cacheAuthIdentity.userId === undefined) {
+    cacheAuthIdentity.userId = nextUserId;
+    return;
+  }
+  if (cacheAuthIdentity.userId === nextUserId) return;
+
+  clearSpendlyQueryCache();
+  cacheAuthIdentity.userId = nextUserId;
+}
+
 export function useAuth(client: AuthClient | AppSupabaseClient | null = supabase): AuthState {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [setupError, setSetupError] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<AuthSnapshot>({
+    client,
+    session: null,
+    loading: true,
+    setupError: false,
+    error: null,
+  });
 
   useEffect(() => {
+    startCacheAuthScope(client);
+
     if (!client) {
-      setSession(null);
-      setSetupError(true);
-      setError(null);
-      setLoading(false);
+      setSnapshot({
+        client,
+        session: null,
+        loading: false,
+        setupError: true,
+        error: null,
+      });
       return;
     }
 
     let active = true;
     let authStateChanged = false;
-    setLoading(true);
-    setSetupError(false);
-    setError(null);
+    setSnapshot({
+      client,
+      session: null,
+      loading: true,
+      setupError: false,
+      error: null,
+    });
 
-    client.auth.getSession()
-      .then(({ data, error: loadError }) => {
-        if (!active) return;
-        if (loadError) {
-          setError(loadError.message);
-          if (!authStateChanged) setSession(null);
-          setLoading(false);
-          return;
-        }
-        if (!authStateChanged) {
-          setSession(data.session);
-          setLoading(false);
-        }
-      })
-      .catch((loadError: unknown) => {
-        if (!active) return;
-        setError(loadError instanceof Error ? loadError.message : String(loadError));
-        if (!authStateChanged) setSession(null);
-        setLoading(false);
+    const commitSession = (nextSession: Session | null) => {
+      if (!active) return;
+      syncCacheAuthIdentity(client, nextSession);
+      setSnapshot({
+        client,
+        session: nextSession,
+        loading: false,
+        setupError: false,
+        error: null,
       });
+    };
 
     const { data } = client.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
       authStateChanged = true;
-      setError(null);
-      setSession(nextSession);
-      setLoading(false);
+      commitSession(nextSession);
     });
+
+    client.auth.getSession()
+      .then(({ data, error: loadError }) => {
+        if (!active || authStateChanged) return;
+        if (loadError) {
+          setSnapshot({
+            client,
+            session: null,
+            loading: false,
+            setupError: false,
+            error: loadError.message,
+          });
+          return;
+        }
+        commitSession(data.session);
+      })
+      .catch((loadError: unknown) => {
+        if (!active || authStateChanged) return;
+        setSnapshot({
+          client,
+          session: null,
+          loading: false,
+          setupError: false,
+          error: loadError instanceof Error ? loadError.message : String(loadError),
+        });
+      });
 
     return () => {
       active = false;
@@ -102,5 +171,22 @@ export function useAuth(client: AuthClient | AppSupabaseClient | null = supabase
     if (error) throw new Error(error.message);
   }, [client]);
 
-  return { session, loading, setupError, error, signInWithGoogle, signOut };
+  const currentSnapshot = snapshot.client === client
+    ? snapshot
+    : {
+        client,
+        session: null,
+        loading: true,
+        setupError: false,
+        error: null,
+      };
+
+  return {
+    session: currentSnapshot.session,
+    loading: currentSnapshot.loading,
+    setupError: currentSnapshot.setupError,
+    error: currentSnapshot.error,
+    signInWithGoogle,
+    signOut,
+  };
 }

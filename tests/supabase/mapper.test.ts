@@ -16,6 +16,9 @@ function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow 
     category: null,
     note: null,
     bank_hint: null,
+    asset_account_id: null,
+    counterparty_asset_account_id: null,
+    asset_event_id: null,
     created_at: '2026-07-06T04:20:00.000Z',
     ...overrides,
   };
@@ -38,10 +41,50 @@ describe('mapTransactionRow', () => {
     });
   });
 
+  it('uses a saved merchant override for an expense email row', () => {
+    const tx = mapTransactionRow(row({
+      content: 'IMMUTABLE BANK CONTENT',
+      merchant: 'Lunch near the office',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'expense',
+      merchant: 'Lunch near the office',
+      note: 'MB card',
+    });
+  });
+
+  it('uses a saved note override for an expense email row', () => {
+    const tx = mapTransactionRow(row({
+      content: 'IMMUTABLE BANK CONTENT',
+      note: 'Bus ride home',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'expense',
+      merchant: 'Bus ride home',
+      note: 'MB card',
+    });
+  });
+
   it('maps legacy cloud rows without direction as expenses', () => {
     const tx = mapTransactionRow(row());
 
     expect(tx.direction).toBe('expense');
+  });
+
+  it('maps transaction asset links', () => {
+    const tx = mapTransactionRow(row({
+      asset_account_id: 'account-1',
+      counterparty_asset_account_id: 'account-2',
+      asset_event_id: 'event-1',
+    }));
+
+    expect(tx).toMatchObject({
+      assetAccountId: 'account-1',
+      counterpartyAssetAccountId: 'account-2',
+      assetEventId: 'event-1',
+    });
   });
 
   it('maps income cloud rows to income transactions', () => {
@@ -96,13 +139,13 @@ describe('mapTransactionRow', () => {
     expect(tx.category).toBe('food-drinks');
   });
 
-  it('reclassifies generic others email rows when content matches a category label', () => {
+  it('preserves an explicit others category instead of reclassifying immutable content', () => {
     const tx = mapTransactionRow(row({
       category: 'others',
       content: 'HUYNH NGOC SON chuyen tien an uong',
     }));
 
-    expect(tx.category).toBe('food-drinks');
+    expect(tx.category).toBe('others');
   });
 
   it('falls back to others when content has no category match', () => {
@@ -226,6 +269,23 @@ describe('mapTransactionRow', () => {
       merchant: 'HUYNH NGOC SON CHUYEN TIEN GD',
       note: 'ACB balance_alert',
       source: 'bank-email',
+    });
+  });
+
+  it('uses a saved note override for an income email row', () => {
+    const tx = mapTransactionRow(row({
+      bank: 'ACB',
+      type: 'balance_alert',
+      content: 'IMMUTABLE BANK CONTENT',
+      direction: 'income',
+      category: 'salary',
+      note: 'July salary',
+    }));
+
+    expect(tx).toMatchObject({
+      direction: 'income',
+      merchant: 'July salary',
+      note: 'July salary',
     });
   });
 

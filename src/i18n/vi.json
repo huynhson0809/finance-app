@@ -10,7 +10,6 @@
     "todayIncome": "Thu hôm nay",
     "remaining": "Còn lại trong tháng",
     "budgetUsed": "Đã chi tháng này",
-    "protectedSavings": "Tiết kiệm giữ lại",
     "lastTransactions": "Giao dịch gần đây",
     "noBudget": "Chưa đặt ngân sách",
     "empty": "Chưa có giao dịch nào"
@@ -114,8 +113,6 @@
       "searchTransactions": "Tìm kiếm giao dịch"
     },
     "monthlyBudget": "Ngân sách hàng tháng",
-    "savingsTarget": "Mục tiêu tiết kiệm",
-    "spendableBudget": "Ngân sách có thể chi",
     "save": "Lưu",
     "account": "Tài khoản",
     "signOut": "Đăng xuất",
@@ -249,5 +246,28 @@
     "reminderMessage": "Đã hơn 30 ngày kể từ lần sao lưu cuối",
     "reminderCta": "Sao lưu ngay",
     "dismiss": "Đóng"
+  },
+  "debts": {
+    "title": "Vay/Nợ",
+    "lent": "Cho vay",
+    "borrowed": "Đi vay",
+    "addDebt": "Thêm khoản nợ",
+    "person": "Người",
+    "amount": "Số tiền",
+    "note": "Ghi chú",
+    "save": "Lưu",
+    "settled": "Đã tất toán",
+    "remaining": "Còn lại",
+    "paid": "Đã trả",
+    "addPayment": "Thêm lượt trả",
+    "paymentAmount": "Số tiền trả",
+    "markSettled": "Đánh dấu đã xong",
+    "markUnsettled": "Mở lại",
+    "delete": "Xóa",
+    "deleteConfirm": "Xóa khoản nợ này?",
+    "noDebts": "Chưa có khoản nợ nào",
+    "totalLent": "Tổng cho vay",
+    "totalBorrowed": "Tổng đi vay",
+    "payments": "Lịch sử trả"
   }
 }

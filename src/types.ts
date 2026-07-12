@@ -1,3 +1,5 @@
+import type { AssetCurrency } from './assets/types';
+
 export type CustomExpenseCategory = `custom-expense-${string}`;
 export type CustomIncomeCategory = `custom-income-${string}`;
 
@@ -134,6 +136,9 @@ interface TransactionBase {
   bank?: CloudBank;
   transactionType?: CloudTransactionType;
   rawSource?: CloudRawSource;
+  assetAccountId?: string | null;
+  counterpartyAssetAccountId?: string | null;
+  assetEventId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,11 +148,24 @@ export type Transaction = TransactionBase & (
   | { direction: 'income'; category: IncomeCategory }
 );
 
+export interface TransactionAssetLinkInput {
+  assetAccountId?: string | null;
+}
+
+export interface TransferInput {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  currency: AssetCurrency;
+  occurredAt: string;
+  note?: string;
+  operationId: string;
+}
+
 export interface Budget {
   id: string;
   month: string;          // 'YYYY-MM'
   total: number;          // integer VND
-  savingsTarget?: number; // integer VND
   caps: Partial<Record<ExpenseCategory, number>>;
 }
 

@@ -13,6 +13,9 @@ export interface NormalizedIngestPayload {
   category: Category;
   direction: TransactionDirection;
   raw_source: 'email';
+  account_identifier?: string;
+  card_identifier?: string;
+  balance_vnd?: number;
 }
 
 export type NormalizeError =
@@ -23,7 +26,10 @@ export type NormalizeError =
   | 'invalid_datetime'
   | 'invalid_content'
   | 'invalid_raw_source'
-  | 'invalid_direction';
+  | 'invalid_direction'
+  | 'invalid_account_identifier'
+  | 'invalid_card_identifier'
+  | 'invalid_balance_vnd';
 
 export type NormalizeResult =
   | { ok: true; value: NormalizedIngestPayload }
@@ -36,6 +42,7 @@ const TRANSACTION_KINDS = new Set<TransactionKind>(['transfer', 'card', 'balance
 const TRANSACTION_DIRECTIONS = new Set<TransactionDirection>(['expense', 'income']);
 const POSTGRES_INT4_MAX = 2147483647;
 const POSTGRES_INT4_MAX_TEXT = String(POSTGRES_INT4_MAX);
+const MAX_SAFE_INTEGER_TEXT = String(Number.MAX_SAFE_INTEGER);
 const VIETNAM_UTC_OFFSET_HOURS = 7;
 
 export function parseVietnamDatetime(input: string): string | null {
@@ -77,6 +84,31 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
   const direction = normalizeDirection(input);
   if (!direction) return { ok: false, error: 'invalid_direction' };
 
+  const accountIdentifier = normalizeOptionalIdentifier(input, 'account_identifier');
+  if (!accountIdentifier.valid || (input.type === 'card' && accountIdentifier.value !== undefined)) {
+    return { ok: false, error: 'invalid_account_identifier' };
+  }
+
+  const cardIdentifier = normalizeOptionalCardIdentifier(input);
+  if (!cardIdentifier.valid || (input.type !== 'card' && cardIdentifier.value !== undefined)) {
+    return { ok: false, error: 'invalid_card_identifier' };
+  }
+
+  let balanceVnd: number | undefined;
+  if (Object.hasOwn(input, 'balance_vnd')) {
+    if (
+      input.bank !== 'ACB' ||
+      input.type !== 'balance_alert' ||
+      accountIdentifier.value === undefined
+    ) {
+      return { ok: false, error: 'invalid_balance_vnd' };
+    }
+
+    const normalizedBalance = normalizeBalanceVnd(input.balance_vnd);
+    if (normalizedBalance === null) return { ok: false, error: 'invalid_balance_vnd' };
+    balanceVnd = normalizedBalance;
+  }
+
   return {
     ok: true,
     value: {
@@ -88,12 +120,18 @@ export function normalizeIngestPayload(input: unknown): NormalizeResult {
       category: categoryForDirection(content, direction),
       direction,
       raw_source: 'email',
+      ...(accountIdentifier.value !== undefined
+        ? { account_identifier: accountIdentifier.value }
+        : {}),
+      ...(cardIdentifier.value !== undefined ? { card_identifier: cardIdentifier.value } : {}),
+      ...(balanceVnd !== undefined ? { balance_vnd: balanceVnd } : {}),
     },
   };
 }
 
 export async function buildExternalHash(payload: NormalizedIngestPayload): Promise<string> {
   const stableContent = payload.content.trim().replace(/\s+/g, ' ');
+  // Asset-linking metadata stays out so enriched Shortcut retries dedupe with legacy requests.
   const hashInput = [
     payload.bank,
     payload.type,
@@ -110,6 +148,37 @@ export async function buildExternalHash(payload: NormalizedIngestPayload): Promi
 
 function isInputRecord(input: unknown): input is InputRecord {
   return typeof input === 'object' && input !== null && !Array.isArray(input);
+}
+
+function normalizeOptionalIdentifier(
+  input: InputRecord,
+  key: 'account_identifier' | 'card_identifier',
+): { valid: true; value: string | undefined } | { valid: false } {
+  if (!Object.hasOwn(input, key)) return { valid: true, value: undefined };
+
+  const value = input[key];
+  if (typeof value !== 'string') return { valid: false };
+
+  const canonical = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (canonical === '') return { valid: false };
+
+  return { valid: true, value: canonical };
+}
+
+function normalizeOptionalCardIdentifier(
+  input: InputRecord,
+): { valid: true; value: string | undefined } | { valid: false } {
+  if (!Object.hasOwn(input, 'card_identifier')) {
+    return { valid: true, value: undefined };
+  }
+
+  const value = input.card_identifier;
+  if (typeof value !== 'string') return { valid: false };
+
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.length < 4) return { valid: false };
+
+  return { valid: true, value: digits.slice(-4) };
 }
 
 function normalizeDirection(input: InputRecord): TransactionDirection | null {
@@ -223,6 +292,26 @@ function normalizeAmount(input: unknown): number | null {
   return positiveBoundedIntegerString(normalized);
 }
 
+function normalizeBalanceVnd(input: unknown): number | null {
+  if (typeof input === 'number') {
+    if (input < 0 || Object.is(input, -0) || !Number.isSafeInteger(input)) {
+      return null;
+    }
+
+    return input;
+  }
+
+  if (typeof input !== 'string') return null;
+
+  const trimmed = input.trim();
+  if (trimmed === '') return null;
+
+  const normalized = normalizeAmountString(trimmed);
+  if (normalized === null || normalized.startsWith('-')) return null;
+
+  return boundedIntegerString(normalized, true, MAX_SAFE_INTEGER_TEXT);
+}
+
 function normalizeAmountString(input: string): string | null {
   const compact = input.replace(/\s+/g, '');
   if (!/^[+-]?\d[\d,.]*$/.test(compact)) return null;
@@ -292,11 +381,15 @@ function isValidThousands(value: string, separator: ',' | '.'): boolean {
 }
 
 function positiveBoundedIntegerString(input: string): number | null {
+  return boundedIntegerString(input, false, POSTGRES_INT4_MAX_TEXT);
+}
+
+function boundedIntegerString(input: string, allowZero: boolean, maximumText: string): number | null {
   const unsigned = input.replace(/^[+-]/, '');
   const canonical = unsigned.replace(/^0+/, '') || '0';
-  if (canonical === '0') return null;
-  if (canonical.length > POSTGRES_INT4_MAX_TEXT.length) return null;
-  if (canonical.length === POSTGRES_INT4_MAX_TEXT.length && canonical > POSTGRES_INT4_MAX_TEXT) {
+  if (canonical === '0') return allowZero ? 0 : null;
+  if (canonical.length > maximumText.length) return null;
+  if (canonical.length === maximumText.length && canonical > maximumText) {
     return null;
   }
 
