@@ -116,7 +116,7 @@ interface AssetAccountUpsertRow {
   account_identifier: string | null;
   card_identifier: string | null;
   include_in_total: boolean;
-  sort_order: number;
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }
@@ -184,8 +184,9 @@ export type SupabaseAssetClientCompatibility = Assert<
   AppSupabaseClient['from'] extends AssetClientInput['from'] ? true : false
 >;
 
-export type AssetAccountInput = Omit<AssetAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt'> & {
+export type AssetAccountInput = Omit<AssetAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'sortOrder'> & {
   id?: string;
+  sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -315,10 +316,12 @@ export async function upsertCloudAssetAccount(
     account_identifier: input.accountIdentifier ?? null,
     card_identifier: input.cardIdentifier ?? null,
     include_in_total: input.includeInTotal,
-    sort_order: input.sortOrder,
     created_at: input.createdAt ?? now,
     updated_at: input.updatedAt ?? now,
   };
+  if (input.sortOrder !== undefined) {
+    row.sort_order = input.sortOrder;
+  }
   if (input.id !== undefined) {
     row.id = input.id;
   }

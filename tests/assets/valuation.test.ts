@@ -108,6 +108,19 @@ describe('valueAssetAccountVnd', () => {
     ).toBe(260000);
   });
 
+  it('values USD cash-like accounts with the newest USD_VND rate', () => {
+    const usdRates = [
+      rate({ value: 24000, fetchedAt: '2026-07-10T00:00:00.000Z' }),
+      rate({ value: 25000, fetchedAt: '2026-07-11T00:00:00.000Z' }),
+    ];
+
+    for (const kind of ['cash', 'bank', 'savings'] as const) {
+      expect(
+        valueAssetAccountVnd(account({ kind, currency: 'USD', balance: 10 }), usdRates),
+      ).toBe(250000);
+    }
+  });
+
   it('values gold with the newest GOLD_GRAM_VND rate and unit conversion', () => {
     const gold = account({
       id: 'gold',
@@ -134,6 +147,16 @@ describe('valueAssetAccountVnd', () => {
         }),
       ]),
     ).toBe(22500000);
+  });
+
+  it('values USD credit-card debt consistently in totals and liabilities', () => {
+    const summary = buildAssetSummary(
+      [account({ kind: 'credit_card', currency: 'USD', balance: 100 })],
+      [rate({ value: 25000 })],
+    );
+
+    expect(summary.totalAssetsVnd).toBe(-2500000);
+    expect(summary.liabilityVnd).toBe(2500000);
   });
 });
 

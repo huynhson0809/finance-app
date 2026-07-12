@@ -34,29 +34,31 @@ export function getRateValue(rates: AssetRate[], pair: AssetRate['pair']): numbe
   return newestRate?.value ?? null;
 }
 
+function currencyAmountToVnd(amount: number, currency: AssetAccount['currency'], rates: AssetRate[]): number {
+  if (currency === 'VND') return amount;
+
+  const usdVnd = getRateValue(rates, 'USD_VND');
+  if (usdVnd === null) return 0;
+
+  return amount * usdVnd;
+}
+
 export function valueAssetAccountVnd(account: AssetAccount, rates: AssetRate[]): number {
   switch (account.kind) {
     case 'cash':
     case 'bank':
     case 'savings':
-      return account.balance;
+    case 'foreign_currency':
+      return currencyAmountToVnd(account.balance, account.currency, rates);
     case 'credit_card': {
       const debt = Math.max(0, account.balance);
-      return debt === 0 ? 0 : -debt;
+      return debt === 0 ? 0 : -currencyAmountToVnd(debt, account.currency, rates);
     }
     case 'gold': {
       const goldGramVnd = getRateValue(rates, 'GOLD_GRAM_VND');
       if (goldGramVnd === null) return 0;
 
       return goldQuantityToGrams(account.quantity ?? 0, account.goldUnit ?? 'gram') * goldGramVnd;
-    }
-    case 'foreign_currency': {
-      if (account.currency !== 'USD') return 0;
-
-      const usdVnd = getRateValue(rates, 'USD_VND');
-      if (usdVnd === null) return 0;
-
-      return account.balance * usdVnd;
     }
     default:
       return assertNever(account.kind);
@@ -88,7 +90,7 @@ export function buildAssetSummary(accounts: AssetAccount[], rates: AssetRate[]):
         savingsVnd += valueVnd;
         break;
       case 'credit_card':
-        liabilityVnd += Math.max(0, account.balance);
+        liabilityVnd += Math.max(0, -valueVnd);
         break;
       default:
         assertNever(account.kind);
