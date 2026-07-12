@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Save, Trash2 } from 'lucide-react';
-import { supabase } from '../supabase/client';
 import {
-  deleteCloudTransaction,
-  getCloudTransaction,
-  updateCloudTransaction,
-} from '../supabase/transactions';
+  deleteTransactionWithAssetEffect,
+  updateTransactionWithAssetEffect,
+} from '../assets/save';
+import { supabase } from '../supabase/client';
+import { getCloudTransaction } from '../supabase/transactions';
 import {
   categoryBelongsToDirection,
   type Category,
@@ -22,7 +22,6 @@ import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
 import { useCategoryOrder } from '../hooks/useCategoryOrder';
 import { useCustomCategories } from '../hooks/useCustomCategories';
 import { errorMessage } from '../lib/error';
-import { invalidateTransactionQueries } from '../query/client';
 import { DarkField, GlassPanel } from './components/primitives';
 import { categoryLabel, getCategoryMeta } from './theme/categoryMeta';
 
@@ -222,7 +221,7 @@ export function TransactionEditScreen() {
       }
       if (transaction.direction === 'expense') {
         if (!isExpenseCategory(category)) return;
-        await updateCloudTransaction(client, id, {
+        await updateTransactionWithAssetEffect(id, {
           amount: parsedAmount,
           occurredAt: vietnamDatetimeInputToISO(date),
           content,
@@ -238,7 +237,7 @@ export function TransactionEditScreen() {
         }
       } else {
         if (!isIncomeCategory(category)) return;
-        await updateCloudTransaction(client, id, {
+        await updateTransactionWithAssetEffect(id, {
           amount: parsedAmount,
           occurredAt: vietnamDatetimeInputToISO(date),
           content,
@@ -247,7 +246,6 @@ export function TransactionEditScreen() {
           category,
         });
       }
-      await invalidateTransactionQueries();
       navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.saveFailed')}: ${errorMessage(err)}`);
@@ -265,8 +263,7 @@ export function TransactionEditScreen() {
       if (!client) {
         throw new Error(t('auth.setupError'));
       }
-      await deleteCloudTransaction(client, id);
-      await invalidateTransactionQueries();
+      await deleteTransactionWithAssetEffect(id);
       navigate(backTo);
     } catch (err) {
       setActionError(`${t('transactionEdit.deleteFailed')}: ${errorMessage(err)}`);

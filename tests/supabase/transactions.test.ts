@@ -11,7 +11,7 @@ import {
 } from '../../src/supabase/transactions';
 import type { CloudTransactionRow } from '../../src/supabase/mapper';
 
-const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,created_at';
+const SELECT_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,asset_account_id,counterparty_asset_account_id,asset_event_id,created_at';
 
 interface QueryCall {
   method: string;
@@ -146,6 +146,9 @@ function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow 
     category: null,
     note: null,
     bank_hint: null,
+    asset_account_id: null,
+    counterparty_asset_account_id: null,
+    asset_event_id: null,
     created_at: '2026-07-06T04:20:00.000Z',
     ...overrides,
   };
@@ -294,6 +297,9 @@ describe('cloud transaction queries', () => {
       bank_hint: null,
     });
     expect((context.insertedRow as { external_hash: string }).external_hash).toMatch(/^manual:/);
+    expect(context.insertedRow).not.toHaveProperty('asset_account_id');
+    expect(context.insertedRow).not.toHaveProperty('counterparty_asset_account_id');
+    expect(context.insertedRow).not.toHaveProperty('asset_event_id');
     expect(tx.source).toBe('manual');
     expect(tx.direction).toBe('expense');
     expect(tx.category).toBe('coffee-bubble-tea');

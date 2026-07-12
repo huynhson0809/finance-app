@@ -28,6 +28,8 @@ const ACCOUNT_GROUPS: AccountGroup[] = [
   { title: 'Tiết kiệm', kinds: ['savings'] },
   { title: 'Vàng & ngoại tệ', kinds: ['gold', 'foreign_currency'] },
 ];
+const EMPTY_ASSET_ACCOUNTS: AssetAccount[] = [];
+const EMPTY_ASSET_RATES: AssetRate[] = [];
 
 const NUMBER_FORMAT = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4 });
 
@@ -152,8 +154,8 @@ export function AssetManagementScreen() {
   const draggingAccountRef = useRef<string | null>(null);
   const draftOrderRef = useRef<AssetAccount[] | null>(null);
 
-  const accounts = accountsQuery.data ?? [];
-  const rates = ratesQuery.data ?? [];
+  const accounts = accountsQuery.data ?? EMPTY_ASSET_ACCOUNTS;
+  const rates = ratesQuery.data ?? EMPTY_ASSET_RATES;
   const summary = summaryQuery.data ?? zeroSummary();
   const displayedAccounts = draftOrder ?? accounts;
   const valueByAccount = useMemo(

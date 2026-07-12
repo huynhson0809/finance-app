@@ -16,6 +16,9 @@ function row(overrides: Partial<CloudTransactionRow> = {}): CloudTransactionRow 
     category: null,
     note: null,
     bank_hint: null,
+    asset_account_id: null,
+    counterparty_asset_account_id: null,
+    asset_event_id: null,
     created_at: '2026-07-06T04:20:00.000Z',
     ...overrides,
   };
@@ -42,6 +45,20 @@ describe('mapTransactionRow', () => {
     const tx = mapTransactionRow(row());
 
     expect(tx.direction).toBe('expense');
+  });
+
+  it('maps transaction asset links', () => {
+    const tx = mapTransactionRow(row({
+      asset_account_id: 'account-1',
+      counterparty_asset_account_id: 'account-2',
+      asset_event_id: 'event-1',
+    }));
+
+    expect(tx).toMatchObject({
+      assetAccountId: 'account-1',
+      counterpartyAssetAccountId: 'account-2',
+      assetEventId: 'event-1',
+    });
   });
 
   it('maps income cloud rows to income transactions', () => {

@@ -10,7 +10,7 @@ import type {
   TransactionSource,
 } from '../types';
 
-const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,created_at';
+const TRANSACTION_COLUMNS = 'id,bank,type,amount,currency,transaction_time,content,direction,raw_source,merchant,category,note,bank_hint,asset_account_id,counterparty_asset_account_id,asset_event_id,created_at';
 
 interface QueryError {
   message: string;

@@ -26,6 +26,9 @@ export interface CloudTransactionRow {
   category: Category | null;
   note: string | null;
   bank_hint: BankHint | null;
+  asset_account_id: string | null;
+  counterparty_asset_account_id: string | null;
+  asset_event_id: string | null;
   created_at: string;
 }
 
@@ -81,6 +84,17 @@ function categoryForDirection(
   return isExpenseCategory(row.category) ? row.category : 'others';
 }
 
+function assetLinks(row: CloudTransactionRow): Pick<
+  Transaction,
+  'assetAccountId' | 'counterpartyAssetAccountId' | 'assetEventId'
+> {
+  return {
+    assetAccountId: row.asset_account_id,
+    counterpartyAssetAccountId: row.counterparty_asset_account_id,
+    assetEventId: row.asset_event_id,
+  };
+}
+
 export function mapTransactionRow(row: CloudTransactionRow): Transaction {
   const transactionDirection = direction(row);
 
@@ -100,6 +114,7 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
         bank: row.bank ?? undefined,
         transactionType: row.type,
         rawSource: row.raw_source,
+        ...assetLinks(row),
         createdAt: row.created_at,
         updatedAt: row.created_at,
       };
@@ -119,6 +134,7 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
       bank: row.bank ?? undefined,
       transactionType: row.type,
       rawSource: row.raw_source,
+      ...assetLinks(row),
       createdAt: row.created_at,
       updatedAt: row.created_at,
     };
@@ -139,6 +155,7 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
       bank: row.bank ?? undefined,
       transactionType: row.type,
       rawSource: row.raw_source,
+      ...assetLinks(row),
       createdAt: row.created_at,
       updatedAt: row.created_at,
     };
@@ -159,6 +176,7 @@ export function mapTransactionRow(row: CloudTransactionRow): Transaction {
     bank: row.bank ?? undefined,
     transactionType: row.type,
     rawSource: row.raw_source,
+    ...assetLinks(row),
     createdAt: row.created_at,
     updatedAt: row.created_at,
   };
