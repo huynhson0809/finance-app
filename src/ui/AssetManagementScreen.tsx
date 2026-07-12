@@ -2,6 +2,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  ChevronRight,
   GripVertical,
   Info,
   Pencil,
@@ -11,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type {
   AssetAccount,
   AssetAccountKind,
@@ -865,6 +866,14 @@ export function AssetManagementScreen() {
             })
           )}
         </GlassPanel>
+
+        <Link
+          to="/debts"
+          className="flex min-h-14 items-center justify-between rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-slate-100 transition hover:border-sky-300/40 hover:bg-sky-300/10"
+        >
+          <span className="font-semibold">Vay / Nợ</span>
+          <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
+        </Link>
       </main>
     </div>
   );

@@ -352,7 +352,7 @@ describe('useAssets', () => {
     expect(spendlyQueryClient.getQueryData(categoriesKey)).toBe(categories);
   });
 
-  it('invalidates only asset query keys', async () => {
+  it('drops inactive balance caches without touching rates or unrelated data', async () => {
     const accounts = [account()];
     const rates = [rate()];
     const events = [event()];
@@ -368,10 +368,11 @@ describe('useAssets', () => {
 
     await invalidateAssetQueries();
 
-    expect(spendlyQueryClient.getQueryState(assetQueryKeys.accounts)?.isInvalidated).toBe(true);
-    expect(spendlyQueryClient.getQueryState(assetQueryKeys.rates)?.isInvalidated).toBe(true);
-    expect(spendlyQueryClient.getQueryState(assetQueryKeys.events('account-1'))?.isInvalidated).toBe(true);
-    expect(spendlyQueryClient.getQueryState(assetQueryKeys.summary)?.isInvalidated).toBe(true);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.accounts)).toBeUndefined();
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.rates)?.isInvalidated).toBe(false);
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.events('account-1'))).toBeUndefined();
+    expect(spendlyQueryClient.getQueryState(assetQueryKeys.summary)).toBeUndefined();
+    expect(spendlyQueryClient.getQueryData(assetQueryKeys.rates)).toBe(rates);
     expect(spendlyQueryClient.getQueryState(transactionKey)?.isInvalidated).toBe(false);
     expect(spendlyQueryClient.getQueryState(categoryKey)?.isInvalidated).toBe(false);
     expect(spendlyQueryClient.getQueryData(transactionKey)).toEqual([tx()]);

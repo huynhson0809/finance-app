@@ -331,7 +331,7 @@ function CalendarLedger({
                 <li key={transaction.id}>
                   <Link
                     to={`/transactions/${transaction.id}`}
-                    state={{ backTo: `/calendar?month=${month}` }}
+                    state={{ backTo: `/calendar?month=${month}&day=${selectedDate}` }}
                     className="grid min-h-[4.25rem] w-full grid-cols-[2.75rem_minmax(0,1fr)_minmax(5.5rem,7.5rem)_1.25rem] items-center gap-2 border-b border-zinc-900 bg-black px-3 py-2 text-left text-zinc-50 active:bg-zinc-900"
                     aria-label={`${label} ${subtitle} ${amount}`}
                   >
@@ -372,10 +372,13 @@ interface CalendarMonthViewProps {
 
 function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { data: transactions, loading, error, reload } = useMonthCloudTransactions(month);
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
-  const [manualSelection, setManualSelection] = useState<string | null>(null);
+  const [manualSelection, setManualSelection] = useState<string | null>(
+    () => searchParams.get('day'),
+  );
 
   const daySummaries = useMemo(
     () => calendarDaySummaries(transactions, month),

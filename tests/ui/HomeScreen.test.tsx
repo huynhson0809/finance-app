@@ -252,8 +252,8 @@ describe('HomeScreen', () => {
     expect(within(rows[2]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-3');
   });
 
-  it('uses spendable budget and shows protected savings in the budget bar', async () => {
-    await upsertBudget(currentVietnamMonth(), 5_000_000, undefined, 1_000_000);
+  it('shows budget bar with total budget', async () => {
+    await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.monthState.data = [
       tx({ id: 'month-expense', amount: 2_000_000, category: 'food-drinks' }),
     ];
@@ -265,13 +265,11 @@ describe('HomeScreen', () => {
     });
 
     const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(monthlyOverview).toHaveTextContent(/2[.,]000[.,]000\s*\/\s*[^0-9]*4[.,]000[.,]000/);
-    expect(monthlyOverview).toHaveTextContent('Protected savings');
-    expect(monthlyOverview).toHaveTextContent(/1[.,]000[.,]000/);
+    expect(monthlyOverview).toHaveTextContent(/2[.,]000[.,]000\s*\/\s*[^0-9]*5[.,]000[.,]000/);
   });
 
   it('uses all monthly expenses including custom categories for remaining budget', async () => {
-    await upsertBudget(currentVietnamMonth(), 1_000_000, undefined, 200_000);
+    await upsertBudget(currentVietnamMonth(), 1_000_000);
     cloudHooks.monthState.data = [
       tx({ id: 'custom-month-expense', amount: 332_000, category: 'custom-expense-date-night' }),
       tx({ id: 'built-in-month-expense', amount: 163_000, category: 'healthcare' }),
@@ -290,8 +288,8 @@ describe('HomeScreen', () => {
     });
 
     const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(monthlyOverview).toHaveTextContent(/495[.,]000\s*\/\s*[^0-9]*800[.,]000/);
-    expect(monthlyOverview).toHaveTextContent(/remaining this month:\s*[^0-9]*305[.,]000/i);
+    expect(monthlyOverview).toHaveTextContent(/495[.,]000\s*\/\s*[^0-9]*1[.,]000[.,]000/);
+    expect(monthlyOverview).toHaveTextContent(/remaining this month:\s*[^0-9]*505[.,]000/i);
   });
 
   it('shows today expense and today income separately', () => {

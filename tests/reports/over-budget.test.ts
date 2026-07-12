@@ -10,26 +10,14 @@ function emptySums() {
 }
 
 describe('over-budget status', () => {
-  it('spendableBudget returns total minus savingsTarget', () => {
+  it('spendableBudget returns total', () => {
     const budget: Budget = {
       id: 'b',
       month: '2026-06',
       total: 1000,
-      savingsTarget: 250,
       caps: {},
     };
-    expect(spendableBudget(budget)).toBe(750);
-  });
-
-  it('spendableBudget clamps to zero if savings target exceeds total', () => {
-    const budget: Budget = {
-      id: 'b',
-      month: '2026-06',
-      total: 1000,
-      savingsTarget: 1200,
-      caps: {},
-    };
-    expect(spendableBudget(budget)).toBe(0);
+    expect(spendableBudget(budget)).toBe(1000);
   });
 
   it('returns ok for everything when no budget set', () => {
@@ -75,20 +63,19 @@ describe('over-budget status', () => {
     expect(out.perCategory.salary).toBe('ok');
   });
 
-  it('uses spendable budget for overall status and exposes overallLimit', () => {
+  it('uses total budget for overall status and exposes overallLimit', () => {
     const budget: Budget = {
       id: 'b',
       month: '2026-06',
       total: 1000,
-      savingsTarget: 200,
       caps: { 'coffee-bubble-tea': 100 },
     };
     const sums = { ...emptySums(), 'food-drinks': 850, 'coffee-bubble-tea': 50 };
     const out = status(budget, sums);
 
-    expect(out.overallLimit).toBe(800);
+    expect(out.overallLimit).toBe(1000);
     expect(out.overallSpent).toBe(900);
-    expect(out.overall).toBe('over');
+    expect(out.overall).toBe('warn');
     expect(out.perCategory['coffee-bubble-tea']).toBe('ok');
   });
 

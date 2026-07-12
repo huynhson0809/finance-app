@@ -582,7 +582,7 @@ export function AddScreen() {
           </DarkField>
           <DarkField label={t('add.amount')}>
             <input
-              value={raw}
+              value={raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
               onChange={event => handleAmountChange(event.target.value)}
               aria-label={t('add.amount')}
               aria-invalid={raw !== '' && !validAmount}

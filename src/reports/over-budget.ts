@@ -19,7 +19,7 @@ function statusFor(spent: number, cap: number): BudgetStatus {
 
 export function spendableBudget(budget: Budget | undefined): number {
   if (!budget || budget.total <= 0) return 0;
-  return Math.max(0, budget.total - (budget.savingsTarget ?? 0));
+  return budget.total;
 }
 
 export function status(

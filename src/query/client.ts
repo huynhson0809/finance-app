@@ -7,8 +7,10 @@ const FIVE_MINUTES = 5 * ONE_MINUTE;
 export const ASSET_STALE_TIME_MS = 5 * 60 * 1000;
 
 export const assetQueryKeys = {
+  root: ['assets'] as const,
   accounts: ['assets', 'accounts'] as const,
   rates: ['assets', 'rates'] as const,
+  eventsRoot: ['assets', 'events'] as const,
   events: (accountId?: string) => ['assets', 'events', accountId ?? 'all'] as const,
   summary: ['assets', 'summary'] as const,
 };
@@ -18,9 +20,9 @@ export const spendlyQueryClient = new QueryClient({
     queries: {
       gcTime: 30 * ONE_MINUTE,
       retry: false,
-      refetchOnMount: false,
+      refetchOnMount: true,
       refetchOnReconnect: true,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
     },
   },
 });
@@ -51,6 +53,11 @@ export const spendlyQueryKeys = {
     order: (direction: string) => ['categories', 'order', direction] as const,
   },
   assets: assetQueryKeys,
+  debts: {
+    root: ['debts'] as const,
+    list: () => ['debts', 'list'] as const,
+    payments: (debtId: string) => ['debts', 'payments', debtId] as const,
+  },
 };
 
 export function setCachedTransactionsForRange(
@@ -65,17 +72,56 @@ export function setCachedTransactionsForRange(
 }
 
 export async function invalidateTransactionQueries(): Promise<void> {
+  spendlyQueryClient.removeQueries({
+    queryKey: spendlyQueryKeys.transactions.root,
+    type: 'inactive',
+  });
   await spendlyQueryClient.invalidateQueries({
     queryKey: spendlyQueryKeys.transactions.root,
+    refetchType: 'active',
   });
 }
 
 export async function invalidateAssetQueries(): Promise<void> {
-  await spendlyQueryClient.invalidateQueries({ queryKey: ['assets'] });
+  const changedKeys = [
+    assetQueryKeys.accounts,
+    assetQueryKeys.eventsRoot,
+    assetQueryKeys.summary,
+  ];
+
+  changedKeys.forEach(queryKey => {
+    spendlyQueryClient.removeQueries({ queryKey, type: 'inactive' });
+  });
+
+  await Promise.all([
+    spendlyQueryClient.invalidateQueries({
+      queryKey: assetQueryKeys.accounts,
+      refetchType: 'active',
+    }),
+    spendlyQueryClient.invalidateQueries({
+      queryKey: assetQueryKeys.eventsRoot,
+      refetchType: 'active',
+    }),
+  ]);
+  await spendlyQueryClient.invalidateQueries({
+    queryKey: assetQueryKeys.summary,
+    refetchType: 'active',
+  });
 }
 
 export function clearSpendlyQueryCache(): void {
   spendlyQueryClient.clear();
+}
+
+export async function invalidateDebtQueries(): Promise<void> {
+  spendlyQueryClient.removeQueries({
+    queryKey: spendlyQueryKeys.debts.root,
+    type: 'inactive',
+  });
+  await spendlyQueryClient.invalidateQueries({
+    queryKey: spendlyQueryKeys.debts.root,
+    refetchType: 'active',
+  });
 }
 
 export function clearSpendlyQueryCacheForTests(): void {

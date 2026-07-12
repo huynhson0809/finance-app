@@ -121,7 +121,6 @@ export function HomeScreen() {
                   total={bStatus.overallLimit}
                   locale={locale}
                   status={bStatus.overall}
-                  savingsTarget={budget.savingsTarget ?? 0}
                 />
               )
             : <div className="px-1 text-sm text-zinc-400">{t('home.noBudget')}</div>}

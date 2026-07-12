@@ -5,13 +5,12 @@ export async function upsertBudget(
   month: string,
   total: number,
   caps: Partial<Record<ExpenseCategory, number>> = {},
-  savingsTarget = 0,
 ): Promise<Budget> {
   const db = await openFinanceDB();
   const existing = await db.getFromIndex('budgets', 'byMonth', month);
   const budget: Budget = {
     id: existing?.id ?? crypto.randomUUID(),
-    month, total, caps, savingsTarget: Math.max(0, Math.round(savingsTarget)),
+    month, total, caps,
   };
   await db.put('budgets', budget);
   return budget;
