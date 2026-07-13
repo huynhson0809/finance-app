@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Shield } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Shield } from "lucide-react";
 import {
   isBiometricAvailable,
   isAppLockEnabled,
@@ -8,16 +8,16 @@ import {
   hasPinSet,
   setPin,
   clearPin,
-} from '../../lib/app-lock';
-import { DarkField, GlassPanel } from './primitives';
+} from "../../lib/app-lock";
+import { DarkField, GlassPanel } from "./primitives";
 
 export function AppLockToggle() {
   const [enabled, setEnabled] = useState(isAppLockEnabled);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
+  const [pinInput, setPinInput] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,13 +29,10 @@ export function AppLockToggle() {
     setBusy(true);
     try {
       if (bioAvailable) {
-        const success = await registerBiometric();
-        if (!success) {
-          setBusy(false);
-          return;
-        }
+        // Try biometric registration (optional — skip if it fails)
+        await registerBiometric();
       }
-      // Always require PIN as fallback
+      // Always require PIN setup
       if (!hasPinSet()) {
         setShowPinSetup(true);
         setBusy(false);
@@ -56,19 +53,19 @@ export function AppLockToggle() {
 
   function handleSavePin() {
     if (pinInput.length < 4) {
-      setPinError('Mã PIN phải có ít nhất 4 số');
+      setPinError("Mã PIN phải có ít nhất 4 số");
       return;
     }
     if (pinInput !== pinConfirm) {
-      setPinError('Mã PIN không khớp');
+      setPinError("Mã PIN không khớp");
       return;
     }
     void setPin(pinInput).then(() => {
       setAppLockEnabled(true);
       setEnabled(true);
       setShowPinSetup(false);
-      setPinInput('');
-      setPinConfirm('');
+      setPinInput("");
+      setPinConfirm("");
       setPinError(null);
     });
   }
@@ -81,7 +78,7 @@ export function AppLockToggle() {
           <div>
             <h2 className="font-semibold text-white">Khoá ứng dụng</h2>
             <p className="text-xs text-slate-400">
-              {bioAvailable ? 'Face ID / Vân tay + PIN' : 'Mã PIN'}
+              {bioAvailable ? "Face ID / Vân tay + PIN" : "Mã PIN"}
             </p>
           </div>
         </div>
@@ -92,12 +89,12 @@ export function AppLockToggle() {
           onClick={enabled ? handleDisable : handleEnable}
           disabled={busy}
           className={`relative h-7 w-12 rounded-full transition ${
-            enabled ? 'bg-sky-400' : 'bg-white/20'
+            enabled && !showPinSetup ? "bg-sky-400" : "bg-slate-600"
           }`}
         >
           <span
             className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-              enabled ? 'translate-x-5' : 'translate-x-0.5'
+              enabled && !showPinSetup ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
         </button>
@@ -112,7 +109,9 @@ export function AppLockToggle() {
               inputMode="numeric"
               maxLength={6}
               value={pinInput}
-              onChange={e => setPinInput(e.target.value.replace(/[^\d]/g, ''))}
+              onChange={(e) =>
+                setPinInput(e.target.value.replace(/[^\d]/g, ""))
+              }
               placeholder="••••"
               aria-label="Mã PIN"
             />
@@ -123,14 +122,14 @@ export function AppLockToggle() {
               inputMode="numeric"
               maxLength={6}
               value={pinConfirm}
-              onChange={e => setPinConfirm(e.target.value.replace(/[^\d]/g, ''))}
+              onChange={(e) =>
+                setPinConfirm(e.target.value.replace(/[^\d]/g, ""))
+              }
               placeholder="••••"
               aria-label="Xác nhận PIN"
             />
           </DarkField>
-          {pinError && (
-            <p className="text-xs text-rose-300">{pinError}</p>
-          )}
+          {pinError && <p className="text-xs text-rose-300">{pinError}</p>}
           <button
             type="button"
             onClick={handleSavePin}

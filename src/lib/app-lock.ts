@@ -1,6 +1,7 @@
 const LOCK_ENABLED_KEY = "spendly_lock_enabled";
 const BIOMETRIC_CREDENTIAL_KEY = "spendly_biometric_credential";
 const PIN_HASH_KEY = "spendly_pin_hash";
+const PIN_LENGTH_KEY = "spendly_pin_length";
 
 export function isAppLockEnabled(): boolean {
   return localStorage.getItem(LOCK_ENABLED_KEY) === "true" && hasPinSet();
@@ -17,6 +18,11 @@ export function hasPinSet(): boolean {
 export async function setPin(pin: string): Promise<void> {
   const hash = await hashPin(pin);
   localStorage.setItem(PIN_HASH_KEY, hash);
+  localStorage.setItem(PIN_LENGTH_KEY, String(pin.length));
+}
+
+export function getPinLength(): number {
+  return Number(localStorage.getItem(PIN_LENGTH_KEY)) || 4;
 }
 
 export async function verifyPin(pin: string): Promise<boolean> {
@@ -28,6 +34,7 @@ export async function verifyPin(pin: string): Promise<boolean> {
 
 export function clearPin(): void {
   localStorage.removeItem(PIN_HASH_KEY);
+  localStorage.removeItem(PIN_LENGTH_KEY);
 }
 
 export async function isBiometricAvailable(): Promise<boolean> {

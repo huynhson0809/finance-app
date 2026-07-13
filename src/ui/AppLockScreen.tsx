@@ -6,6 +6,7 @@ import {
   hasBiometricCredential,
   verifyBiometric,
   verifyPin,
+  getPinLength,
 } from "../lib/app-lock";
 
 const MAX_BIOMETRIC_ATTEMPTS = 3;
@@ -71,12 +72,13 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
     setVerifying(false);
   }
 
+  const pinLength = getPinLength();
+
   function handlePinKey(digit: string) {
-    if (pin.length >= 6) return;
+    if (pin.length >= pinLength) return;
     const next = pin + digit;
     setPin(next);
-    if (next.length >= 4) {
-      // Auto-submit when 4+ digits
+    if (next.length === pinLength) {
       setTimeout(() => {
         void (async () => {
           setVerifying(true);
@@ -131,7 +133,7 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
       {error && <p className="text-sm text-rose-300">{error}</p>}
 
       <div className="flex gap-3">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
+        {Array.from({ length: pinLength }, (_, i) => (
           <div
             key={i}
             className={`h-3.5 w-3.5 rounded-full ${
