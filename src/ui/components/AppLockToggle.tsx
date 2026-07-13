@@ -89,12 +89,12 @@ export function AppLockToggle() {
           onClick={enabled ? handleDisable : handleEnable}
           disabled={busy}
           className={`relative h-7 w-12 rounded-full transition ${
-            enabled && !showPinSetup ? "bg-sky-400" : "bg-slate-600"
+            enabled ? "bg-sky-400" : "bg-slate-600"
           }`}
         >
           <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-              enabled && !showPinSetup ? "translate-x-5" : "translate-x-0.5"
+            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${
+              enabled ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
         </button>
