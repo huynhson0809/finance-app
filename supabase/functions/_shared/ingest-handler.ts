@@ -64,12 +64,38 @@ type IngestTransactionRpcData =
       asset_event_id: string | null;
     };
 
+interface IngestLogRow {
+  user_id: string;
+  bank: string | null;
+  type: string | null;
+  amount: string | null;
+  content: string | null;
+  status: 'success' | 'duplicate' | 'error';
+  error_code: string | null;
+  error_detail: string | null;
+  raw_payload: unknown;
+}
+
+interface IngestLogInsertBuilder {
+  insert(row: IngestLogRow): PromiseLike<{ error: unknown | null }>;
+}
+
+interface LookupUserRpcResult {
+  data: string | null;
+  error: unknown | null;
+}
+
 export interface IngestSupabaseClient {
   from(table: 'user_categories'): UserCategoriesBuilder<UserCategoryRow>;
+  from(table: 'ingest_logs'): IngestLogInsertBuilder;
   rpc(
     functionName: 'ingest_bank_email_transaction',
     args: IngestTransactionRpcArgs,
   ): PromiseLike<IngestTransactionRpcResult>;
+  rpc(
+    functionName: 'lookup_user_by_ingest_secret',
+    args: { p_secret: string },
+  ): PromiseLike<LookupUserRpcResult>;
 }
 
 export interface IngestHandlerDependencies {
@@ -97,6 +123,33 @@ function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 }
 
+async function writeLog(
+  supabase: IngestSupabaseClient | null,
+  userId: string | null,
+  rawBody: unknown,
+  status: IngestLogRow['status'],
+  errorCode: string | null,
+  errorDetail: string | null,
+): Promise<void> {
+  if (!supabase || !userId) return;
+  const payload = typeof rawBody === 'object' && rawBody !== null ? rawBody as Record<string, unknown> : {};
+  try {
+    await supabase.from('ingest_logs').insert({
+      user_id: userId,
+      bank: typeof payload.bank === 'string' ? payload.bank : null,
+      type: typeof payload.type === 'string' ? payload.type : null,
+      amount: typeof payload.amount === 'string' ? payload.amount : (payload.amount != null ? String(payload.amount) : null),
+      content: typeof payload.content === 'string' ? payload.content?.slice(0, 200) : null,
+      status,
+      error_code: errorCode,
+      error_detail: errorDetail,
+      raw_payload: rawBody,
+    });
+  } catch {
+    // logging failure should not break the ingest response
+  }
+}
+
 export function createIngestTransactionHandler(
   dependencies: IngestHandlerDependencies,
 ): (req: Request) => Promise<Response> {
@@ -109,13 +162,35 @@ export function createIngestTransactionHandler(
       return json({ ok: false, error: 'method_not_allowed' }, 405);
     }
 
-    const expectedSecret = dependencies.getEnv('INGEST_SECRET');
-    if (!expectedSecret?.trim()) {
+    const providedSecret = req.headers.get('x-ingest-secret');
+    if (!providedSecret?.trim()) {
+      return json({ ok: false, error: 'unauthorized' }, 401);
+    }
+
+    const supabaseUrl = dependencies.getEnv('SUPABASE_URL');
+    const serviceRoleKey = dependencies.getEnv('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) {
       return json({ ok: false, error: 'missing_server_config' }, 500);
     }
 
-    const providedSecret = req.headers.get('x-ingest-secret');
-    if (providedSecret !== expectedSecret) {
+    const supabase = dependencies.createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    // Look up user by ingest secret
+    let defaultUserId: string | null = null;
+    try {
+      const lookupResult = await supabase.rpc('lookup_user_by_ingest_secret', {
+        p_secret: providedSecret,
+      });
+      if (lookupResult.data) {
+        defaultUserId = lookupResult.data;
+      }
+    } catch {
+      // lookup failed
+    }
+
+    if (!defaultUserId) {
       return json({ ok: false, error: 'unauthorized' }, 401);
     }
 
@@ -128,19 +203,9 @@ export function createIngestTransactionHandler(
 
     const normalized = normalizeIngestPayload(body);
     if (!normalized.ok) {
+      await writeLog(supabase, defaultUserId, body, 'error', normalized.error, null);
       return json({ ok: false, error: normalized.error }, 400);
     }
-
-    const supabaseUrl = dependencies.getEnv('SUPABASE_URL');
-    const serviceRoleKey = dependencies.getEnv('SUPABASE_SERVICE_ROLE_KEY');
-    const defaultUserId = dependencies.getEnv('DEFAULT_USER_ID');
-    if (!supabaseUrl || !serviceRoleKey || !defaultUserId) {
-      return json({ ok: false, error: 'missing_server_config' }, 500);
-    }
-
-    const supabase = dependencies.createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
 
     const categories = await categoryOptionsForDefaultUser(
       supabase,
@@ -180,22 +245,27 @@ export function createIngestTransactionHandler(
       });
     } catch (error) {
       console.error('ingest transaction RPC failed', error);
+      await writeLog(supabase, defaultUserId, body, 'error', 'rpc_exception', String(error));
       return json({ ok: false, error: 'insert_failed' }, 500);
     }
 
     if (rpcResult.error) {
       console.error('ingest transaction RPC failed', rpcResult.error);
+      await writeLog(supabase, defaultUserId, body, 'error', 'rpc_error', JSON.stringify(rpcResult.error));
       return json({ ok: false, error: 'insert_failed' }, 500);
     }
     if (!isIngestTransactionRpcData(rpcResult.data)) {
       console.error('invalid ingest transaction RPC response', rpcResult.data);
+      await writeLog(supabase, defaultUserId, body, 'error', 'invalid_rpc_response', JSON.stringify(rpcResult.data));
       return json({ ok: false, error: 'insert_failed' }, 500);
     }
 
     if (rpcResult.data.status === 'duplicate') {
+      await writeLog(supabase, defaultUserId, body, 'duplicate', null, null);
       return json({ ok: true, status: 'duplicate' }, 200);
     }
 
+    await writeLog(supabase, defaultUserId, body, 'success', null, null);
     return json({
       ok: true,
       status: 'inserted',

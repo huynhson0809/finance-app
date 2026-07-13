@@ -1,4 +1,4 @@
-export type DebtDirection = 'lent' | 'borrowed';
+export type DebtDirection = "lent" | "borrowed";
 
 export interface Debt {
   id: string;

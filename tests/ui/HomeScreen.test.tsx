@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
-import { initI18n, i18n } from '../../src/i18n';
-import { upsertBudget } from '../../src/db/budgets';
-import { monthOfVietnamDate, todayVietnamDate } from '../../src/lib/date';
-import { __resetDBForTests } from '../../src/db';
-import type { Transaction, UserCategory } from '../../src/types';
-import type { AssetAccount, AssetSummary } from '../../src/assets/types';
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import { initI18n, i18n } from "../../src/i18n";
+import { upsertBudget } from "../../src/db/budgets";
+import { monthOfVietnamDate, todayVietnamDate } from "../../src/lib/date";
+import { __resetDBForTests } from "../../src/db";
+import type { Transaction, UserCategory } from "../../src/types";
+import type { AssetAccount, AssetSummary } from "../../src/assets/types";
 
 const cloudHooks = vi.hoisted(() => ({
   recentReload: vi.fn(),
@@ -52,7 +52,7 @@ const assetHooks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../src/hooks/useCloudTransactions', () => ({
+vi.mock("../../src/hooks/useCloudTransactions", () => ({
   useRecentCloudTransactions: vi.fn(() => ({
     ...cloudHooks.recentState,
     reload: cloudHooks.recentReload,
@@ -63,20 +63,22 @@ vi.mock('../../src/hooks/useCloudTransactions', () => ({
   })),
 }));
 
-vi.mock('../../src/hooks/useCustomCategories', () => ({
+vi.mock("../../src/hooks/useCustomCategories", () => ({
   useCustomCategories: customCategoryHooks.useCustomCategories,
 }));
 
-vi.mock('../../src/hooks/useAssets', () => ({
+vi.mock("../../src/hooks/useAssets", () => ({
   useAssetSummary: assetHooks.useAssetSummary,
 }));
 
-import { HomeScreen } from '../../src/ui/HomeScreen';
+import { HomeScreen } from "../../src/ui/HomeScreen";
 
-beforeAll(async () => { await initI18n(); });
+beforeAll(async () => {
+  await initI18n();
+});
 
 beforeEach(async () => {
-  await i18n.changeLanguage('en');
+  await i18n.changeLanguage("en");
   cloudHooks.recentReload.mockReset();
   cloudHooks.recentReload.mockResolvedValue(undefined);
   cloudHooks.monthReload.mockReset();
@@ -95,14 +97,16 @@ beforeEach(async () => {
   customCategoryHooks.state.addCategory.mockReset();
   customCategoryHooks.state.renameCategory.mockReset();
   customCategoryHooks.state.deleteCategory.mockReset();
-  customCategoryHooks.useCustomCategories.mockImplementation(() => customCategoryHooks.state);
+  customCategoryHooks.useCustomCategories.mockImplementation(
+    () => customCategoryHooks.state,
+  );
   assetHooks.useAssetSummary.mockReset();
   assetHooks.state.data = emptyAssetSummary();
   assetHooks.state.isLoading = false;
   assetHooks.state.error = null;
   assetHooks.useAssetSummary.mockImplementation(() => assetHooks.state);
-  await new Promise<void>(resolve => {
-    const req = indexedDB.deleteDatabase('finance-app');
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase("finance-app");
     req.onsuccess = req.onerror = req.onblocked = () => resolve();
   });
   await __resetDBForTests();
@@ -112,11 +116,11 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
   return {
     id: crypto.randomUUID(),
     amount: 10_000,
-    currency: 'VND',
+    currency: "VND",
     occurredAt: vietnamNoonISO(todayVietnamDate()),
-    category: 'others',
-    direction: 'expense',
-    source: 'bank-email',
+    category: "others",
+    direction: "expense",
+    source: "bank-email",
     ...overrides,
   };
 }
@@ -124,7 +128,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
 function anotherDayThisMonth(): string {
   const today = todayVietnamDate();
   const day = Number(today.slice(8, 10));
-  const otherDay = String(day === 1 ? 2 : day - 1).padStart(2, '0');
+  const otherDay = String(day === 1 ? 2 : day - 1).padStart(2, "0");
   return vietnamNoonISO(`${today.slice(0, 8)}${otherDay}`);
 }
 
@@ -136,7 +140,11 @@ function vietnamNoonISO(date: string): string {
   return new Date(`${date}T12:00:00+07:00`).toISOString();
 }
 
-function expectPanelMetric(panel: HTMLElement, label: string | RegExp, value: RegExp) {
+function expectPanelMetric(
+  panel: HTMLElement,
+  label: string | RegExp,
+  value: RegExp,
+) {
   const labelNode = within(panel).getByText(label);
   expect(labelNode.parentElement).toHaveTextContent(value);
 }
@@ -153,15 +161,15 @@ function emptyAssetSummary(): AssetSummary {
 
 function assetAccount(overrides: Partial<AssetAccount> = {}): AssetAccount {
   return {
-    id: 'asset-cash',
-    kind: 'cash',
-    name: 'Cash',
-    currency: 'VND',
+    id: "asset-cash",
+    kind: "cash",
+    name: "Cash",
+    currency: "VND",
     balance: 1_000_000,
     includeInTotal: true,
     sortOrder: 0,
-    createdAt: '2026-07-11T00:00:00.000Z',
-    updatedAt: '2026-07-11T00:00:00.000Z',
+    createdAt: "2026-07-11T00:00:00.000Z",
+    updatedAt: "2026-07-11T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -171,15 +179,19 @@ function LocationProbe() {
   return <div data-testid="current-path">{location.pathname}</div>;
 }
 
-describe('HomeScreen', () => {
-  it('renders the empty asset summary state', () => {
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+describe("HomeScreen", () => {
+  it("renders the empty asset summary state", () => {
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     expect(assetHooks.useAssetSummary).toHaveBeenCalled();
-    expect(screen.getByText('Chưa thiết lập tài sản')).toBeInTheDocument();
+    expect(screen.getByText("No assets set up yet")).toBeInTheDocument();
   });
 
-  it('renders non-empty total assets', () => {
+  it("renders non-empty total assets", () => {
     assetHooks.state.data = {
       totalAssetsVnd: 12_500_000,
       liquidVnd: 4_000_000,
@@ -188,57 +200,67 @@ describe('HomeScreen', () => {
       byAccount: [{ account: assetAccount(), valueVnd: 12_500_000 }],
     };
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByText(/12[.,]500[.,]000/)).toBeInTheDocument();
   });
 
-  it('navigates to assets when clicking the asset summary', async () => {
+  it("navigates to assets when clicking the asset summary", async () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={["/"]}>
         <HomeScreen />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /tài sản/i }));
+    await user.click(screen.getByRole("link", { name: /assets/i }));
 
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/assets');
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/assets");
   });
 
-  it('shows monthly totals, budget status, today chips, and recent cloud rows', async () => {
+  it("shows monthly totals, budget status, today chips, and recent cloud rows", async () => {
     await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.recentState.data = [
-      tx({ id: 'recent-1', amount: 10_000, category: 'food-drinks' }),
-      tx({ id: 'recent-2', amount: 20_000, category: 'transportation' }),
-      tx({ id: 'recent-3', amount: 30_000, category: 'shopping' }),
+      tx({ id: "recent-1", amount: 10_000, category: "food-drinks" }),
+      tx({ id: "recent-2", amount: 20_000, category: "transportation" }),
+      tx({ id: "recent-3", amount: 30_000, category: "shopping" }),
     ];
     cloudHooks.monthState.data = [
-      tx({ id: 'month-1', amount: 1_000_000, category: 'food-drinks' }),
-      tx({ id: 'month-2', amount: 500_000, category: 'transportation' }),
+      tx({ id: "month-1", amount: 1_000_000, category: "food-drinks" }),
+      tx({ id: "month-2", amount: 500_000, category: "transportation" }),
       tx({
-        id: 'month-old',
+        id: "month-old",
         amount: 500_000,
         occurredAt: anotherDayThisMonth(),
-        category: 'shopping',
+        category: "shopping",
       }),
       tx({
-        id: 'month-income',
+        id: "month-income",
         amount: 4_500_000,
-        direction: 'income',
-        category: 'salary',
+        direction: "income",
+        category: "salary",
         occurredAt: anotherDayThisMonth(),
       }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeInTheDocument();
     });
 
-    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    const monthlyOverview = screen.getByRole("region", {
+      name: /monthly overview/i,
+    });
     expectPanelMetric(monthlyOverview, /monthly income/i, /4[.,]500[.,]000/);
     expectPanelMetric(monthlyOverview, /monthly expense/i, /2[.,]000[.,]000/);
     expectPanelMetric(monthlyOverview, /net this month/i, /2[.,]500[.,]000/);
@@ -246,208 +268,342 @@ describe('HomeScreen', () => {
     expectPanelMetric(monthlyOverview, /today's income/i, /0/);
     expect(screen.getByText(/3[.,]000[.,]000/)).toBeInTheDocument();
 
-    const rows = screen.getAllByRole('listitem');
+    const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-1');
-    expect(within(rows[2]).getByRole('link')).toHaveAttribute('href', '/transactions/recent-3');
+    expect(within(rows[0]).getByRole("link")).toHaveAttribute(
+      "href",
+      "/transactions/recent-1",
+    );
+    expect(within(rows[2]).getByRole("link")).toHaveAttribute(
+      "href",
+      "/transactions/recent-3",
+    );
   });
 
-  it('shows budget bar with total budget', async () => {
+  it("shows budget bar with total budget", async () => {
     await upsertBudget(currentVietnamMonth(), 5_000_000);
     cloudHooks.monthState.data = [
-      tx({ id: 'month-expense', amount: 2_000_000, category: 'food-drinks' }),
+      tx({ id: "month-expense", amount: 2_000_000, category: "food-drinks" }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeInTheDocument();
     });
 
-    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(monthlyOverview).toHaveTextContent(/2[.,]000[.,]000\s*\/\s*[^0-9]*5[.,]000[.,]000/);
+    const monthlyOverview = screen.getByRole("region", {
+      name: /monthly overview/i,
+    });
+    expect(monthlyOverview).toHaveTextContent(
+      /2[.,]000[.,]000\s*\/\s*[^0-9]*5[.,]000[.,]000/,
+    );
   });
 
-  it('uses all monthly expenses including custom categories for remaining budget', async () => {
+  it("uses all monthly expenses including custom categories for remaining budget", async () => {
     await upsertBudget(currentVietnamMonth(), 1_000_000);
     cloudHooks.monthState.data = [
-      tx({ id: 'custom-month-expense', amount: 332_000, category: 'custom-expense-date-night' }),
-      tx({ id: 'built-in-month-expense', amount: 163_000, category: 'healthcare' }),
       tx({
-        id: 'income-does-not-count',
+        id: "custom-month-expense",
+        amount: 332_000,
+        category: "custom-expense-date-night",
+      }),
+      tx({
+        id: "built-in-month-expense",
+        amount: 163_000,
+        category: "healthcare",
+      }),
+      tx({
+        id: "income-does-not-count",
         amount: 50_000,
-        direction: 'income',
-        category: 'salary',
+        direction: "income",
+        category: "salary",
       }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByRole("progressbar")).toBeInTheDocument();
     });
 
-    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(monthlyOverview).toHaveTextContent(/495[.,]000\s*\/\s*[^0-9]*1[.,]000[.,]000/);
-    expect(monthlyOverview).toHaveTextContent(/remaining this month:\s*[^0-9]*505[.,]000/i);
+    const monthlyOverview = screen.getByRole("region", {
+      name: /monthly overview/i,
+    });
+    expect(monthlyOverview).toHaveTextContent(
+      /495[.,]000\s*\/\s*[^0-9]*1[.,]000[.,]000/,
+    );
+    expect(monthlyOverview).toHaveTextContent(
+      /remaining this month:\s*[^0-9]*505[.,]000/i,
+    );
   });
 
-  it('shows today expense and today income separately', () => {
+  it("shows today expense and today income separately", () => {
     cloudHooks.monthState.data = [
-      tx({ id: 'expense-today', amount: 25_000, direction: 'expense', category: 'food-drinks' }),
-      tx({ id: 'income-today', amount: 100_000, direction: 'income', category: 'salary' }),
       tx({
-        id: 'expense-other-day',
+        id: "expense-today",
+        amount: 25_000,
+        direction: "expense",
+        category: "food-drinks",
+      }),
+      tx({
+        id: "income-today",
+        amount: 100_000,
+        direction: "income",
+        category: "salary",
+      }),
+      tx({
+        id: "expense-other-day",
         amount: 50_000,
-        direction: 'expense',
-        category: 'shopping',
+        direction: "expense",
+        category: "shopping",
         occurredAt: anotherDayThisMonth(),
       }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
+    const monthlyOverview = screen.getByRole("region", {
+      name: /monthly overview/i,
+    });
     expectPanelMetric(monthlyOverview, "Today's spend", /25[.,]000/);
     expectPanelMetric(monthlyOverview, "Today's income", /100[.,]000/);
   });
 
-  it('renders recent transaction rows as links to detail screens', () => {
+  it("renders recent transaction rows as links to detail screens", () => {
     cloudHooks.recentState.data = [
-      tx({ id: 'email-1', merchant: 'Grab* BXTTDKA62JSE', amount: 38_560, category: 'transportation' }),
-      tx({ id: 'income-1', amount: 6_666, direction: 'income', category: 'temporary-income', note: 'ACB Ghi có' }),
+      tx({
+        id: "email-1",
+        merchant: "Grab* BXTTDKA62JSE",
+        amount: 38_560,
+        category: "transportation",
+      }),
+      tx({
+        id: "income-1",
+        amount: 6_666,
+        direction: "income",
+        category: "temporary-income",
+        note: "ACB Ghi có",
+      }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getByRole('link', { name: /Grab.*38/i })).toHaveAttribute('href', '/transactions/email-1');
-    expect(screen.getByRole('link', { name: /ACB Ghi có.*6/i })).toHaveAttribute('href', '/transactions/income-1');
-    expect(screen.queryByRole('combobox', { name: /Transaction category/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Grab.*38/i })).toHaveAttribute(
+      "href",
+      "/transactions/email-1",
+    );
+    expect(
+      screen.getByRole("link", { name: /ACB Ghi có.*6/i }),
+    ).toHaveAttribute("href", "/transactions/income-1");
+    expect(
+      screen.queryByRole("combobox", { name: /Transaction category/ }),
+    ).not.toBeInTheDocument();
   });
 
-  it('uses saved custom category names in recent transaction rows', () => {
-    customCategoryHooks.state.categories = [{
-      id: 'custom-expense-pet-care',
-      direction: 'expense',
-      name: 'Pet Care',
-      createdAt: '2026-07-01T00:00:00.000Z',
-      updatedAt: '2026-07-01T00:00:00.000Z',
-    }];
+  it("uses saved custom category names in recent transaction rows", () => {
+    customCategoryHooks.state.categories = [
+      {
+        id: "custom-expense-pet-care",
+        direction: "expense",
+        name: "Pet Care",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      },
+    ];
     cloudHooks.recentState.data = [
-      tx({ id: 'custom-pet-care', category: 'custom-expense-pet-care' }),
+      tx({ id: "custom-pet-care", category: "custom-expense-pet-care" }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     expect(customCategoryHooks.useCustomCategories).toHaveBeenCalled();
-    expect(screen.getByRole('link', { name: /Pet Care/i })).toHaveAttribute('href', '/transactions/custom-pet-care');
+    expect(screen.getByRole("link", { name: /Pet Care/i })).toHaveAttribute(
+      "href",
+      "/transactions/custom-pet-care",
+    );
   });
 
-  it('shows noBudget message when no budget is set', async () => {
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
-    expect(await screen.findByText('No budget set')).toBeInTheDocument();
+  it("shows noBudget message when no budget is set", async () => {
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("No budget set")).toBeInTheDocument();
   });
 
-  it('keeps manual and image add actions visible on the cloud home path', async () => {
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+  it("keeps manual and image add actions visible on the cloud home path", async () => {
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(await screen.findByRole('link', { name: 'Add' })).toHaveAttribute('href', '/add');
-    expect(screen.getByLabelText('Add by image')).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Add" })).toHaveAttribute(
+      "href",
+      "/add",
+    );
+    expect(screen.getByLabelText("Add by image")).toBeInTheDocument();
   });
 
-  it('keeps the image add action available from the dashboard', () => {
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+  it("keeps the image add action available from the dashboard", () => {
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByLabelText(/image|hình ảnh|ảnh/i)).toBeInTheDocument();
   });
 
-  it('does not surface local backup reminders in the cloud home path', async () => {
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+  it("does not surface local backup reminders in the cloud home path", async () => {
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
-      expect(screen.getByText('No budget set')).toBeInTheDocument();
+      expect(screen.getByText("No budget set")).toBeInTheDocument();
     });
     expect(screen.queryByText(/backup|sao lưu/i)).not.toBeInTheDocument();
   });
 
-  it('renders BudgetAlert banner when cloud monthly rows exceed the budget', async () => {
+  it("renders BudgetAlert banner when cloud monthly rows exceed the budget", async () => {
     await upsertBudget(currentVietnamMonth(), 1000);
     cloudHooks.monthState.data = [
-      tx({ amount: 1500, category: 'food-drinks' }),
+      tx({ amount: 1500, category: "food-drinks" }),
     ];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    await waitFor(() => screen.getByRole('alert'));
-    expect(screen.getByRole('alert')).toHaveTextContent('Total spending exceeds the monthly budget');
+    await waitFor(() => screen.getByRole("alert"));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Total spending exceeds the monthly budget",
+    );
   });
 
-  it('shows cloud loading text for the recent list', () => {
+  it("shows cloud loading text for the recent list", () => {
     cloudHooks.recentState.loading = true;
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getAllByText('Loading transactions...').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Loading transactions...").length,
+    ).toBeGreaterThan(0);
   });
 
-  it('shows monthly loading instead of zeroed budget summary while month rows load', async () => {
+  it("shows monthly loading instead of zeroed budget summary while month rows load", async () => {
     await upsertBudget(currentVietnamMonth(), 1000);
     cloudHooks.monthState.loading = true;
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getAllByText('Loading transactions...').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText("Loading transactions...").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it('shows monthly errors without zeroed budget summary', async () => {
+  it("shows monthly errors without zeroed budget summary", async () => {
     await upsertBudget(currentVietnamMonth(), 1000);
-    cloudHooks.monthState.error = 'Month fetch failed';
+    cloudHooks.monthState.error = "Month fetch failed";
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Month fetch failed');
-    const monthlyOverview = screen.getByRole('region', { name: /monthly overview/i });
-    expect(within(monthlyOverview).getAllByText('-')).toHaveLength(5);
+    expect(screen.getByRole("alert")).toHaveTextContent("Month fetch failed");
+    const monthlyOverview = screen.getByRole("region", {
+      name: /monthly overview/i,
+    });
+    expect(within(monthlyOverview).getAllByText("-")).toHaveLength(5);
     expect(within(monthlyOverview).queryByText(/0/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
-  it('shows cloud fetch errors and retries both cloud hooks', async () => {
+  it("shows cloud fetch errors and retries both cloud hooks", async () => {
     const user = userEvent.setup();
-    cloudHooks.recentState.error = 'Recent fetch failed';
-    cloudHooks.monthState.error = 'Month fetch failed';
+    cloudHooks.recentState.error = "Recent fetch failed";
+    cloudHooks.monthState.error = "Month fetch failed";
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Recent fetch failed');
-    expect(alert).toHaveTextContent('Month fetch failed');
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Recent fetch failed");
+    expect(alert).toHaveTextContent("Month fetch failed");
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(cloudHooks.recentReload).toHaveBeenCalledTimes(1);
     expect(cloudHooks.monthReload).toHaveBeenCalledTimes(1);
   });
 
-  it('does not show an empty recent list message when recent loading fails', () => {
-    cloudHooks.recentState.error = 'Recent fetch failed';
+  it("does not show an empty recent list message when recent loading fails", () => {
+    cloudHooks.recentState.error = "Recent fetch failed";
     cloudHooks.recentState.data = [];
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Recent fetch failed');
-    expect(screen.queryByText('No transactions yet')).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Recent fetch failed");
+    expect(screen.queryByText("No transactions yet")).not.toBeInTheDocument();
   });
 
-  it('deduplicates identical cloud fetch errors', () => {
-    cloudHooks.recentState.error = 'Supabase is not configured';
-    cloudHooks.monthState.error = 'Supabase is not configured';
+  it("deduplicates identical cloud fetch errors", () => {
+    cloudHooks.recentState.error = "Supabase is not configured";
+    cloudHooks.monthState.error = "Supabase is not configured";
 
-    render(<MemoryRouter><HomeScreen /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <HomeScreen />
+      </MemoryRouter>,
+    );
 
-    const alertText = screen.getByRole('alert').textContent ?? '';
+    const alertText = screen.getByRole("alert").textContent ?? "";
     const matches = alertText.match(/Supabase is not configured/g) ?? [];
     expect(matches).toHaveLength(1);
   });

@@ -12,7 +12,14 @@
     "budgetUsed": "Monthly budget used",
     "lastTransactions": "Recent transactions",
     "noBudget": "No budget set",
-    "empty": "No transactions yet"
+    "empty": "No transactions yet",
+    "assets": "Assets",
+    "assetsLoading": "Loading...",
+    "assetsError": "Could not load assets",
+    "liquid": "Liquid",
+    "savings": "Savings",
+    "liability": "Debt",
+    "noAssets": "No assets set up yet"
   },
   "transactions": {
     "categoryLabel": "Transaction category",

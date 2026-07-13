@@ -342,12 +342,12 @@ export function TransactionEditScreen() {
 
         <DarkField label={amountLabel}>
           <input
-            type="number"
             inputMode="numeric"
-            min="0"
             aria-label={amountLabel}
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            value={amount ? amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : ""}
+            onChange={(event) =>
+              setAmount(event.target.value.replace(/[^\d]/g, ""))
+            }
           />
         </DarkField>
       </GlassPanel>

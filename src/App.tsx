@@ -1,29 +1,40 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Layout } from './ui/Layout';
-import { HomeScreen } from './ui/HomeScreen';
-import { AddScreen } from './ui/AddScreen';
-import { SettingsScreen } from './ui/SettingsScreen';
-import { ConfirmScreen } from './ui/ConfirmScreen';
-import { AuthGate } from './ui/AuthGate';
-import { TransactionEditScreen } from './ui/TransactionEditScreen';
-import { CategoryManagerScreen } from './ui/CategoryManagerScreen';
-import { SettingsReportScreen } from './ui/SettingsReportScreen';
+import { lazy, Suspense } from "react";
+import { Routes, Route } from "react-router-dom";
+import { Layout } from "./ui/Layout";
+import { HomeScreen } from "./ui/HomeScreen";
+import { AddScreen } from "./ui/AddScreen";
+import { SettingsScreen } from "./ui/SettingsScreen";
+import { ConfirmScreen } from "./ui/ConfirmScreen";
+import { AuthGate } from "./ui/AuthGate";
+import { AppLockScreen, useAppLock } from "./ui/AppLockScreen";
+import { TransactionEditScreen } from "./ui/TransactionEditScreen";
+import { CategoryManagerScreen } from "./ui/CategoryManagerScreen";
+import { SettingsReportScreen } from "./ui/SettingsReportScreen";
 
 const CalendarScreen = lazy(() =>
-  import('./ui/CalendarScreen').then(m => ({ default: m.CalendarScreen })),
+  import("./ui/CalendarScreen").then((m) => ({ default: m.CalendarScreen })),
 );
 
 const ReportsScreen = lazy(() =>
-  import('./ui/ReportsScreen').then(m => ({ default: m.ReportsScreen })),
+  import("./ui/ReportsScreen").then((m) => ({ default: m.ReportsScreen })),
 );
 
 const AssetManagementScreen = lazy(() =>
-  import('./ui/AssetManagementScreen').then(m => ({ default: m.AssetManagementScreen })),
+  import("./ui/AssetManagementScreen").then((m) => ({
+    default: m.AssetManagementScreen,
+  })),
 );
 
 const DebtManagementScreen = lazy(() =>
-  import('./ui/DebtManagementScreen').then(m => ({ default: m.DebtManagementScreen })),
+  import("./ui/DebtManagementScreen").then((m) => ({
+    default: m.DebtManagementScreen,
+  })),
+);
+
+const IngestLogsScreen = lazy(() =>
+  import("./ui/IngestLogsScreen").then((m) => ({
+    default: m.IngestLogsScreen,
+  })),
 );
 
 function RouteFallback() {
@@ -31,6 +42,12 @@ function RouteFallback() {
 }
 
 export default function App() {
+  const { locked, unlock } = useAppLock();
+
+  if (locked) {
+    return <AppLockScreen onUnlock={unlock} />;
+  }
+
   return (
     <AuthGate>
       <Routes>
@@ -50,6 +67,14 @@ export default function App() {
             element={
               <Suspense fallback={<RouteFallback />}>
                 <DebtManagementScreen />
+              </Suspense>
+            }
+          />
+          <Route
+            path="ingest-logs"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <IngestLogsScreen />
               </Suspense>
             }
           />
@@ -73,7 +98,10 @@ export default function App() {
             }
           />
           <Route path="settings" element={<SettingsScreen />} />
-          <Route path="settings/reports/:mode" element={<SettingsReportScreen />} />
+          <Route
+            path="settings/reports/:mode"
+            element={<SettingsReportScreen />}
+          />
         </Route>
       </Routes>
     </AuthGate>

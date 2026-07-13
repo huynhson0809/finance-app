@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { AssetSummary } from '../../assets/types';
 import { formatVND } from '../../lib/money';
 
@@ -16,35 +17,36 @@ export function AssetSummaryCard({
   error = null,
   locale,
 }: AssetSummaryCardProps) {
+  const { t } = useTranslation();
   const hasAssets = (summary?.byAccount.length ?? 0) > 0;
   const totalAssets = summary?.totalAssetsVnd ?? 0;
 
   return (
     <Link
       to="/assets"
-      aria-label="Tài sản"
+      aria-label={t('home.assets')}
       className="block rounded-lg border border-white/10 bg-zinc-900 px-3 py-3 text-zinc-50 shadow-[0_14px_30px_rgba(0,0,0,0.28)] transition hover:border-white/20 hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-normal text-zinc-400">Tài sản</div>
+          <div className="text-xs font-semibold uppercase tracking-normal text-zinc-400">{t('home.assets')}</div>
           <div className="mt-1 truncate text-2xl font-bold text-zinc-50">{formatVND(totalAssets, locale)}</div>
         </div>
         <ChevronRight aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-zinc-500" />
       </div>
 
       {loading ? (
-        <div className="mt-3 text-sm text-zinc-400">Đang tải...</div>
+        <div className="mt-3 text-sm text-zinc-400">{t('home.assetsLoading')}</div>
       ) : error ? (
-        <div className="mt-3 text-sm text-rose-200">Không thể tải tài sản</div>
+        <div className="mt-3 text-sm text-rose-200">{t('home.assetsError')}</div>
       ) : hasAssets ? (
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <AssetChip label="Thanh khoản" value={formatVND(summary?.liquidVnd ?? 0, locale)} tone="liquid" />
-          <AssetChip label="Tiết kiệm" value={formatVND(summary?.savingsVnd ?? 0, locale)} tone="savings" />
-          <AssetChip label="Nợ" value={formatLiability(summary?.liabilityVnd ?? 0, locale)} tone="liability" />
+          <AssetChip label={t('home.liquid')} value={formatVND(summary?.liquidVnd ?? 0, locale)} tone="liquid" />
+          <AssetChip label={t('home.savings')} value={formatVND(summary?.savingsVnd ?? 0, locale)} tone="savings" />
+          <AssetChip label={t('home.liability')} value={formatLiability(summary?.liabilityVnd ?? 0, locale)} tone="liability" />
         </div>
       ) : (
-        <div className="mt-3 text-sm font-medium text-zinc-400">Chưa thiết lập tài sản</div>
+        <div className="mt-3 text-sm font-medium text-zinc-400">{t('home.noAssets')}</div>
       )}
     </Link>
   );

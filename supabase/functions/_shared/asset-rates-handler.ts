@@ -228,7 +228,7 @@ export function createFetchAssetRatesHandler(
     } catch {
       return json({ ok: false, error: 'body_not_allowed' }, 400);
     }
-    if (body !== '') {
+    if (body !== '' && body.trim() !== '{}') {
       return json({ ok: false, error: 'body_not_allowed' }, 400);
     }
 

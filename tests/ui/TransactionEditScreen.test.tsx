@@ -126,7 +126,7 @@ describe('TransactionEditScreen', () => {
     expect(await screen.findByRole('heading', { name: /chỉnh sửa/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/ngày/i)).toHaveValue('2026-07-08T11:14:42.000');
     expect(screen.getByLabelText(/ghi chú/i)).toHaveValue('Giao dịch chi tiêu tại Grab* BXTTDKA62JSE-G-3');
-    expect(screen.getByLabelText(/tiền chi/i)).toHaveValue(38560);
+    expect(screen.getByLabelText(/tiền chi/i)).toHaveValue('38.560');
     expect(screen.getByText('Email ngân hàng')).toBeInTheDocument();
     expect(screen.getByText('MB')).toBeInTheDocument();
     expect(screen.getByText('MB Card')).toBeInTheDocument();

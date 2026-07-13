@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../../types';
-import { parseVNDInput } from '../../lib/money';
-import { getBudgetForMonth, upsertBudget } from '../../db/budgets';
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "../../types";
+import { parseVNDInput } from "../../lib/money";
+import { getBudgetForMonth, upsertBudget } from "../../db/budgets";
 
 type Caps = Partial<Record<ExpenseCategory, number>>;
 
-export function CapsEditor({ month, total, initialCaps, onSaved }: {
+export function CapsEditor({
+  month,
+  total,
+  initialCaps,
+  onSaved,
+}: {
   month: string;
   total: number;
   initialCaps: Caps;
@@ -16,61 +21,76 @@ export function CapsEditor({ month, total, initialCaps, onSaved }: {
   const [open, setOpen] = useState(false);
   const [caps, setCaps] = useState<Record<ExpenseCategory, string>>(() => {
     const out = {} as Record<ExpenseCategory, string>;
-    for (const c of EXPENSE_CATEGORIES) out[c] = initialCaps[c] != null ? String(initialCaps[c]) : '';
+    for (const c of EXPENSE_CATEGORIES)
+      out[c] = initialCaps[c] != null ? String(initialCaps[c]) : "";
     return out;
   });
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function handleChange(cat: ExpenseCategory, value: string) {
+    setCaps((prev) => ({ ...prev, [cat]: value }));
+  }
 
-  function commit(next: Record<ExpenseCategory, string>) {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
+  async function handleSaveCaps() {
+    setSaving(true);
+    try {
       const finalCaps: Caps = {};
       for (const c of EXPENSE_CATEGORIES) {
-        if (next[c].trim() === '') continue;
-        const v = parseVNDInput(next[c]);
+        if (caps[c].trim() === "") continue;
+        const v = parseVNDInput(caps[c]);
         if (!Number.isNaN(v) && v > 0) finalCaps[c] = v;
       }
       const latestBudget = await getBudgetForMonth(month);
       await upsertBudget(month, latestBudget?.total ?? total, finalCaps);
       onSaved?.();
-    }, 500);
-  }
-
-  function handleChange(cat: ExpenseCategory, value: string) {
-    const next = { ...caps, [cat]: value };
-    setCaps(next);
-    commit(next);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className="rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-sm font-semibold text-slate-100"
       >
-        {open ? t('settings.caps.collapse') : t('settings.caps.expand')}
+        {open ? t("settings.caps.collapse") : t("settings.caps.expand")}
       </button>
       {open && (
-        <ul className="mt-3 space-y-2">
-          {EXPENSE_CATEGORIES.map(c => (
-            <li key={c}>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-400">
-                <span>{t(`category.${c}`)}</span>
-                <input
-                  inputMode="numeric"
-                  aria-label={t(`category.${c}`)}
-                  value={caps[c]}
-                  onChange={e => handleChange(c, e.target.value)}
-                  className="w-32 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-right text-white"
-                />
-              </label>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-3 space-y-2">
+            {EXPENSE_CATEGORIES.map((c) => (
+              <li key={c}>
+                <label className="flex items-center justify-between gap-3 text-sm text-slate-400">
+                  <span>{t(`category.${c}`)}</span>
+                  <input
+                    inputMode="numeric"
+                    aria-label={t(`category.${c}`)}
+                    value={
+                      caps[c]
+                        ? caps[c].replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleChange(c, e.target.value.replace(/[^\d]/g, ""))
+                    }
+                    className="w-32 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-right text-white"
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={handleSaveCaps}
+            disabled={saving}
+            className="mt-3 min-h-10 rounded-xl bg-sky-400 px-4 text-sm font-bold text-slate-950 disabled:opacity-50"
+          >
+            {t("settings.save")}
+          </button>
+        </>
       )}
     </div>
   );

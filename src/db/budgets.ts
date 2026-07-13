@@ -1,5 +1,5 @@
-import { openFinanceDB } from './index';
-import type { Budget, ExpenseCategory } from '../types';
+import { openFinanceDB } from "./index";
+import type { Budget, ExpenseCategory } from "../types";
 
 export async function upsertBudget(
   month: string,
@@ -7,16 +7,20 @@ export async function upsertBudget(
   caps: Partial<Record<ExpenseCategory, number>> = {},
 ): Promise<Budget> {
   const db = await openFinanceDB();
-  const existing = await db.getFromIndex('budgets', 'byMonth', month);
+  const existing = await db.getFromIndex("budgets", "byMonth", month);
   const budget: Budget = {
     id: existing?.id ?? crypto.randomUUID(),
-    month, total, caps,
+    month,
+    total,
+    caps,
   };
-  await db.put('budgets', budget);
+  await db.put("budgets", budget);
   return budget;
 }
 
-export async function getBudgetForMonth(month: string): Promise<Budget | undefined> {
+export async function getBudgetForMonth(
+  month: string,
+): Promise<Budget | undefined> {
   const db = await openFinanceDB();
-  return db.getFromIndex('budgets', 'byMonth', month);
+  return db.getFromIndex("budgets", "byMonth", month);
 }

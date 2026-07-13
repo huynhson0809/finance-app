@@ -1,7 +1,7 @@
-import type { Budget, Category } from '../types';
-import { CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../types';
+import type { Budget, Category } from "../types";
+import { CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "../types";
 
-export type BudgetStatus = 'ok' | 'warn' | 'over';
+export type BudgetStatus = "ok" | "warn" | "over";
 export type BudgetStatusReport = {
   overall: BudgetStatus;
   perCategory: Record<Category, BudgetStatus>;
@@ -10,11 +10,11 @@ export type BudgetStatusReport = {
 };
 
 function statusFor(spent: number, cap: number): BudgetStatus {
-  if (cap <= 0) return 'ok';
+  if (cap <= 0) return "ok";
   const ratio = spent / cap;
-  if (ratio > 1) return 'over';
-  if (ratio >= 0.8) return 'warn';
-  return 'ok';
+  if (ratio > 1) return "over";
+  if (ratio >= 0.8) return "warn";
+  return "ok";
 }
 
 export function spendableBudget(budget: Budget | undefined): number {
@@ -30,7 +30,7 @@ export function status(
     if (!Number.isFinite(spent)) return sum;
     const normalizedCategory = category as Category;
     if (
-      normalizedCategory.startsWith('custom-income-') ||
+      normalizedCategory.startsWith("custom-income-") ||
       INCOME_CATEGORIES.includes(normalizedCategory)
     ) {
       return sum;
@@ -39,13 +39,12 @@ export function status(
   }, 0);
   const overallLimit = spendableBudget(budget);
   const perCategory = {} as Record<Category, BudgetStatus>;
-  for (const c of CATEGORIES) perCategory[c] = 'ok';
+  for (const c of CATEGORIES) perCategory[c] = "ok";
   for (const c of EXPENSE_CATEGORIES) {
     const cap = budget?.caps?.[c] ?? 0;
-    perCategory[c] = cap > 0 ? statusFor(sums[c], cap) : 'ok';
+    perCategory[c] = cap > 0 ? statusFor(sums[c], cap) : "ok";
   }
-  const overall: BudgetStatus = overallLimit > 0
-    ? statusFor(overallSpent, overallLimit)
-    : 'ok';
+  const overall: BudgetStatus =
+    overallLimit > 0 ? statusFor(overallSpent, overallLimit) : "ok";
   return { overall, perCategory, overallSpent, overallLimit };
 }

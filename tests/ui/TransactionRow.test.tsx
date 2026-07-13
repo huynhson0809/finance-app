@@ -50,12 +50,11 @@ describe('TransactionRow', () => {
     expect(screen.getByText(/\+\D*1[.,]250[.,]000/)).toBeInTheDocument();
   });
 
-  it('shows expense amounts without an inline category combobox', () => {
+  it('shows expense amounts with minus sign and without an inline category combobox', () => {
     renderRow(tx({ amount: 297_000, direction: 'expense', category: 'others' }), 'en');
 
-    const amount = screen.getByText(/297[.,]000/);
-    expect(amount).toHaveTextContent(/^₫297,000$/);
-    expect(amount).not.toHaveTextContent(/^[+-]/);
+    const amount = screen.getByText(/-\D*297[.,]000/);
+    expect(amount).toHaveTextContent(/^-₫297,000$/);
     expect(screen.queryByRole('combobox', { name: /transaction category|danh mục giao dịch/i })).not.toBeInTheDocument();
   });
 

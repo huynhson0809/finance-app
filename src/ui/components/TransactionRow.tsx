@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { formatVND } from '../../lib/money';
+import { formatMoney } from '../../lib/money';
 import type { CategoryOverride, Transaction, UserCategory } from '../../types';
 import { categoryLabel, getCategoryMeta } from '../theme/categoryMeta';
 
@@ -22,8 +22,8 @@ export function TransactionRow({
   const meta = getCategoryMeta(tx.category, customCategories, categoryOverrides);
   const Icon = meta.Icon;
   const signedAmount = tx.direction === 'income'
-    ? `+${formatVND(tx.amount, locale)}`
-    : formatVND(tx.amount, locale);
+    ? `+${formatMoney(tx.amount, tx.currency, locale)}`
+    : `-${formatMoney(tx.amount, tx.currency, locale)}`;
   const label = categoryLabel(tx.category, customCategories, t, categoryOverrides);
   const title = tx.merchant?.trim() || tx.note?.trim() || label;
   const subtitle = `${label} · ${formatTransactionDate(tx.occurredAt, locale)}`;

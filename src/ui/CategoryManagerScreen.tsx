@@ -1,7 +1,16 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Check,
+  ChevronRight,
+  GripVertical,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
@@ -10,19 +19,19 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   builtInCategoriesForDirection,
   categoriesForDirectionWithCustom,
   customCategoriesForDirection,
-} from '../categories/catalog';
-import { errorMessage } from '../lib/error';
+} from "../categories/catalog";
+import { errorMessage } from "../lib/error";
 import type {
   BuiltInCategory,
   Category,
@@ -32,32 +41,42 @@ import type {
   CustomIncomeCategory,
   TransactionDirection,
   UserCategory,
-} from '../types';
-import { useCustomCategories } from '../hooks/useCustomCategories';
-import { useCategoryOverrides } from '../hooks/useCategoryOverrides';
-import { useCategoryOrder } from '../hooks/useCategoryOrder';
-import { DarkField, GlassPanel, SegmentedControl } from './components/primitives';
+} from "../types";
+import { useCustomCategories } from "../hooks/useCustomCategories";
+import { useCategoryOverrides } from "../hooks/useCategoryOverrides";
+import { useCategoryOrder } from "../hooks/useCategoryOrder";
+import {
+  DarkField,
+  GlassPanel,
+  SegmentedControl,
+} from "./components/primitives";
 import {
   categoryLabel,
   CUSTOM_CATEGORY_ICON_OPTIONS,
   defaultIconKeyForDirection,
   getCategoryMeta,
   iconKeyForCategory,
-} from './theme/categoryMeta';
+} from "./theme/categoryMeta";
 
 type CustomCategoryId = CustomExpenseCategory | CustomIncomeCategory;
 type EditingState =
-  | { mode: 'new' }
-  | { mode: 'custom'; id: CustomCategoryId }
-  | { mode: 'builtin'; category: BuiltInCategory }
+  | { mode: "new" }
+  | { mode: "custom"; id: CustomCategoryId }
+  | { mode: "builtin"; category: BuiltInCategory }
   | null;
 
 function searchDirection(value: string | null): TransactionDirection {
-  return value === 'income' ? 'income' : 'expense';
+  return value === "income" ? "income" : "expense";
 }
 
-function sameCategoryOrder(left: readonly Category[], right: readonly Category[]): boolean {
-  return left.length === right.length && left.every((category, index) => category === right[index]);
+function sameCategoryOrder(
+  left: readonly Category[],
+  right: readonly Category[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((category, index) => category === right[index])
+  );
 }
 
 function moveCategoryByOffset(
@@ -67,7 +86,8 @@ function moveCategoryByOffset(
 ): Category[] {
   const fromIndex = categories.indexOf(category);
   const toIndex = fromIndex + offset;
-  if (fromIndex < 0 || toIndex < 0 || toIndex >= categories.length) return [...categories];
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= categories.length)
+    return [...categories];
   const next = [...categories];
   next.splice(fromIndex, 1);
   next.splice(toIndex, 0, category);
@@ -81,13 +101,15 @@ function moveCategoryNear(
 ): Category[] {
   const fromIndex = categories.indexOf(moving);
   const targetIndex = categories.indexOf(target);
-  if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return [...categories];
+  if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex)
+    return [...categories];
 
-  const withoutMoving = categories.filter(category => category !== moving);
+  const withoutMoving = categories.filter((category) => category !== moving);
   const targetIndexAfterRemoval = withoutMoving.indexOf(target);
-  const insertIndex = fromIndex < targetIndex
-    ? targetIndexAfterRemoval + 1
-    : targetIndexAfterRemoval;
+  const insertIndex =
+    fromIndex < targetIndex
+      ? targetIndexAfterRemoval + 1
+      : targetIndexAfterRemoval;
 
   return [
     ...withoutMoving.slice(0, insertIndex),
@@ -100,13 +122,13 @@ export function CategoryManagerScreen() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [direction, setDirectionState] = useState<TransactionDirection>(
-    () => searchDirection(searchParams.get('direction')),
+  const [direction, setDirectionState] = useState<TransactionDirection>(() =>
+    searchDirection(searchParams.get("direction")),
   );
   const [editing, setEditing] = useState<EditingState>(null);
-  const [draftName, setDraftName] = useState('');
-  const [draftIconKey, setDraftIconKey] = useState<CategoryIconKey>(
-    () => defaultIconKeyForDirection(direction),
+  const [draftName, setDraftName] = useState("");
+  const [draftIconKey, setDraftIconKey] = useState<CategoryIconKey>(() =>
+    defaultIconKeyForDirection(direction),
   );
   const [draftOrder, setDraftOrderState] = useState<Category[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,7 +136,9 @@ export function CategoryManagerScreen() {
   const draftOrderRef = useRef<Category[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    }),
   );
   const {
     categories: customCategories,
@@ -143,20 +167,32 @@ export function CategoryManagerScreen() {
     () => customCategoriesForDirection(customCategories, direction),
     [customCategories, direction],
   );
-  const customCategoryById = useMemo(() => (
-    new Map(visibleCustomCategories.map(category => [category.id, category]))
-  ), [visibleCustomCategories]);
+  const customCategoryById = useMemo(
+    () =>
+      new Map(
+        visibleCustomCategories.map((category) => [category.id, category]),
+      ),
+    [visibleCustomCategories],
+  );
   const orderedCategories = useMemo(
-    () => categoriesForDirectionWithCustom(direction, customCategories, categoryOrder),
+    () =>
+      categoriesForDirectionWithCustom(
+        direction,
+        customCategories,
+        categoryOrder,
+      ),
     [categoryOrder, customCategories, direction],
   );
-  const orderedCategoriesKey = orderedCategories.join('|');
+  const orderedCategoriesKey = orderedCategories.join("|");
   const displayedCategories = draftOrder ?? orderedCategories;
-  const editingCategory = editing?.mode === 'custom'
-    ? visibleCustomCategories.find(category => category.id === editing.id)
-    : undefined;
-  const editingBuiltInCategory = editing?.mode === 'builtin' ? editing.category : undefined;
-  const managerError = localError ?? error ?? categoryOverridesError ?? categoryOrderError;
+  const editingCategory =
+    editing?.mode === "custom"
+      ? visibleCustomCategories.find((category) => category.id === editing.id)
+      : undefined;
+  const editingBuiltInCategory =
+    editing?.mode === "builtin" ? editing.category : undefined;
+  const managerError =
+    localError ?? error ?? categoryOverridesError ?? categoryOrderError;
 
   useEffect(() => {
     setDraftOrder(null);
@@ -165,11 +201,11 @@ export function CategoryManagerScreen() {
   function setDirection(next: TransactionDirection) {
     setDirectionState(next);
     setEditing(null);
-    setDraftName('');
+    setDraftName("");
     setDraftIconKey(defaultIconKeyForDirection(next));
     setLocalError(null);
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('direction', next);
+    nextParams.set("direction", next);
     setSearchParams(nextParams, { replace: true });
   }
 
@@ -179,23 +215,29 @@ export function CategoryManagerScreen() {
   }
 
   function startNewCategory() {
-    setEditing({ mode: 'new' });
-    setDraftName('');
+    setEditing({ mode: "new" });
+    setDraftName("");
     setDraftIconKey(defaultIconKeyForDirection(direction));
     setLocalError(null);
   }
 
   function startEditCategory(category: UserCategory) {
-    setEditing({ mode: 'custom', id: category.id });
+    setEditing({ mode: "custom", id: category.id });
     setDraftName(category.name);
-    setDraftIconKey(category.iconKey ?? defaultIconKeyForDirection(category.direction));
+    setDraftIconKey(
+      category.iconKey ?? defaultIconKeyForDirection(category.direction),
+    );
     setLocalError(null);
   }
 
   function startEditBuiltInCategory(category: BuiltInCategory) {
-    const override = categoryOverrides.find(item => item.category === category);
-    setEditing({ mode: 'builtin', category });
-    setDraftName(categoryLabel(category, customCategories, t, categoryOverrides));
+    const override = categoryOverrides.find(
+      (item) => item.category === category,
+    );
+    setEditing({ mode: "builtin", category });
+    setDraftName(
+      categoryLabel(category, customCategories, t, categoryOverrides),
+    );
     setDraftIconKey(override?.iconKey ?? iconKeyForCategory(category));
     setLocalError(null);
   }
@@ -207,9 +249,9 @@ export function CategoryManagerScreen() {
     setBusy(true);
     setLocalError(null);
     try {
-      if (editing.mode === 'new') {
+      if (editing.mode === "new") {
         await addCategory(direction, name, draftIconKey);
-      } else if (editing.mode === 'builtin') {
+      } else if (editing.mode === "builtin") {
         await saveOverride(editing.category, { name, iconKey: draftIconKey });
       } else if (editingCategory) {
         if (name !== editingCategory.name) {
@@ -221,7 +263,7 @@ export function CategoryManagerScreen() {
       }
 
       setEditing(null);
-      setDraftName('');
+      setDraftName("");
     } catch (err) {
       setLocalError(errorMessage(err));
     } finally {
@@ -236,7 +278,7 @@ export function CategoryManagerScreen() {
     try {
       await deleteCategory(editingCategory.id);
       setEditing(null);
-      setDraftName('');
+      setDraftName("");
     } catch (err) {
       setLocalError(errorMessage(err));
     } finally {
@@ -290,22 +332,24 @@ export function CategoryManagerScreen() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          aria-label={t('common.back')}
+          aria-label={t("common.back")}
           className="grid h-11 w-11 place-items-center rounded-full text-slate-100"
         >
           <ArrowLeft aria-hidden="true" className="h-7 w-7" />
         </button>
-        <h1 className="truncate text-center text-xl font-bold text-white">{t('categories.title')}</h1>
+        <h1 className="truncate text-center text-xl font-bold text-white">
+          {t("categories.title")}
+        </h1>
         <span aria-hidden="true" />
       </header>
 
       <SegmentedControl
-        ariaLabel={t('categories.direction')}
+        ariaLabel={t("categories.direction")}
         value={direction}
         onChange={setDirection}
         options={[
-          { value: 'expense', label: t('categories.expense') },
-          { value: 'income', label: t('categories.income') },
+          { value: "expense", label: t("categories.expense") },
+          { value: "income", label: t("categories.income") },
         ]}
       />
 
@@ -313,16 +357,18 @@ export function CategoryManagerScreen() {
         <GlassPanel className="space-y-4 p-4" data-testid="category-editor">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-white">
-              {editing.mode === 'new' ? t('categories.add') : t('categories.edit')}
+              {editing.mode === "new"
+                ? t("categories.add")
+                : t("categories.edit")}
             </h2>
-            {editing.mode === 'custom' && (
+            {editing.mode === "custom" && (
               <button
                 type="button"
                 onClick={removeCategory}
                 disabled={busy}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-300/30 bg-rose-500/10 text-rose-200 disabled:opacity-50"
-                aria-label={t('categories.delete')}
-                title={t('categories.delete')}
+                aria-label={t("categories.delete")}
+                title={t("categories.delete")}
               >
                 <Trash2 aria-hidden="true" className="h-5 w-5" />
               </button>
@@ -331,40 +377,47 @@ export function CategoryManagerScreen() {
 
           {editingBuiltInCategory && (
             <p className="text-sm leading-relaxed text-slate-400">
-              {t('categories.builtInHint')}
+              {t("categories.builtInHint")}
             </p>
           )}
 
-          <DarkField label={t('categories.name')}>
+          <DarkField label={t("categories.name")}>
             <input
               value={draftName}
               autoFocus
-              onChange={event => setDraftName(event.target.value)}
-              aria-label={t('categories.name')}
+              onChange={(event) => setDraftName(event.target.value)}
+              aria-label={t("categories.name")}
             />
           </DarkField>
 
-          <section aria-label={t('categories.icon')}>
-            <h3 className="text-sm font-semibold text-slate-300">{t('categories.icon')}</h3>
+          <section aria-label={t("categories.icon")}>
+            <h3 className="text-sm font-semibold text-slate-300">
+              {t("categories.icon")}
+            </h3>
             <div className="mt-2 grid grid-cols-7 gap-2">
-              {CUSTOM_CATEGORY_ICON_OPTIONS.map(option => {
+              {CUSTOM_CATEGORY_ICON_OPTIONS.map((option) => {
                 const Icon = option.Icon;
                 const selected = option.key === draftIconKey;
                 return (
                   <button
                     key={option.key}
                     type="button"
-                    aria-label={t('categories.iconOption', { icon: option.key })}
+                    aria-label={t("categories.iconOption", {
+                      icon: option.key,
+                    })}
                     aria-pressed={selected}
                     onClick={() => setDraftIconKey(option.key)}
                     className={[
-                      'grid h-11 w-full place-items-center rounded-xl border transition',
+                      "grid h-11 w-full place-items-center rounded-xl border transition",
                       selected
-                        ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_16px_rgba(56,189,248,0.28)]'
-                        : 'border-white/10 bg-white/[0.055]',
-                    ].join(' ')}
+                        ? "border-sky-300 bg-sky-300/15 shadow-[0_0_16px_rgba(56,189,248,0.28)]"
+                        : "border-white/10 bg-white/[0.055]",
+                    ].join(" ")}
                   >
-                    <Icon aria-hidden="true" className={`h-5 w-5 ${option.accentClass}`} />
+                    <Icon
+                      aria-hidden="true"
+                      className={`h-5 w-5 ${option.accentClass}`}
+                    />
                   </button>
                 );
               })}
@@ -372,7 +425,10 @@ export function CategoryManagerScreen() {
           </section>
 
           {managerError && (
-            <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100">
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-300/30 bg-rose-500/10 p-3 text-sm text-rose-100"
+            >
               {managerError}
             </div>
           )}
@@ -384,7 +440,7 @@ export function CategoryManagerScreen() {
             className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-sky-400 px-4 font-bold text-slate-950 disabled:bg-slate-700 disabled:text-slate-400"
           >
             <Check aria-hidden="true" className="h-5 w-5" />
-            {t('categories.save')}
+            {t("categories.save")}
           </button>
         </GlassPanel>
       )}
@@ -396,12 +452,21 @@ export function CategoryManagerScreen() {
           className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_1.25rem] items-center gap-3 border-b border-white/10 px-4 text-left transition hover:bg-white/[0.035]"
         >
           <Plus aria-hidden="true" className="h-6 w-6 text-sky-300" />
-          <span className="truncate text-base font-semibold text-white">{t('categories.add')}</span>
+          <span className="truncate text-base font-semibold text-white">
+            {t("categories.add")}
+          </span>
           <ChevronRight aria-hidden="true" className="h-5 w-5 text-slate-500" />
         </button>
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={displayedCategories} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={displayedCategories}
+            strategy={verticalListSortingStrategy}
+          >
             {displayedCategories.map((category, index) => (
               <SortableCategoryRow
                 key={category}
@@ -470,18 +535,18 @@ function SortableCategoryRow({
       data-testid="category-order-row"
       className={`grid min-h-14 w-full grid-cols-[2rem_2.25rem_minmax(0,1fr)_2rem_2rem_1.25rem] items-center gap-2 border-b border-white/10 px-3 text-left last:border-b-0 ${
         isDragging
-          ? 'relative z-50 rounded-xl bg-slate-800/95 shadow-xl shadow-black/40 ring-1 ring-white/10'
-          : ''
+          ? "relative z-50 rounded-xl bg-slate-800/95 shadow-xl shadow-black/40 ring-1 ring-white/10"
+          : ""
       }`}
     >
       <button
         ref={setActivatorNodeRef}
         type="button"
-        aria-label={t('categories.drag', { category: label })}
+        aria-label={t("categories.drag", { category: label })}
         className={`grid h-9 w-8 touch-none place-items-center rounded-xl text-slate-500 ${
           isDragging
-            ? 'cursor-grabbing text-slate-200'
-            : 'cursor-grab active:cursor-grabbing active:bg-white/10 active:text-slate-200'
+            ? "cursor-grabbing text-slate-200"
+            : "cursor-grab active:cursor-grabbing active:bg-white/10 active:text-slate-200"
         }`}
         {...attributes}
         {...listeners}
@@ -494,7 +559,10 @@ function SortableCategoryRow({
         onClick={() => onEdit(category)}
         className="min-w-0 py-4 text-left"
       >
-        <span data-testid="category-order-label" className="block truncate text-base font-semibold text-slate-100">
+        <span
+          data-testid="category-order-label"
+          className="block truncate text-base font-semibold text-slate-100"
+        >
           {label}
         </span>
       </button>
@@ -502,7 +570,7 @@ function SortableCategoryRow({
         type="button"
         onClick={() => void onMove(category, -1)}
         disabled={isFirst}
-        aria-label={t('categories.moveUp', { category: label })}
+        aria-label={t("categories.moveUp", { category: label })}
         className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
       >
         <ArrowUp aria-hidden="true" className="h-4 w-4" />
@@ -511,7 +579,7 @@ function SortableCategoryRow({
         type="button"
         onClick={() => void onMove(category, 1)}
         disabled={isLast}
-        aria-label={t('categories.moveDown', { category: label })}
+        aria-label={t("categories.moveDown", { category: label })}
         className="grid h-9 w-8 place-items-center rounded-xl text-slate-400 disabled:text-slate-700"
       >
         <ArrowDown aria-hidden="true" className="h-4 w-4" />

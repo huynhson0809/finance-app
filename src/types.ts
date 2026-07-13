@@ -1,26 +1,26 @@
-import type { AssetCurrency } from './assets/types';
+import type { AssetCurrency } from "./assets/types";
 
 export type CustomExpenseCategory = `custom-expense-${string}`;
 export type CustomIncomeCategory = `custom-income-${string}`;
 
 export type BuiltInExpenseCategory =
-  | 'food-drinks'
-  | 'coffee-bubble-tea'
-  | 'transportation'
-  | 'shopping'
-  | 'bills-utilities'
-  | 'healthcare'
-  | 'entertainment'
-  | 'transfers-debt'
-  | 'others';
+  | "food-drinks"
+  | "coffee-bubble-tea"
+  | "transportation"
+  | "shopping"
+  | "bills-utilities"
+  | "healthcare"
+  | "entertainment"
+  | "transfers-debt"
+  | "others";
 
 export type BuiltInIncomeCategory =
-  | 'salary'
-  | 'allowance'
-  | 'bonus'
-  | 'side-income'
-  | 'investment'
-  | 'temporary-income';
+  | "salary"
+  | "allowance"
+  | "bonus"
+  | "side-income"
+  | "investment"
+  | "temporary-income";
 
 export type ExpenseCategory = BuiltInExpenseCategory | CustomExpenseCategory;
 
@@ -33,23 +33,23 @@ type BuiltInCategoryList<T extends BuiltInCategory> = readonly T[] & {
   includes(category: Category): boolean;
 };
 
-export type TransactionDirection = 'expense' | 'income';
+export type TransactionDirection = "expense" | "income";
 
 export type CategoryIconKey =
-  | 'utensils'
-  | 'coffee'
-  | 'transportation'
-  | 'shopping'
-  | 'bills'
-  | 'health'
-  | 'entertainment'
-  | 'transfer'
-  | 'wallet'
-  | 'piggy'
-  | 'gift'
-  | 'coins'
-  | 'bank'
-  | 'other';
+  | "utensils"
+  | "coffee"
+  | "transportation"
+  | "shopping"
+  | "bills"
+  | "health"
+  | "entertainment"
+  | "transfer"
+  | "wallet"
+  | "piggy"
+  | "gift"
+  | "coins"
+  | "bank"
+  | "other";
 
 export interface UserCategory {
   id: CustomExpenseCategory | CustomIncomeCategory;
@@ -74,24 +74,24 @@ export interface CategoryOrder {
 }
 
 export const EXPENSE_CATEGORIES: BuiltInCategoryList<BuiltInExpenseCategory> = [
-  'food-drinks',
-  'coffee-bubble-tea',
-  'transportation',
-  'shopping',
-  'bills-utilities',
-  'healthcare',
-  'entertainment',
-  'transfers-debt',
-  'others',
+  "food-drinks",
+  "coffee-bubble-tea",
+  "transportation",
+  "shopping",
+  "bills-utilities",
+  "healthcare",
+  "entertainment",
+  "transfers-debt",
+  "others",
 ];
 
 export const INCOME_CATEGORIES: BuiltInCategoryList<BuiltInIncomeCategory> = [
-  'salary',
-  'allowance',
-  'bonus',
-  'side-income',
-  'investment',
-  'temporary-income',
+  "salary",
+  "allowance",
+  "bonus",
+  "side-income",
+  "investment",
+  "temporary-income",
 ];
 
 export const CATEGORIES: BuiltInCategoryList<BuiltInCategory> = [
@@ -99,36 +99,50 @@ export const CATEGORIES: BuiltInCategoryList<BuiltInCategory> = [
   ...INCOME_CATEGORIES,
 ];
 
-export function categoriesForDirection(direction: TransactionDirection): readonly Category[] {
-  return direction === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+export function categoriesForDirection(
+  direction: TransactionDirection,
+): readonly Category[] {
+  return direction === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 }
 
 export function categoryBelongsToDirection(
   category: Category,
   direction: TransactionDirection,
 ): boolean {
-  if (category.startsWith('custom-expense-')) return direction === 'expense';
-  if (category.startsWith('custom-income-')) return direction === 'income';
+  if (category.startsWith("custom-expense-")) return direction === "expense";
+  if (category.startsWith("custom-income-")) return direction === "income";
   return categoriesForDirection(direction).includes(category);
 }
 
-export type TransactionSource = 'manual' | 'receipt' | 'bank-screenshot' | 'bank-email';
-export type BankHint = 'vietcombank' | 'techcombank' | 'momo' | 'zalopay' | 'mb' | 'acb';
-export type CloudBank = 'MB' | 'ACB';
+export type TransactionSource =
+  | "manual"
+  | "receipt"
+  | "bank-screenshot"
+  | "bank-email";
+export type BankHint =
+  | "vietcombank"
+  | "techcombank"
+  | "momo"
+  | "zalopay"
+  | "mb"
+  | "acb";
+export type CloudBank = "MB" | "ACB";
 export type CloudTransactionType =
-  | 'transfer'
-  | 'card'
-  | 'balance_alert'
-  | 'manual'
-  | 'receipt'
-  | 'bank_screenshot';
-export type CloudRawSource = 'email' | 'manual' | 'receipt' | 'bank-screenshot';
+  | "transfer"
+  | "card"
+  | "balance_alert"
+  | "manual"
+  | "receipt"
+  | "bank_screenshot";
+export type CloudRawSource = "email" | "manual" | "receipt" | "bank-screenshot";
+
+export type TransactionCurrency = "VND" | "USD";
 
 interface TransactionBase {
   id: string;
-  amount: number;         // integer VND
-  currency: 'VND';
-  occurredAt: string;     // ISO 8601
+  amount: number; // integer VND or cents USD
+  currency: TransactionCurrency;
+  occurredAt: string; // ISO 8601
   merchant?: string;
   note?: string;
   source: TransactionSource;
@@ -143,10 +157,11 @@ interface TransactionBase {
   updatedAt: string;
 }
 
-export type Transaction = TransactionBase & (
-  | { direction: 'expense'; category: ExpenseCategory }
-  | { direction: 'income'; category: IncomeCategory }
-);
+export type Transaction = TransactionBase &
+  (
+    | { direction: "expense"; category: ExpenseCategory }
+    | { direction: "income"; category: IncomeCategory }
+  );
 
 export interface TransactionAssetLinkInput {
   assetAccountId?: string | null;
@@ -164,8 +179,8 @@ export interface TransferInput {
 
 export interface Budget {
   id: string;
-  month: string;          // 'YYYY-MM'
-  total: number;          // integer VND
+  month: string; // 'YYYY-MM'
+  total: number; // integer VND
   caps: Partial<Record<ExpenseCategory, number>>;
 }
 

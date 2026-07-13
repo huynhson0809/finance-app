@@ -1,0 +1,185 @@
+import { useEffect, useState } from 'react';
+import { ShieldCheck, Delete } from 'lucide-react';
+import {
+  isAppLockEnabled,
+  isBiometricAvailable,
+  hasBiometricCredential,
+  verifyBiometric,
+  verifyPin,
+} from '../lib/app-lock';
+
+const MAX_BIOMETRIC_ATTEMPTS = 3;
+
+export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
+  const [mode, setMode] = useState<'biometric' | 'pin'>('biometric');
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [biometricAttempts, setBiometricAttempts] = useState(0);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    // Check if biometric is available, otherwise go straight to PIN
+    (async () => {
+      const bioAvailable = await isBiometricAvailable();
+      const hasCredential = hasBiometricCredential();
+      if (!bioAvailable || !hasCredential) {
+        setMode('pin');
+        return;
+      }
+      // Auto-prompt biometric
+      handleBiometric();
+    })();
+  }, []);
+
+  async function handleBiometric() {
+    setVerifying(true);
+    setError(null);
+    const success = await verifyBiometric();
+    if (success) {
+      onUnlock();
+    } else {
+      const attempts = biometricAttempts + 1;
+      setBiometricAttempts(attempts);
+      if (attempts >= MAX_BIOMETRIC_ATTEMPTS) {
+        setMode('pin');
+        setError('Xác thực sinh trắc thất bại. Nhập mã PIN.');
+      } else {
+        setError(`Thất bại (${attempts}/${MAX_BIOMETRIC_ATTEMPTS})`);
+      }
+    }
+    setVerifying(false);
+  }
+
+
+  function handlePinKey(digit: string) {
+    if (pin.length >= 6) return;
+    const next = pin + digit;
+    setPin(next);
+    if (next.length >= 4) {
+      // Auto-submit when 4+ digits
+      setTimeout(() => {
+        void (async () => {
+          setVerifying(true);
+          setError(null);
+          const success = await verifyPin(next);
+          if (success) {
+            onUnlock();
+          } else {
+            setError('Mã PIN sai');
+            setPin('');
+          }
+          setVerifying(false);
+        })();
+      }, 100);
+    }
+  }
+
+  function handlePinDelete() {
+    setPin(p => p.slice(0, -1));
+  }
+
+  if (mode === 'biometric') {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0e1117] px-6 text-center">
+        <ShieldCheck aria-hidden="true" className="h-16 w-16 text-sky-400" />
+        <h1 className="text-2xl font-bold text-white">Spendly</h1>
+        <p className="text-sm text-slate-400">Xác thực để mở ứng dụng</p>
+        {error && <p className="text-sm text-rose-300">{error}</p>}
+        <button
+          type="button"
+          onClick={handleBiometric}
+          disabled={verifying}
+          className="min-h-12 rounded-2xl bg-sky-400 px-6 font-bold text-slate-950 disabled:opacity-50"
+        >
+          {verifying ? '...' : 'Mở khóa'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('pin')}
+          className="text-sm text-slate-400 underline"
+        >
+          Dùng mã PIN
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0e1117] px-6 text-center">
+      <ShieldCheck aria-hidden="true" className="h-12 w-12 text-sky-400" />
+      <h1 className="text-xl font-bold text-white">Nhập mã PIN</h1>
+      {error && <p className="text-sm text-rose-300">{error}</p>}
+
+      <div className="flex gap-3">
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            className={`h-3.5 w-3.5 rounded-full ${
+              i < pin.length ? 'bg-sky-400' : 'bg-white/20'
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="grid w-full max-w-[16rem] grid-cols-3 gap-3">
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => handlePinKey(d)}
+            disabled={verifying}
+            className="flex h-14 items-center justify-center rounded-full bg-white/[0.07] text-xl font-semibold text-white active:bg-white/15"
+          >
+            {d}
+          </button>
+        ))}
+        <div />
+        <button
+          type="button"
+          onClick={() => handlePinKey('0')}
+          disabled={verifying}
+          className="flex h-14 items-center justify-center rounded-full bg-white/[0.07] text-xl font-semibold text-white active:bg-white/15"
+        >
+          0
+        </button>
+        <button
+          type="button"
+          onClick={handlePinDelete}
+          disabled={verifying}
+          className="flex h-14 items-center justify-center rounded-full text-slate-400 active:bg-white/10"
+        >
+          <Delete aria-hidden="true" className="h-5 w-5" />
+        </button>
+      </div>
+
+      {biometricAttempts < MAX_BIOMETRIC_ATTEMPTS && hasBiometricCredential() && (
+        <button
+          type="button"
+          onClick={() => { setMode('biometric'); void handleBiometric(); }}
+          className="text-sm text-slate-400 underline"
+        >
+          Dùng Face ID / Vân tay
+        </button>
+      )}
+    </main>
+  );
+}
+
+export function useAppLock() {
+  const [locked, setLocked] = useState(() => isAppLockEnabled());
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'hidden' && isAppLockEnabled()) {
+        setLocked(true);
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  return {
+    locked,
+    unlock: () => setLocked(false),
+  };
+}

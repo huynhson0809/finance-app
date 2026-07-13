@@ -1,57 +1,90 @@
-import { useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../supabase/client';
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "../supabase/client";
 import {
   listCloudDebts,
   listCloudDebtPayments,
+  listAllCloudDebtPayments,
   insertCloudDebt,
   updateCloudDebt,
   deleteCloudDebt,
   insertCloudDebtPayment,
   deleteCloudDebtPayment,
-} from '../supabase/debts';
+} from "../supabase/debts";
 import {
   spendlyQueryClient,
   spendlyQueryKeys,
   invalidateDebtQueries,
-} from '../query/client';
-import type { Debt, DebtPayment, DebtWithPayments, DebtInput, DebtPaymentInput } from '../debts/types';
+} from "../query/client";
+import type {
+  Debt,
+  DebtPayment,
+  DebtWithPayments,
+  DebtInput,
+  DebtPaymentInput,
+} from "../debts/types";
 
 const STALE_TIME = 5 * 60 * 1000;
 
 export function useDebts() {
-  const query = useQuery<Debt[], Error>({
-    queryKey: spendlyQueryKeys.debts.list(),
-    queryFn: async () => {
-      if (!supabase) return [];
-      return listCloudDebts(supabase);
+  const query = useQuery<Debt[], Error>(
+    {
+      queryKey: spendlyQueryKeys.debts.list(),
+      queryFn: async () => {
+        if (!supabase) return [];
+        return listCloudDebts(supabase);
+      },
+      staleTime: STALE_TIME,
     },
-    staleTime: STALE_TIME,
-  }, spendlyQueryClient);
+    spendlyQueryClient,
+  );
+
+  const paymentsQuery = useQuery<Map<string, number>, Error>(
+    {
+      queryKey: [...spendlyQueryKeys.debts.root, 'all-paid'],
+      queryFn: async () => {
+        if (!supabase) return new Map();
+        const payments = await listAllCloudDebtPayments(supabase);
+        const map = new Map<string, number>();
+        for (const p of payments) {
+          map.set(p.debtId, (map.get(p.debtId) ?? 0) + p.amount);
+        }
+        return map;
+      },
+      staleTime: STALE_TIME,
+    },
+    spendlyQueryClient,
+  );
 
   const addDebt = useCallback(async (input: DebtInput) => {
-    if (!supabase) throw new Error('Supabase is not configured');
+    if (!supabase) throw new Error("Supabase is not configured");
     await insertCloudDebt(supabase, input);
     await invalidateDebtQueries();
   }, []);
 
-  const editDebt = useCallback(async (
-    id: string,
-    updates: Partial<Pick<Debt, 'personName' | 'totalAmount' | 'note' | 'settled'>>,
-  ) => {
-    if (!supabase) throw new Error('Supabase is not configured');
-    await updateCloudDebt(supabase, id, updates);
-    await invalidateDebtQueries();
-  }, []);
+  const editDebt = useCallback(
+    async (
+      id: string,
+      updates: Partial<
+        Pick<Debt, "personName" | "totalAmount" | "note" | "settled">
+      >,
+    ) => {
+      if (!supabase) throw new Error("Supabase is not configured");
+      await updateCloudDebt(supabase, id, updates);
+      await invalidateDebtQueries();
+    },
+    [],
+  );
 
   const removeDebt = useCallback(async (id: string) => {
-    if (!supabase) throw new Error('Supabase is not configured');
+    if (!supabase) throw new Error("Supabase is not configured");
     await deleteCloudDebt(supabase, id);
     await invalidateDebtQueries();
   }, []);
 
   return {
     debts: query.data ?? [],
+    paidAmounts: paymentsQuery.data ?? new Map<string, number>(),
     loading: query.isPending,
     error: query.error?.message ?? null,
     addDebt,
@@ -61,24 +94,27 @@ export function useDebts() {
 }
 
 export function useDebtPayments(debtId: string | null) {
-  const query = useQuery<DebtPayment[], Error>({
-    queryKey: spendlyQueryKeys.debts.payments(debtId ?? ''),
-    queryFn: async () => {
-      if (!supabase || !debtId) return [];
-      return listCloudDebtPayments(supabase, debtId);
+  const query = useQuery<DebtPayment[], Error>(
+    {
+      queryKey: spendlyQueryKeys.debts.payments(debtId ?? ""),
+      queryFn: async () => {
+        if (!supabase || !debtId) return [];
+        return listCloudDebtPayments(supabase, debtId);
+      },
+      enabled: !!debtId,
+      staleTime: STALE_TIME,
     },
-    enabled: !!debtId,
-    staleTime: STALE_TIME,
-  }, spendlyQueryClient);
+    spendlyQueryClient,
+  );
 
   const addPayment = useCallback(async (input: DebtPaymentInput) => {
-    if (!supabase) throw new Error('Supabase is not configured');
+    if (!supabase) throw new Error("Supabase is not configured");
     await insertCloudDebtPayment(supabase, input);
     await invalidateDebtQueries();
   }, []);
 
   const removePayment = useCallback(async (id: string) => {
-    if (!supabase) throw new Error('Supabase is not configured');
+    if (!supabase) throw new Error("Supabase is not configured");
     await deleteCloudDebtPayment(supabase, id);
     await invalidateDebtQueries();
   }, []);
@@ -96,7 +132,7 @@ export function enrichDebtsWithPayments(
   debts: Debt[],
   paymentsMap: Map<string, DebtPayment[]>,
 ): DebtWithPayments[] {
-  return debts.map(debt => {
+  return debts.map((debt) => {
     const payments = paymentsMap.get(debt.id) ?? [];
     const paidAmount = payments.reduce((sum, p) => sum + p.amount, 0);
     return {

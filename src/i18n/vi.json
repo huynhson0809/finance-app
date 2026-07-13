@@ -12,7 +12,14 @@
     "budgetUsed": "Đã chi tháng này",
     "lastTransactions": "Giao dịch gần đây",
     "noBudget": "Chưa đặt ngân sách",
-    "empty": "Chưa có giao dịch nào"
+    "empty": "Chưa có giao dịch nào",
+    "assets": "Tài sản",
+    "assetsLoading": "Đang tải...",
+    "assetsError": "Không thể tải tài sản",
+    "liquid": "Thanh khoản",
+    "savings": "Tiết kiệm",
+    "liability": "Nợ",
+    "noAssets": "Chưa thiết lập tài sản"
   },
   "transactions": {
     "categoryLabel": "Danh mục giao dịch",

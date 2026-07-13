@@ -77,7 +77,7 @@ export type SupabaseClientQueryCompatibility = Assert<
 
 interface UserTransactionInputBase {
   amount: number;
-  currency: 'VND';
+  currency: 'VND' | 'USD';
   occurredAt: string;
   merchant?: string;
   note?: string;
