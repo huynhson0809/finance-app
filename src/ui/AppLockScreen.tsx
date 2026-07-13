@@ -1,34 +1,55 @@
-import { useEffect, useState } from 'react';
-import { ShieldCheck, Delete } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { ShieldCheck, Delete } from "lucide-react";
 import {
   isAppLockEnabled,
   isBiometricAvailable,
   hasBiometricCredential,
   verifyBiometric,
   verifyPin,
-} from '../lib/app-lock';
+} from "../lib/app-lock";
 
 const MAX_BIOMETRIC_ATTEMPTS = 3;
 
 export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
-  const [mode, setMode] = useState<'biometric' | 'pin'>('biometric');
-  const [pin, setPin] = useState('');
+  const [mode, setMode] = useState<"biometric" | "pin">("biometric");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [biometricAttempts, setBiometricAttempts] = useState(0);
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     // Check if biometric is available, otherwise go straight to PIN
+    let cancelled = false;
     (async () => {
       const bioAvailable = await isBiometricAvailable();
       const hasCredential = hasBiometricCredential();
+      if (cancelled) return;
       if (!bioAvailable || !hasCredential) {
-        setMode('pin');
+        setMode("pin");
         return;
       }
-      // Auto-prompt biometric
-      handleBiometric();
+      // Auto-prompt biometric with a timeout fallback
+      setVerifying(true);
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) {
+          setMode("pin");
+          setVerifying(false);
+        }
+      }, 5000); // If no response in 5s, biometric likely not working
+      const success = await verifyBiometric();
+      clearTimeout(timeoutId);
+      if (cancelled) return;
+      setVerifying(false);
+      if (success) {
+        onUnlock();
+      } else {
+        setBiometricAttempts(1);
+        setError("Thất bại (1/3)");
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleBiometric() {
@@ -41,15 +62,14 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
       const attempts = biometricAttempts + 1;
       setBiometricAttempts(attempts);
       if (attempts >= MAX_BIOMETRIC_ATTEMPTS) {
-        setMode('pin');
-        setError('Xác thực sinh trắc thất bại. Nhập mã PIN.');
+        setMode("pin");
+        setError("Xác thực sinh trắc thất bại. Nhập mã PIN.");
       } else {
         setError(`Thất bại (${attempts}/${MAX_BIOMETRIC_ATTEMPTS})`);
       }
     }
     setVerifying(false);
   }
-
 
   function handlePinKey(digit: string) {
     if (pin.length >= 6) return;
@@ -65,8 +85,8 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
           if (success) {
             onUnlock();
           } else {
-            setError('Mã PIN sai');
-            setPin('');
+            setError("Mã PIN sai");
+            setPin("");
           }
           setVerifying(false);
         })();
@@ -75,10 +95,10 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
   }
 
   function handlePinDelete() {
-    setPin(p => p.slice(0, -1));
+    setPin((p) => p.slice(0, -1));
   }
 
-  if (mode === 'biometric') {
+  if (mode === "biometric") {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0e1117] px-6 text-center">
         <ShieldCheck aria-hidden="true" className="h-16 w-16 text-sky-400" />
@@ -91,11 +111,11 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
           disabled={verifying}
           className="min-h-12 rounded-2xl bg-sky-400 px-6 font-bold text-slate-950 disabled:opacity-50"
         >
-          {verifying ? '...' : 'Mở khóa'}
+          {verifying ? "..." : "Mở khóa"}
         </button>
         <button
           type="button"
-          onClick={() => setMode('pin')}
+          onClick={() => setMode("pin")}
           className="text-sm text-slate-400 underline"
         >
           Dùng mã PIN
@@ -111,18 +131,18 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
       {error && <p className="text-sm text-rose-300">{error}</p>}
 
       <div className="flex gap-3">
-        {[0, 1, 2, 3, 4, 5].map(i => (
+        {[0, 1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
             className={`h-3.5 w-3.5 rounded-full ${
-              i < pin.length ? 'bg-sky-400' : 'bg-white/20'
+              i < pin.length ? "bg-sky-400" : "bg-white/20"
             }`}
           />
         ))}
       </div>
 
       <div className="grid w-full max-w-[16rem] grid-cols-3 gap-3">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
           <button
             key={d}
             type="button"
@@ -136,7 +156,7 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
         <div />
         <button
           type="button"
-          onClick={() => handlePinKey('0')}
+          onClick={() => handlePinKey("0")}
           disabled={verifying}
           className="flex h-14 items-center justify-center rounded-full bg-white/[0.07] text-xl font-semibold text-white active:bg-white/15"
         >
@@ -152,30 +172,42 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
         </button>
       </div>
 
-      {biometricAttempts < MAX_BIOMETRIC_ATTEMPTS && hasBiometricCredential() && (
-        <button
-          type="button"
-          onClick={() => { setMode('biometric'); void handleBiometric(); }}
-          className="text-sm text-slate-400 underline"
-        >
-          Dùng Face ID / Vân tay
-        </button>
-      )}
+      {biometricAttempts < MAX_BIOMETRIC_ATTEMPTS &&
+        hasBiometricCredential() && (
+          <button
+            type="button"
+            onClick={() => {
+              setMode("biometric");
+              void handleBiometric();
+            }}
+            className="text-sm text-slate-400 underline"
+          >
+            Dùng Face ID / Vân tay
+          </button>
+        )}
     </main>
   );
 }
 
 export function useAppLock() {
-  const [locked, setLocked] = useState(() => isAppLockEnabled());
+  // Never lock on first mount — only lock when returning from background
+  const [locked, setLocked] = useState(false);
+  const wasHidden = useRef(false);
 
   useEffect(() => {
     function handleVisibility() {
-      if (document.visibilityState === 'hidden' && isAppLockEnabled()) {
-        setLocked(true);
+      if (document.visibilityState === "hidden") {
+        wasHidden.current = true;
+      } else if (document.visibilityState === "visible" && wasHidden.current) {
+        wasHidden.current = false;
+        if (isAppLockEnabled()) {
+          setLocked(true);
+        }
       }
     }
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   return {

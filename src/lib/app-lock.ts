@@ -1,13 +1,13 @@
-const LOCK_ENABLED_KEY = 'spendly_lock_enabled';
-const BIOMETRIC_CREDENTIAL_KEY = 'spendly_biometric_credential';
-const PIN_HASH_KEY = 'spendly_pin_hash';
+const LOCK_ENABLED_KEY = "spendly_lock_enabled";
+const BIOMETRIC_CREDENTIAL_KEY = "spendly_biometric_credential";
+const PIN_HASH_KEY = "spendly_pin_hash";
 
 export function isAppLockEnabled(): boolean {
-  return localStorage.getItem(LOCK_ENABLED_KEY) === 'true';
+  return localStorage.getItem(LOCK_ENABLED_KEY) === "true" && hasPinSet();
 }
 
 export function setAppLockEnabled(enabled: boolean): void {
-  localStorage.setItem(LOCK_ENABLED_KEY, enabled ? 'true' : 'false');
+  localStorage.setItem(LOCK_ENABLED_KEY, enabled ? "true" : "false");
 }
 
 export function hasPinSet(): boolean {
@@ -45,26 +45,30 @@ export async function registerBiometric(): Promise<boolean> {
     const credential = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: { name: 'Spendly', id: window.location.hostname },
+        rp: { name: "Spendly", id: window.location.hostname },
         user: {
-          id: new TextEncoder().encode('spendly-user'),
-          name: 'Spendly User',
-          displayName: 'Spendly User',
+          id: new TextEncoder().encode("spendly-user"),
+          name: "Spendly User",
+          displayName: "Spendly User",
         },
         pubKeyCredParams: [
-          { alg: -7, type: 'public-key' },
-          { alg: -257, type: 'public-key' },
+          { alg: -7, type: "public-key" },
+          { alg: -257, type: "public-key" },
         ],
         authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'preferred',
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          residentKey: "preferred",
         },
         timeout: 60000,
       },
     });
-    if (credential && 'rawId' in credential) {
-      const id = btoa(String.fromCharCode(...new Uint8Array((credential as PublicKeyCredential).rawId)));
+    if (credential && "rawId" in credential) {
+      const id = btoa(
+        String.fromCharCode(
+          ...new Uint8Array((credential as PublicKeyCredential).rawId),
+        ),
+      );
       localStorage.setItem(BIOMETRIC_CREDENTIAL_KEY, id);
       return true;
     }
@@ -83,13 +87,15 @@ export async function verifyBiometric(): Promise<boolean> {
   if (!storedId) return false;
 
   try {
-    const rawId = Uint8Array.from(atob(storedId), c => c.charCodeAt(0));
+    const rawId = Uint8Array.from(atob(storedId), (c) => c.charCodeAt(0));
     const challenge = crypto.getRandomValues(new Uint8Array(32));
     const assertion = await navigator.credentials.get({
       publicKey: {
         challenge,
-        allowCredentials: [{ id: rawId, type: 'public-key', transports: ['internal'] }],
-        userVerification: 'required',
+        allowCredentials: [
+          { id: rawId, type: "public-key", transports: ["internal"] },
+        ],
+        userVerification: "required",
         timeout: 60000,
       },
     });
@@ -101,6 +107,8 @@ export async function verifyBiometric(): Promise<boolean> {
 
 async function hashPin(pin: string): Promise<string> {
   const data = new TextEncoder().encode(`spendly-pin:${pin}`);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
