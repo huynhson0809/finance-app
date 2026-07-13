@@ -82,22 +82,17 @@ export function AppLockToggle() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={enabled ? handleDisable : handleEnable}
-          disabled={busy}
-          className={`relative h-7 w-12 rounded-full transition ${
-            enabled ? "bg-sky-400" : "bg-slate-600"
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${
-              enabled ? "translate-x-5" : "translate-x-0.5"
-            }`}
+        <label className="relative inline-block h-8 w-14 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={() => (enabled ? handleDisable() : void handleEnable())}
+            disabled={busy}
+            className="peer sr-only"
           />
-        </button>
+          <span className="absolute inset-0 rounded-full bg-slate-600 transition-colors peer-checked:bg-sky-400 peer-disabled:opacity-50" />
+          <span className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-md transition-transform peer-checked:translate-x-6" />
+        </label>
       </div>
 
       {showPinSetup && (
