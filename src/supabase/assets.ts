@@ -1,4 +1,4 @@
-import type { AppSupabaseClient } from './client';
+import type { AppSupabaseClient } from "./client";
 import type {
   AssetAccount,
   AssetAccountKind,
@@ -6,49 +6,49 @@ import type {
   AssetEvent,
   AssetEventType,
   GoldUnit,
-} from '../assets/types';
+} from "../assets/types";
 
 export {
   deleteCloudAssetRate,
   listCloudAssetRates,
   refreshCloudAssetRates,
   upsertCloudAssetRate,
-} from './rates';
-export type { AssetRateInput } from './rates';
+} from "./rates";
+export type { AssetRateInput } from "./rates";
 
 const ASSET_ACCOUNT_COLUMNS = [
-  'id',
-  'user_id',
-  'kind',
-  'name',
-  'currency',
-  'balance',
-  'quantity',
-  'gold_unit',
-  'bank',
-  'account_identifier',
-  'card_identifier',
-  'include_in_total',
-  'sort_order',
-  'created_at',
-  'updated_at',
-].join(',');
+  "id",
+  "user_id",
+  "kind",
+  "name",
+  "currency",
+  "balance",
+  "quantity",
+  "gold_unit",
+  "bank",
+  "account_identifier",
+  "card_identifier",
+  "include_in_total",
+  "sort_order",
+  "created_at",
+  "updated_at",
+].join(",");
 const ASSET_EVENT_COLUMNS = [
-  'id',
-  'user_id',
-  'account_id',
-  'counterparty_account_id',
-  'transaction_id',
-  'type',
-  'amount',
-  'currency',
-  'balance_after',
-  'note',
-  'occurred_at',
-  'created_at',
-].join(',');
+  "id",
+  "user_id",
+  "account_id",
+  "counterparty_account_id",
+  "transaction_id",
+  "type",
+  "amount",
+  "currency",
+  "balance_after",
+  "note",
+  "occurred_at",
+  "created_at",
+].join(",");
 
-type AssetTable = 'asset_accounts' | 'asset_events';
+type AssetTable = "asset_accounts" | "asset_events";
 type NumericValue = number | string;
 
 interface QueryError {
@@ -134,6 +134,9 @@ interface AssetEventInsertRow {
 interface AssetQueryBuilder<T> extends PromiseLike<QueryResult<T[]>> {
   order(column: string, opts: { ascending: boolean }): AssetQueryBuilder<T>;
   eq(column: string, value: string): AssetQueryBuilder<T>;
+  gte(column: string, value: string): AssetQueryBuilder<T>;
+  lt(column: string, value: string): AssetQueryBuilder<T>;
+  limit(count: number): AssetQueryBuilder<T>;
   single(): PromiseLike<QueryResult<T>>;
   maybeSingle(): PromiseLike<QueryResult<T>>;
 }
@@ -150,7 +153,10 @@ interface AssetSelectSingleBuilder<T> {
 
 interface AssetTableBuilder<T, UpsertRow, InsertRow> {
   select(columns: string): AssetQueryBuilder<T>;
-  upsert(row: UpsertRow, opts: { onConflict: string }): AssetSelectSingleBuilder<T>;
+  upsert(
+    row: UpsertRow,
+    opts: { onConflict: string },
+  ): AssetSelectSingleBuilder<T>;
   insert(row: InsertRow): AssetSelectSingleBuilder<T>;
   update(row: Record<string, unknown>): AssetMutationFilterBuilder;
   delete(): AssetMutationFilterBuilder;
@@ -165,16 +171,22 @@ interface AssetClientInput {
 
 type Assert<T extends true> = T;
 export type SupabaseAssetClientCompatibility = Assert<
-  AppSupabaseClient['from'] extends AssetClientInput['from'] ? true : false
+  AppSupabaseClient["from"] extends AssetClientInput["from"] ? true : false
 >;
 
-export type AssetAccountInput = Omit<AssetAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'sortOrder'> & {
+export type AssetAccountInput = Omit<
+  AssetAccount,
+  "id" | "userId" | "createdAt" | "updatedAt" | "sortOrder"
+> & {
   id?: string;
   sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 };
-export type AssetEventInput = Omit<AssetEvent, 'id' | 'userId' | 'createdAt'> & {
+export type AssetEventInput = Omit<
+  AssetEvent,
+  "id" | "userId" | "createdAt"
+> & {
   id?: string;
   createdAt?: string;
 };
@@ -182,13 +194,21 @@ export type AssetEventInput = Omit<AssetEvent, 'id' | 'userId' | 'createdAt'> & 
 function assetAccountsTable(
   client: AssetClientInput,
 ): AssetTableBuilder<CloudAssetAccountRow, AssetAccountUpsertRow, never> {
-  return client.from('asset_accounts') as AssetTableBuilder<CloudAssetAccountRow, AssetAccountUpsertRow, never>;
+  return client.from("asset_accounts") as AssetTableBuilder<
+    CloudAssetAccountRow,
+    AssetAccountUpsertRow,
+    never
+  >;
 }
 
 function assetEventsTable(
   client: AssetClientInput,
 ): AssetTableBuilder<CloudAssetEventRow, never, AssetEventInsertRow> {
-  return client.from('asset_events') as AssetTableBuilder<CloudAssetEventRow, never, AssetEventInsertRow>;
+  return client.from("asset_events") as AssetTableBuilder<
+    CloudAssetEventRow,
+    never,
+    AssetEventInsertRow
+  >;
 }
 
 async function currentUserId(client: AssetClientInput): Promise<string> {
@@ -197,7 +217,7 @@ async function currentUserId(client: AssetClientInput): Promise<string> {
     throw new Error(result.error.message);
   }
   if (!result.data.user) {
-    throw new Error('No signed-in user');
+    throw new Error("No signed-in user");
   }
   return result.data.user.id;
 }
@@ -250,8 +270,8 @@ export async function listCloudAssetAccounts(
 ): Promise<AssetAccount[]> {
   const result = await assetAccountsTable(client)
     .select(ASSET_ACCOUNT_COLUMNS)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   throwIfError(result.error);
   return (result.data ?? []).map(mapAssetAccount);
@@ -286,13 +306,13 @@ export async function upsertCloudAssetAccount(
   }
 
   const result = await assetAccountsTable(client)
-    .upsert(row, { onConflict: 'id' })
+    .upsert(row, { onConflict: "id" })
     .select(ASSET_ACCOUNT_COLUMNS)
     .single();
 
   throwIfError(result.error);
   if (!result.data) {
-    throw new Error('No asset account returned');
+    throw new Error("No asset account returned");
   }
   return mapAssetAccount(result.data);
 }
@@ -301,9 +321,7 @@ export async function deleteCloudAssetAccount(
   client: AssetClientInput,
   id: string,
 ): Promise<void> {
-  const result = await assetAccountsTable(client)
-    .delete()
-    .eq('id', id);
+  const result = await assetAccountsTable(client).delete().eq("id", id);
 
   throwIfError(result.error);
 }
@@ -315,7 +333,7 @@ export async function reorderCloudAssetAccounts(
   for (const [sortOrder, id] of ids.entries()) {
     const result = await assetAccountsTable(client)
       .update({ sort_order: sortOrder })
-      .eq('id', id);
+      .eq("id", id);
 
     throwIfError(result.error);
   }
@@ -350,7 +368,7 @@ export async function insertCloudAssetEvent(
 
   throwIfError(result.error);
   if (!result.data) {
-    throw new Error('No asset event returned');
+    throw new Error("No asset event returned");
   }
   return mapAssetEvent(result.data);
 }
@@ -359,12 +377,32 @@ export async function listCloudAssetEvents(
   client: AssetClientInput,
   accountId?: string,
 ): Promise<AssetEvent[]> {
-  let query = assetEventsTable(client)
-    .select(ASSET_EVENT_COLUMNS);
+  let query = assetEventsTable(client).select(ASSET_EVENT_COLUMNS);
   if (accountId !== undefined) {
-    query = query.eq('account_id', accountId);
+    query = query.eq("account_id", accountId);
   }
-  const result = await query.order('occurred_at', { ascending: false });
+  const result = await query.order("occurred_at", { ascending: false });
+
+  throwIfError(result.error);
+  return (result.data ?? []).map(mapAssetEvent);
+}
+
+export async function listCloudTransferEvents(
+  client: AssetClientInput,
+  opts?: { sinceISO?: string; untilISO?: string; limit?: number },
+): Promise<AssetEvent[]> {
+  let query = assetEventsTable(client)
+    .select(ASSET_EVENT_COLUMNS)
+    .eq("type", "transfer_out");
+  if (opts?.sinceISO) {
+    query = query.gte("occurred_at", opts.sinceISO);
+  }
+  if (opts?.untilISO) {
+    query = query.lt("occurred_at", opts.untilISO);
+  }
+  const result = await query
+    .order("occurred_at", { ascending: false })
+    .limit(opts?.limit ?? 100);
 
   throwIfError(result.error);
   return (result.data ?? []).map(mapAssetEvent);
@@ -372,7 +410,11 @@ export async function listCloudAssetEvents(
 
 export async function findCloudAssetAccountByBankIdentifier(
   client: AssetClientInput,
-  params: { bank: string; accountIdentifier?: string | null; cardIdentifier?: string | null },
+  params: {
+    bank: string;
+    accountIdentifier?: string | null;
+    cardIdentifier?: string | null;
+  },
 ): Promise<AssetAccount | null> {
   const hasAccountIdentifier = params.accountIdentifier != null;
   const hasCardIdentifier = params.cardIdentifier != null;
@@ -380,15 +422,19 @@ export async function findCloudAssetAccountByBankIdentifier(
     return null;
   }
 
-  const identifierColumn = hasAccountIdentifier ? 'account_identifier' : 'card_identifier';
-  const identifier = hasAccountIdentifier ? params.accountIdentifier : params.cardIdentifier;
+  const identifierColumn = hasAccountIdentifier
+    ? "account_identifier"
+    : "card_identifier";
+  const identifier = hasAccountIdentifier
+    ? params.accountIdentifier
+    : params.cardIdentifier;
   if (identifier == null) {
     return null;
   }
 
   const result = await assetAccountsTable(client)
     .select(ASSET_ACCOUNT_COLUMNS)
-    .eq('bank', params.bank)
+    .eq("bank", params.bank)
     .eq(identifierColumn, identifier)
     .maybeSingle();
 

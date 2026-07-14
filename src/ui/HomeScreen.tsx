@@ -6,7 +6,8 @@ import {
   useRecentCloudTransactions,
 } from "../hooks/useCloudTransactions";
 import { AddImageButton } from "./AddImageButton";
-import { useAssetSummary } from "../hooks/useAssets";
+import { useAssetAccounts, useAssetSummary } from "../hooks/useAssets";
+import { useRecentTransferEvents } from "../hooks/useTransferEvents";
 import { useBudget } from "../hooks/useBudget";
 import { useCategoryOverrides } from "../hooks/useCategoryOverrides";
 import { useCustomCategories } from "../hooks/useCustomCategories";
@@ -14,6 +15,8 @@ import { AssetSummaryCard } from "./components/AssetSummaryCard";
 import { BudgetBar } from "./components/BudgetBar";
 import { BudgetAlert } from "./components/BudgetAlert";
 import { TransactionRow } from "./components/TransactionRow";
+import { TransferRow } from "./components/TransferRow";
+import { buildTransferItems, mergeTimeline } from "../timeline";
 import {
   sumByCategory,
   status as budgetStatus,
@@ -27,6 +30,8 @@ import {
 } from "../lib/date";
 import { EXPENSE_CATEGORIES, type Category } from "../types";
 import { categoryLabel as displayCategoryLabel } from "./theme/categoryMeta";
+import { YearlySavingsCard } from "./components/YearlySavingsCard";
+import { useSavingsTarget } from "../hooks/useSavingsTarget";
 
 export function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -34,6 +39,7 @@ export function HomeScreen() {
   const today = todayVietnamDate();
   const month = monthOfVietnamDate(today);
   const { data: budget } = useBudget(month);
+  const savingsTarget = useSavingsTarget();
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
   const {
@@ -41,6 +47,9 @@ export function HomeScreen() {
     isLoading: assetSummaryLoading,
     error: assetSummaryError,
   } = useAssetSummary();
+  const accountsQuery = useAssetAccounts();
+  const accounts = accountsQuery.data ?? [];
+  const { data: recentTransferEvents } = useRecentTransferEvents(5);
   const {
     data: recent,
     loading: recentLoading,
@@ -90,6 +99,16 @@ export function HomeScreen() {
   );
   const categoryLabel = (c: Category) =>
     displayCategoryLabel(c, customCategories, t, categoryOverrides);
+
+  const transferItems = useMemo(
+    () => buildTransferItems(recentTransferEvents, accounts),
+    [recentTransferEvents, accounts],
+  );
+  const recentTimeline = useMemo(
+    () => mergeTimeline(recent, transferItems).slice(0, 5),
+    [recent, transferItems],
+  );
+
   const cloudErrors = Array.from(
     new Set(
       [recentError, monthError].filter((error): error is string =>
@@ -116,6 +135,15 @@ export function HomeScreen() {
           error={assetSummaryError}
           locale={locale}
         />
+        {savingsTarget > 0 && (
+          <div className="mt-3">
+            <YearlySavingsCard
+              target={savingsTarget}
+              current={assetSummary?.savingsVnd ?? 0}
+              locale={locale}
+            />
+          </div>
+        )}
       </div>
 
       <section
@@ -218,21 +246,25 @@ export function HomeScreen() {
           <div className="px-3 py-3 text-sm text-zinc-400">
             {t("cloud.loading")}
           </div>
-        ) : recentError ? null : recent.length === 0 ? (
+        ) : recentError ? null : recentTimeline.length === 0 ? (
           <div className="px-3 py-3 text-sm text-zinc-400">
             {t("home.empty")}
           </div>
         ) : (
           <ul className="bg-black">
-            {recent.map((tx) => (
-              <TransactionRow
-                key={tx.id}
-                t={tx}
-                locale={locale}
-                customCategories={customCategories}
-                categoryOverrides={categoryOverrides}
-              />
-            ))}
+            {recentTimeline.map((item) =>
+              item.kind === "transfer" ? (
+                <TransferRow key={item.id} transfer={item} locale={locale} />
+              ) : (
+                <TransactionRow
+                  key={item.transaction.id}
+                  t={item.transaction}
+                  locale={locale}
+                  customCategories={customCategories}
+                  categoryOverrides={categoryOverrides}
+                />
+              ),
+            )}
           </ul>
         )}
       </section>

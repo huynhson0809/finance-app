@@ -1,12 +1,21 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronRight, Search } from "lucide-react";
+import { ArrowRightLeft, ChevronRight, Search } from "lucide-react";
 import { useCategoryOverrides } from "../hooks/useCategoryOverrides";
 import { useCustomCategories } from "../hooks/useCustomCategories";
 import { useMonthCloudTransactions } from "../hooks/useCloudTransactions";
+import { useMonthTransferEvents } from "../hooks/useTransferEvents";
+import { useAssetAccounts } from "../hooks/useAssets";
 import {
+  buildTransferItems,
+  mergeTimeline,
+  type TimelineItem,
+} from "../timeline";
+import {
+  formatMonthLong,
   monthOfVietnamDate,
+  monthRangeVietnamISO,
   nextMonth,
   prevMonth,
   todayVietnamDate,
@@ -28,11 +37,6 @@ function safeMonth(value: string | null, today: string): string {
   return value && VALID_MONTH.test(value) ? value : monthOfVietnamDate(today);
 }
 
-function displayMonth(monthISO: string): string {
-  const [year, month] = monthISO.split("-");
-  return `${month}/${year}`;
-}
-
 function daysInMonth(monthISO: string): number {
   const [year, month] = monthISO.split("-").map(Number);
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -40,12 +44,6 @@ function daysInMonth(monthISO: string): number {
 
 function dateForMonthDay(monthISO: string, day: number): string {
   return `${monthISO}-${String(day).padStart(2, "0")}`;
-}
-
-function displayMonthRange(monthISO: string): string {
-  const [year, month] = monthISO.split("-");
-  const lastDay = String(daysInMonth(monthISO)).padStart(2, "0");
-  return `${month}/${year} (01/${month} - ${lastDay}/${month})`;
 }
 
 function dayNumber(date: string): number {
@@ -309,6 +307,7 @@ function MonthSummary({
 }
 
 function CalendarLedger({
+  timeline,
   transactions,
   selectedDate,
   month,
@@ -317,6 +316,7 @@ function CalendarLedger({
   customCategories,
   categoryOverrides,
 }: {
+  timeline: TimelineItem[];
   transactions: Transaction[];
   selectedDate: string;
   month: string;
@@ -362,13 +362,43 @@ function CalendarLedger({
             {signedAmount(totals.net, locale)}
           </span>
         </div>
-        {transactions.length === 0 ? (
+        {timeline.length === 0 ? (
           <div className="px-4 py-4 text-sm text-zinc-400">
             {t("calendar.emptyDay")}
           </div>
         ) : (
           <ul>
-            {transactions.map((transaction) => {
+            {timeline.map((item) => {
+              if (item.kind === "transfer") {
+                return (
+                  <li key={item.id}>
+                    <div className="grid min-h-[4.25rem] w-full grid-cols-[2.75rem_minmax(0,1fr)_minmax(5.5rem,7.5rem)] items-center gap-2 border-b border-zinc-900 bg-black px-3 py-2 text-left text-zinc-50">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg">
+                        <ArrowRightLeft
+                          aria-hidden="true"
+                          className="h-7 w-7 text-amber-400"
+                        />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-bold">
+                          {item.fromAccountName} → {item.toAccountName}
+                        </span>
+                        <span className="block truncate text-xs text-zinc-400">
+                          {transactionTime(item.occurredAt, locale)}
+                        </span>
+                      </span>
+                      <span className="truncate whitespace-nowrap text-right text-base font-bold text-amber-400">
+                        {formatMoney(
+                          item.amount,
+                          item.currency as "VND" | "USD",
+                          locale,
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                );
+              }
+              const transaction = item.transaction;
               const meta = getCategoryMeta(
                 transaction.category,
                 customCategories,
@@ -450,6 +480,17 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
     error,
     reload,
   } = useMonthCloudTransactions(month);
+  const range = monthRangeVietnamISO(month);
+  const { data: transferEvents } = useMonthTransferEvents(
+    range.sinceISO,
+    range.untilISO,
+  );
+  const accountsQuery = useAssetAccounts();
+  const accounts = accountsQuery.data ?? [];
+  const transferItems = useMemo(
+    () => buildTransferItems(transferEvents, accounts),
+    [transferEvents, accounts],
+  );
   const { categories: customCategories } = useCustomCategories();
   const { overrides: categoryOverrides } = useCategoryOverrides();
   const [manualSelection, setManualSelection] = useState<string | null>(() =>
@@ -486,6 +527,17 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
         )
         .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
     [transactions, selectedDate],
+  );
+  const selectedTransfers = useMemo(
+    () =>
+      transferItems.filter(
+        (t) => todayVietnamDate(new Date(t.occurredAt)) === selectedDate,
+      ),
+    [transferItems, selectedDate],
+  );
+  const selectedTimeline = useMemo(
+    () => mergeTimeline(selectedTransactions, selectedTransfers),
+    [selectedTransactions, selectedTransfers],
   );
   const hasMonthTransactions = transactions.some(
     (transaction) =>
@@ -547,6 +599,7 @@ function CalendarMonthView({ month, today, locale }: CalendarMonthViewProps) {
           />
 
           <CalendarLedger
+            timeline={selectedTimeline}
             transactions={selectedTransactions}
             selectedDate={selectedDate}
             month={month}
@@ -597,10 +650,7 @@ export function CalendarScreen() {
         </button>
         <div className="rounded-md bg-zinc-800 px-3 py-2 text-center">
           <span className="text-lg font-bold text-white">
-            {displayMonth(month)}
-          </span>
-          <span className="ml-2 text-xs font-semibold text-zinc-300">
-            {displayMonthRange(month).replace(displayMonth(month), "")}
+            {formatMonthLong(month, locale)}
           </span>
         </div>
         <button

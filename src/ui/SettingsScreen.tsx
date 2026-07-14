@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { setLocale, type Locale } from "../i18n";
 import { upsertBudget, getBudgetForMonth } from "../db/budgets";
+import { getSetting, setSetting } from "../db/settings";
 import { monthOfVietnamDate, todayVietnamDate } from "../lib/date";
 import { parseVNDInput } from "../lib/money";
 import { CapsEditor } from "./components/CapsEditor";
@@ -61,6 +62,7 @@ export function SettingsScreen() {
   const { signOut } = useAuth();
   const month = monthOfVietnamDate(todayVietnamDate());
   const [raw, setRaw] = useState("");
+  const [savingsTargetRaw, setSavingsTargetRaw] = useState("");
   const [caps, setCaps] = useState<Partial<Record<Category, number>>>({});
   const [total, setTotal] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
@@ -76,6 +78,9 @@ export function SettingsScreen() {
         setTotal(b.total);
         setCaps(b.caps ?? {});
       }
+    });
+    getSetting<number>("yearly_savings_target").then((v) => {
+      if (v) setSavingsTargetRaw(String(v));
     });
   }, [month]);
 
@@ -184,6 +189,41 @@ export function SettingsScreen() {
             />
           </div>
         )}
+      </GlassPanel>
+
+      <GlassPanel className="p-4">
+        <h2 className="font-semibold text-white">{t("home.savingsGoal")}</h2>
+        <div className="mt-3">
+          <DarkField label={t("home.savingsGoal")}>
+            <input
+              inputMode="numeric"
+              value={
+                savingsTargetRaw
+                  ? savingsTargetRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                  : ""
+              }
+              onChange={(e) =>
+                setSavingsTargetRaw(e.target.value.replace(/[^\d]/g, ""))
+              }
+            />
+          </DarkField>
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            const parsed = parseVNDInput(savingsTargetRaw);
+            if (!Number.isNaN(parsed) && parsed > 0) {
+              await setSetting("yearly_savings_target", parsed);
+            } else {
+              await setSetting("yearly_savings_target", 0);
+              setSavingsTargetRaw("");
+            }
+          }}
+          aria-label="Set yearly target"
+          className="mt-3 min-h-12 rounded-2xl bg-sky-400 px-4 font-bold text-slate-950"
+        >
+          {t("settings.save")}
+        </button>
       </GlassPanel>
 
       <GlassPanel

@@ -19,7 +19,9 @@
     "liquid": "Thanh khoản",
     "savings": "Tiết kiệm",
     "liability": "Nợ",
-    "noAssets": "Chưa thiết lập tài sản"
+    "noAssets": "Chưa thiết lập tài sản",
+    "savingsGoal": "Mục tiêu tiết kiệm năm",
+    "savingsGoalReached": "Đạt mục tiêu!"
   },
   "transactions": {
     "categoryLabel": "Danh mục giao dịch",

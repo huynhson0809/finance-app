@@ -38,16 +38,17 @@ export function dateInputValueForVietnam(now = new Date()): string {
 export function datetimeInputValueForVietnam(now = new Date()): string {
   const shifted = new Date(now.getTime() + VIETNAM_UTC_OFFSET_MS);
   const year = shifted.getUTCFullYear();
-  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(shifted.getUTCDate()).padStart(2, '0');
-  const hour = String(shifted.getUTCHours()).padStart(2, '0');
-  const minute = String(shifted.getUTCMinutes()).padStart(2, '0');
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
+  const hour = String(shifted.getUTCHours()).padStart(2, "0");
+  const minute = String(shifted.getUTCMinutes()).padStart(2, "0");
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 export function vietnamDateInputToNoonISO(dateInput: string): string {
-  const [year, month, day] = dateInput.split('-').map(Number);
-  const utc = Date.UTC(year, month - 1, day, 12, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
+  const [year, month, day] = dateInput.split("-").map(Number);
+  const utc =
+    Date.UTC(year, month - 1, day, 12, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   return new Date(utc).toISOString();
 }
 
@@ -64,43 +65,94 @@ export function isSameVietnamDay(a: string | Date, b: string | Date): boolean {
 }
 
 /** Returns UTC instants for Vietnam local midnight boundaries of the given month (YYYY-MM). */
-export function monthRangeVietnamISO(monthISO: string): { sinceISO: string; untilISO: string } {
-  const [y, m] = monthISO.split('-').map(Number);
+export function monthRangeVietnamISO(monthISO: string): {
+  sinceISO: string;
+  untilISO: string;
+} {
+  const [y, m] = monthISO.split("-").map(Number);
   const since = Date.UTC(y, m - 1, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   const until = Date.UTC(y, m, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
-  return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
+  return {
+    sinceISO: new Date(since).toISOString(),
+    untilISO: new Date(until).toISOString(),
+  };
 }
 
-export function yearRangeVietnamISO(year: number): { sinceISO: string; untilISO: string } {
+export function yearRangeVietnamISO(year: number): {
+  sinceISO: string;
+  untilISO: string;
+} {
   const since = Date.UTC(year, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
   const until = Date.UTC(year + 1, 0, 1, 0, 0, 0, 0) - VIETNAM_UTC_OFFSET_MS;
-  return { sinceISO: new Date(since).toISOString(), untilISO: new Date(until).toISOString() };
+  return {
+    sinceISO: new Date(since).toISOString(),
+    untilISO: new Date(until).toISOString(),
+  };
 }
 
 function vietnamDateString(input: string | Date): string {
   const date = input instanceof Date ? input : new Date(input);
   const shifted = new Date(date.getTime() + VIETNAM_UTC_OFFSET_MS);
   const year = shifted.getUTCFullYear();
-  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(shifted.getUTCDate()).padStart(2, '0');
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
 export function prevMonth(monthISO: string): string {
-  const [y, m] = monthISO.split('-').map(Number);
+  const [y, m] = monthISO.split("-").map(Number);
   if (m === 1) return `${y - 1}-12`;
-  return `${y}-${String(m - 1).padStart(2, '0')}`;
+  return `${y}-${String(m - 1).padStart(2, "0")}`;
 }
 
 /** Returns ISO strings for local midnight at the start and end of the given month (YYYY-MM). */
-export function monthRangeISO(monthISO: string): { sinceISO: string; untilISO: string } {
-  const [y, m] = monthISO.split('-').map(Number);
+export function monthRangeISO(monthISO: string): {
+  sinceISO: string;
+  untilISO: string;
+} {
+  const [y, m] = monthISO.split("-").map(Number);
   const since = new Date(y, m - 1, 1, 0, 0, 0, 0);
   const until = new Date(y, m, 1, 0, 0, 0, 0);
   return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
 }
 
 export function nextMonth(monthISO: string): string {
-  const [y, m] = monthISO.split('-').map(Number);
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const [y, m] = monthISO.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+const MONTH_LONG_VI = new Intl.DateTimeFormat("vi-VN", {
+  month: "long",
+  year: "numeric",
+});
+const MONTH_LONG_EN = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+});
+const MONTH_SHORT_VI = new Intl.DateTimeFormat("vi-VN", { month: "short" });
+const MONTH_SHORT_EN = new Intl.DateTimeFormat("en-US", { month: "short" });
+
+export function formatMonthLong(monthISO: string, locale: "vi" | "en"): string {
+  const [y, m] = monthISO.split("-").map(Number);
+  const date = new Date(y, m - 1, 1);
+  return (locale === "vi" ? MONTH_LONG_VI : MONTH_LONG_EN).format(date);
+}
+
+export function formatMonthShort(
+  monthIndex: number,
+  locale: "vi" | "en",
+): string {
+  const date = new Date(2026, monthIndex, 1);
+  return (locale === "vi" ? MONTH_SHORT_VI : MONTH_SHORT_EN).format(date);
+}
+
+export function formatMonthLongByIndex(
+  monthIndex: number,
+  locale: "vi" | "en",
+): string {
+  const date = new Date(2026, monthIndex, 1);
+  const fmt = new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", {
+    month: "long",
+  });
+  return fmt.format(date);
 }

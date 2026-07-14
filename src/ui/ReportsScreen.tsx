@@ -21,10 +21,13 @@ import { MonthBar, type DailyDatum } from "./components/Charts/MonthBar";
 import { PeriodBar, type PeriodDatum } from "./components/Charts/PeriodBar";
 import { BudgetAlert } from "./components/BudgetAlert";
 import {
+  formatMonthLong,
+  formatMonthLongByIndex,
   monthOfVietnamDate,
   todayVietnamDate,
   prevMonth,
   nextMonth,
+  formatMonthShort,
 } from "../lib/date";
 import {
   categoryBelongsToDirection,
@@ -117,6 +120,7 @@ function monthRowsForYear(
   transactions: Transaction[],
   year: number,
   metric: PeriodMetric,
+  locale: "vi" | "en",
 ): Array<PeriodDatum & { value: number }> {
   const totals = new Array<number>(12).fill(0);
 
@@ -128,7 +132,8 @@ function monthRowsForYear(
   }
 
   return totals.map((value, index) => ({
-    label: `T${index + 1}`,
+    label: formatMonthShort(index, locale),
+    monthIndex: index,
     value,
     total: Math.abs(value),
   }));
@@ -162,6 +167,7 @@ function monthRowsForCategory(
   year: number,
   direction: TransactionDirection,
   category: Category,
+  locale: "vi" | "en",
 ): Array<PeriodDatum & { value: number }> {
   const totals = new Array<number>(12).fill(0);
 
@@ -175,7 +181,8 @@ function monthRowsForCategory(
   }
 
   return totals.map((value, index) => ({
-    label: `T${index + 1}`,
+    label: formatMonthShort(index, locale),
+    monthIndex: index,
     value,
     total: value,
   }));
@@ -306,8 +313,8 @@ export function ReportsScreen() {
     () =>
       reportScope === "all"
         ? yearRowsForAllTime(reportTransactions, periodMetric)
-        : monthRowsForYear(reportTransactions, year, periodMetric),
-    [periodMetric, reportScope, reportTransactions, year],
+        : monthRowsForYear(reportTransactions, year, periodMetric, locale),
+    [locale, periodMetric, reportScope, reportTransactions, year],
   );
   const periodTotal = periodRows.reduce((sum, row) => sum + row.value, 0);
   const periodAverage =
@@ -343,6 +350,7 @@ export function ReportsScreen() {
             year,
             direction,
             effectiveCategory,
+            locale,
           )
         : [],
     [direction, reportScope, reportTransactions, effectiveCategory, year],
@@ -550,7 +558,9 @@ export function ReportsScreen() {
           >
             ‹
           </button>
-          <h1 className="text-xl font-bold text-white">{month}</h1>
+          <h1 className="text-xl font-bold text-white">
+            {formatMonthLong(month, locale)}
+          </h1>
           <button
             type="button"
             onClick={() => step(1)}
@@ -681,7 +691,10 @@ export function ReportsScreen() {
                     <span className="text-base font-semibold text-white">
                       {reportScope === "all"
                         ? row.label
-                        : t("reports.monthName", { month: row.label.slice(1) })}
+                        : formatMonthLongByIndex(
+                            (row as { monthIndex?: number }).monthIndex ?? 0,
+                            locale,
+                          )}
                     </span>
                     <span className="text-base font-bold text-slate-100">
                       {formatVND(row.value, locale)}

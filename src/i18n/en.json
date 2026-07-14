@@ -19,7 +19,9 @@
     "liquid": "Liquid",
     "savings": "Savings",
     "liability": "Debt",
-    "noAssets": "No assets set up yet"
+    "noAssets": "No assets set up yet",
+    "savingsGoal": "Yearly savings goal",
+    "savingsGoalReached": "Goal reached!"
   },
   "transactions": {
     "categoryLabel": "Transaction category",

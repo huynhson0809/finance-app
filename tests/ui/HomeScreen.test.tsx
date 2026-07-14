@@ -69,6 +69,11 @@ vi.mock("../../src/hooks/useCustomCategories", () => ({
 
 vi.mock("../../src/hooks/useAssets", () => ({
   useAssetSummary: assetHooks.useAssetSummary,
+  useAssetAccounts: () => ({ data: [], isLoading: false, isError: false }),
+}));
+
+vi.mock("../../src/hooks/useTransferEvents", () => ({
+  useRecentTransferEvents: () => ({ data: [], loading: false, error: null }),
 }));
 
 import { HomeScreen } from "../../src/ui/HomeScreen";

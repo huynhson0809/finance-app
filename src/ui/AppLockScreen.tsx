@@ -192,28 +192,92 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 }
 
 export function useAppLock() {
-  // Never lock on first mount — only lock when returning from background
   const [locked, setLocked] = useState(false);
-  const wasHidden = useRef(false);
+  const lastActiveRef = useRef(Date.now());
+  const LOCK_AFTER_MS = 1000; // Lock after 1 second away
 
   useEffect(() => {
-    function handleVisibility() {
+    if (!isAppLockEnabled()) return;
+
+    function markActive() {
+      lastActiveRef.current = Date.now();
+    }
+
+    function checkAndLock() {
+      if (!isAppLockEnabled()) return;
+      const elapsed = Date.now() - lastActiveRef.current;
+      if (elapsed >= LOCK_AFTER_MS) {
+        setLocked(true);
+      }
+    }
+
+    // Multiple events for maximum reliability on iOS
+    function handleHidden() {
+      lastActiveRef.current = Date.now();
+    }
+
+    function handleVisible() {
+      if (isAppLockEnabled()) {
+        checkAndLock();
+      }
+    }
+
+    function handleVisibilityChange() {
       if (document.visibilityState === "hidden") {
-        wasHidden.current = true;
-      } else if (document.visibilityState === "visible" && wasHidden.current) {
-        wasHidden.current = false;
-        if (isAppLockEnabled()) {
+        handleHidden();
+      } else {
+        handleVisible();
+      }
+    }
+
+    function handlePageShow() {
+      handleVisible();
+    }
+
+    function handleFocus() {
+      handleVisible();
+    }
+
+    function handleBlur() {
+      handleHidden();
+    }
+
+    // Register all events for redundancy
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+
+    // Also check periodically (catches edge cases on iOS)
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible" && isAppLockEnabled()) {
+        const elapsed = Date.now() - lastActiveRef.current;
+        if (elapsed >= LOCK_AFTER_MS && !locked) {
           setLocked(true);
         }
       }
-    }
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
+    }, 500);
+
+    // Mark as active on user interaction
+    document.addEventListener("touchstart", markActive, { passive: true });
+    document.addEventListener("click", markActive);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("touchstart", markActive);
+      document.removeEventListener("click", markActive);
+      clearInterval(interval);
+    };
+  }, [locked]);
 
   return {
     locked,
-    unlock: () => setLocked(false),
+    unlock: () => {
+      lastActiveRef.current = Date.now();
+      setLocked(false);
+    },
   };
 }
