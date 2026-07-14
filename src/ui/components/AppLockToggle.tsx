@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Shield } from "lucide-react";
 import {
   isBiometricAvailable,
@@ -12,6 +13,7 @@ import {
 import { DarkField, GlassPanel } from "./primitives";
 
 export function AppLockToggle() {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(isAppLockEnabled);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -53,11 +55,11 @@ export function AppLockToggle() {
 
   function handleSavePin() {
     if (pinInput.length < 4) {
-      setPinError("Mã PIN phải có ít nhất 4 số");
+      setPinError(t("appLock.pinMinError"));
       return;
     }
     if (pinInput !== pinConfirm) {
-      setPinError("Mã PIN không khớp");
+      setPinError(t("appLock.pinMismatch"));
       return;
     }
     void setPin(pinInput).then(() => {
@@ -76,9 +78,11 @@ export function AppLockToggle() {
         <div className="flex items-center gap-3">
           <Shield aria-hidden="true" className="h-5 w-5 text-sky-300" />
           <div>
-            <h2 className="font-semibold text-white">Khoá ứng dụng</h2>
+            <h2 className="font-semibold text-white">{t("appLock.title")}</h2>
             <p className="text-xs text-slate-400">
-              {bioAvailable ? "Face ID / Vân tay + PIN" : "Mã PIN"}
+              {bioAvailable
+                ? t("appLock.subtitleBio")
+                : t("appLock.subtitlePin")}
             </p>
           </div>
         </div>
@@ -97,8 +101,8 @@ export function AppLockToggle() {
 
       {showPinSetup && (
         <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
-          <p className="text-sm text-slate-300">Tạo mã PIN (4-6 số):</p>
-          <DarkField label="Mã PIN">
+          <p className="text-sm text-slate-300">{t("appLock.pinSetup")}</p>
+          <DarkField label={t("appLock.pin")}>
             <input
               type="password"
               inputMode="numeric"
@@ -108,10 +112,10 @@ export function AppLockToggle() {
                 setPinInput(e.target.value.replace(/[^\d]/g, ""))
               }
               placeholder="••••"
-              aria-label="Mã PIN"
+              aria-label={t("appLock.pin")}
             />
           </DarkField>
-          <DarkField label="Xác nhận PIN">
+          <DarkField label={t("appLock.pinConfirm")}>
             <input
               type="password"
               inputMode="numeric"
@@ -121,7 +125,7 @@ export function AppLockToggle() {
                 setPinConfirm(e.target.value.replace(/[^\d]/g, ""))
               }
               placeholder="••••"
-              aria-label="Xác nhận PIN"
+              aria-label={t("appLock.pinConfirm")}
             />
           </DarkField>
           {pinError && <p className="text-xs text-rose-300">{pinError}</p>}
@@ -130,7 +134,7 @@ export function AppLockToggle() {
             onClick={handleSavePin}
             className="min-h-10 rounded-xl bg-sky-400 px-4 text-sm font-bold text-slate-950"
           >
-            Xác nhận
+            {t("appLock.confirm")}
           </button>
         </div>
       )}
