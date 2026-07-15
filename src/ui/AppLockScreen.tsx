@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, Delete } from "lucide-react";
 import {
   isAppLockEnabled,
@@ -193,91 +193,31 @@ export function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 
 export function useAppLock() {
   const [locked, setLocked] = useState(false);
-  const lastActiveRef = useRef(Date.now());
-  const LOCK_AFTER_MS = 1000; // Lock after 1 second away
 
   useEffect(() => {
     if (!isAppLockEnabled()) return;
 
-    function markActive() {
-      lastActiveRef.current = Date.now();
-    }
-
-    function checkAndLock() {
-      if (!isAppLockEnabled()) return;
-      const elapsed = Date.now() - lastActiveRef.current;
-      if (elapsed >= LOCK_AFTER_MS) {
-        setLocked(true);
-      }
-    }
-
-    // Multiple events for maximum reliability on iOS
-    function handleHidden() {
-      lastActiveRef.current = Date.now();
-    }
-
-    function handleVisible() {
-      if (isAppLockEnabled()) {
-        checkAndLock();
-      }
-    }
+    let wasHidden = false;
 
     function handleVisibilityChange() {
       if (document.visibilityState === "hidden") {
-        handleHidden();
-      } else {
-        handleVisible();
-      }
-    }
-
-    function handlePageShow() {
-      handleVisible();
-    }
-
-    function handleFocus() {
-      handleVisible();
-    }
-
-    function handleBlur() {
-      handleHidden();
-    }
-
-    // Register all events for redundancy
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("blur", handleBlur);
-
-    // Also check periodically (catches edge cases on iOS)
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible" && isAppLockEnabled()) {
-        const elapsed = Date.now() - lastActiveRef.current;
-        if (elapsed >= LOCK_AFTER_MS && !locked) {
+        wasHidden = true;
+      } else if (document.visibilityState === "visible" && wasHidden) {
+        wasHidden = false;
+        if (isAppLockEnabled()) {
           setLocked(true);
         }
       }
-    }, 500);
+    }
 
-    // Mark as active on user interaction
-    document.addEventListener("touchstart", markActive, { passive: true });
-    document.addEventListener("click", markActive);
-
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("touchstart", markActive);
-      document.removeEventListener("click", markActive);
-      clearInterval(interval);
     };
-  }, [locked]);
+  }, []);
 
   return {
     locked,
-    unlock: () => {
-      lastActiveRef.current = Date.now();
-      setLocked(false);
-    },
+    unlock: () => setLocked(false),
   };
 }
