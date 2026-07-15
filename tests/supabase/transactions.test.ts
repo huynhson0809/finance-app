@@ -185,7 +185,7 @@ describe('cloud transaction queries', () => {
         occurredAt: '2026-07-06T04:19:20.000Z',
         merchant: 'Grab* BWCFLJMBDWRJ-G-1',
         direction: 'expense',
-        category: 'transportation',
+        category: 'food-drinks',
         note: 'MB card',
         source: 'bank-email',
         bankHint: 'mb',

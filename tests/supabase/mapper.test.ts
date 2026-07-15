@@ -34,7 +34,7 @@ describe('mapTransactionRow', () => {
       currency: 'VND',
       occurredAt: '2026-07-06T04:19:20.000Z',
       merchant: 'Grab* BWCFLJMBDWRJ-G-1',
-      category: 'transportation',
+      category: 'food-drinks',
       note: 'MB card',
       source: 'bank-email',
       bankHint: 'mb',

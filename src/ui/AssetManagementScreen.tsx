@@ -50,6 +50,7 @@ import { errorMessage } from "../lib/error";
 import { formatVND } from "../lib/money";
 import { invalidateAssetQueries } from "../query/client";
 import {
+  deleteCloudAssetAccount,
   reorderCloudAssetAccounts,
   upsertCloudAssetAccount,
 } from "../supabase/assets";
@@ -550,6 +551,24 @@ export function AssetManagementScreen() {
     }
   }
 
+  async function deleteAccount() {
+    const account = editing?.mode === "edit" ? editing.account : null;
+    if (!account || !supabase) return;
+    if (!confirm(t("assets.formDeleteConfirm"))) return;
+
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await deleteCloudAssetAccount(supabase, account.id);
+      await invalidateAssetQueries();
+      setEditing(null);
+    } catch (error) {
+      setLocalError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function persistAccountOrder(next: AssetAccount[]) {
     if (sameAccountOrder(next, accounts)) {
       setDraftOrder(null);
@@ -876,6 +895,7 @@ export function AssetManagementScreen() {
               busy={busy}
               onCancel={() => setEditing(null)}
               onSubmit={saveAccount}
+              onDelete={editing.mode === "edit" ? deleteAccount : undefined}
             />
           </GlassPanel>
         )}

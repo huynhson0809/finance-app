@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type {
   AssetAccount,
@@ -28,6 +29,7 @@ interface AssetAccountFormProps {
   busy?: boolean;
   onCancel: () => void;
   onSubmit: (values: AssetAccountFormValues) => Promise<void> | void;
+  onDelete?: () => Promise<void> | void;
 }
 
 interface FormState {
@@ -163,6 +165,7 @@ export function AssetAccountForm({
   busy = false,
   onCancel,
   onSubmit,
+  onDelete,
 }: AssetAccountFormProps) {
   const { t } = useTranslation();
   const [state, setState] = useState<FormState>(() => initialState(account));
@@ -316,9 +319,25 @@ export function AssetAccountForm({
 
       <DarkField label={t(amountLabelKey(state.kind))}>
         <input
-          inputMode="decimal"
-          value={state.amount}
-          onChange={(event) => update("amount", event.target.value)}
+          inputMode={
+            state.kind === "gold" || state.kind === "foreign_currency"
+              ? "decimal"
+              : "numeric"
+          }
+          value={
+            state.kind === "gold" || state.kind === "foreign_currency"
+              ? state.amount
+              : state.amount
+                ? state.amount.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                : ""
+          }
+          onChange={(event) => {
+            if (state.kind === "gold" || state.kind === "foreign_currency") {
+              update("amount", event.target.value);
+            } else {
+              update("amount", event.target.value.replace(/[^\d-]/g, ""));
+            }
+          }}
         />
       </DarkField>
 
@@ -382,6 +401,18 @@ export function AssetAccountForm({
       >
         {t("assets.formSave")}
       </button>
+
+      {isEditing && onDelete && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void onDelete()}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-4 font-bold text-rose-200 disabled:opacity-50"
+        >
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
+          {t("assets.formDelete")}
+        </button>
+      )}
     </form>
   );
 }

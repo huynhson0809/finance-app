@@ -358,6 +358,8 @@
     "formIdentifier": "Card or account number",
     "formIncludeInTotal": "Include in total assets",
     "formSave": "Save asset",
+    "formDelete": "Delete asset",
+    "formDeleteConfirm": "Delete this asset account? This cannot be undone.",
     "formErrorName": "Asset name is required.",
     "formErrorAmount": "Balance or quantity must be a number.",
     "formErrorQuantity": "Quantity cannot be negative.",

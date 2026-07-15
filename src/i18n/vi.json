@@ -358,6 +358,8 @@
     "formIdentifier": "Mã thẻ hoặc tài khoản",
     "formIncludeInTotal": "Tính vào tổng tài sản",
     "formSave": "Lưu tài sản",
+    "formDelete": "Xóa tài sản",
+    "formDeleteConfirm": "Xóa tài khoản này? Không thể hoàn tác.",
     "formErrorName": "Tên tài sản là bắt buộc.",
     "formErrorAmount": "Số dư hoặc số lượng phải là số.",
     "formErrorQuantity": "Số lượng không được âm.",

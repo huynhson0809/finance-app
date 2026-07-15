@@ -64,7 +64,14 @@ export function mergeTimeline(
       a.kind === "transaction" ? a.transaction.occurredAt : a.occurredAt;
     const dateB =
       b.kind === "transaction" ? b.transaction.occurredAt : b.occurredAt;
-    return dateB.localeCompare(dateA);
+    const cmp = dateB.localeCompare(dateA);
+    if (cmp !== 0) return cmp;
+    // Tiebreaker: use createdAt for transactions
+    const createdA =
+      (a.kind === "transaction" ? a.transaction.createdAt : "") ?? "";
+    const createdB =
+      (b.kind === "transaction" ? b.transaction.createdAt : "") ?? "";
+    return createdB.localeCompare(createdA);
   });
 
   return all;

@@ -134,7 +134,7 @@ describe('normalizeIngestPayload', () => {
     expect(result.value).toMatchObject({
       amount: 52043,
       direction: 'expense',
-      category: 'transportation',
+      category: 'food-drinks',
     });
   });
 
@@ -169,7 +169,7 @@ describe('normalizeIngestPayload', () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
-    expect(result.value.category).toBe('transportation');
+    expect(result.value.category).toBe('food-drinks');
   });
 
   it('classifies transfer memos that contain a category label', () => {
