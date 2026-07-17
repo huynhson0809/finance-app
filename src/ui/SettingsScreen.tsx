@@ -260,11 +260,13 @@ export function SettingsScreen() {
             className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm leading-relaxed text-slate-300"
           >
             <p>{t("settings.emailAutomation.description")}</p>
-            <p>{t("settings.emailAutomation.device")}</p>
             <p>{t("settings.emailAutomation.banks")}</p>
-            <p className="font-semibold text-sky-300">
+            <a
+              href="mailto:taikhoanluutrucuason@gmail.com?subject=Spendly%20Email%20Automation%20Setup"
+              className="inline-block font-semibold text-sky-300 underline underline-offset-2 hover:text-sky-200"
+            >
               {t("settings.emailAutomation.contact")}
-            </p>
+            </a>
           </div>
         )}
         <Link
